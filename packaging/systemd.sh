@@ -73,7 +73,21 @@ systemctl restart $units || fail "the units did not restart"
 ready "a restart"
 systemctl stop streamgo.service || fail "streamgo.service did not stop"
 [ "$(systemctl show -p Result --value streamgo.service)" = success ] || fail "streamgo.service did not stop cleanly"
-echo "systemd: three units active, ready, signed in, restarted, clean stop — ok"
+
+# the server's own HTTPS with the certificate it generates (server.self_signed), as the install guide turns it on;
+# LiveKit's signalling through it at /livekit/: checked against that certificate, not merely accepted
+printf '%s\n' STREAMGO_SERVER_SELF_SIGNED=true STREAMGO_SERVER_PUBLIC_URL=https://localhost:8080 >>/opt/streamgo/streamgo.env
+systemctl start streamgo.service
+i=0
+until curl -fsS --cacert /opt/streamgo/data/tls/selfsigned.crt https://localhost:8080/readyz >/dev/null 2>&1; do
+  i=$((i + 1))
+  [ "$i" -le 60 ] || fail "not ready over HTTPS after 60 seconds"
+  sleep 1
+done
+code=$(curl -s -o /dev/null -w '%{http_code}' --cacert /opt/streamgo/data/tls/selfsigned.crt https://localhost:8080/livekit/)
+[ "$code" = 200 ] || fail "LiveKit's signalling through /livekit/ answered $code"
+systemctl stop streamgo.service
+echo "systemd: three units active, ready, signed in, restarted, clean stop, self-signed HTTPS with /livekit/ — ok"
 INSIDE
   docker stop -t 5 "$name" >/dev/null
   name=""

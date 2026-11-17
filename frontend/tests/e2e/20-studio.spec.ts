@@ -473,12 +473,16 @@ test.describe('Screen sizes', () => {
       expect(Math.abs(px! - sx! - (sx! + sw! - px! - pw!))).toBeLessThan(0.3) // centred across
       expect(Math.abs(py! - sy! - (sy! + sh! - py! - ph!))).toBeLessThan(0.3) // and down
       if (width === 1920) Object.assign(fhd, g)
-      // "Wide window": from 19:10 up the backstage stands beside the stage, and the program is larger for it
+      // "Wide window": from 19:10 up the backstage stands above the side panel, the stage takes the whole height
+      // and no empty band is left around the program
       const wide = width / height >= 1.9
-      expect(g.back[0]! < g.stage[0]!, 'the backstage is beside the stage').toBe(wide)
+      expect(g.back[0]! > g.stage[0]!, 'the backstage is in the right-hand column').toBe(wide)
       if (wide) {
         expect(Math.abs(g.back[1]! - g.stage[1]!)).toBeLessThan(0.3)
-        expect(ph!).toBeGreaterThan(fhd.program![3]! * (rem(width, height) < 16.5 ? 0.9 : 1.08))
+        expect(g.back[1]! + g.back[3]!).toBeLessThan(g.side[1]!)
+        expect(sw! - pw!).toBeLessThan(2.4)
+        expect(sh! - ph!).toBeLessThan(2.4)
+        if (rem(width, height) > 16.5) expect(ph!).toBeGreaterThan(fhd.program![3]! * 1.15)
       }
       if (width === 2560 || width === 3840) {
         // the Full HD arrangement, larger: the same rectangles in rem, within 1 % (hairline borders stay 1 px)

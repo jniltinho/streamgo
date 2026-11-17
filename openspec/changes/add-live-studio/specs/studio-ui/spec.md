@@ -65,9 +65,9 @@ bigger empty area.
   row scrolls sideways when its cards do not fit
 
 #### Scenario: Wide window
-- **WHEN** the window is 19:10 or wider, such as 2340x1170 or 3440x1440
-- **THEN** the backstage stands beside the stage as a column that scrolls inside itself, the layout picker and
-  the controls stay in one row below both, and the program is larger than it would be above a backstage row
+- **WHEN** the window is 19:10 or wider, such as 2340x1170, 2560x1314 or 3440x1440
+- **THEN** the backstage stands above the side panel in the right-hand column and scrolls inside itself, the stage
+  takes the whole height above the controls, and the program fills the stage with no empty band beside it
 
 #### Scenario: Window too small
 - **WHEN** the window is narrower than 1280 px or shorter than 720 px

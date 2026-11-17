@@ -1,18 +1,35 @@
 <script setup lang="ts">
 // The studio's regions (design/variant-d-square, D13): the header; the stage, which takes the space the others
 // leave; one row with the layout picker at the left and the controls at the right; the backstage row; and the side
-// panel. The page never scrolls. `host`: under 1280x720 the regions give way to a request for a larger window.
-import { useSlots } from 'vue'
+// panel. In a window of 19:10 or wider the backstage stands above the side panel instead. The page never scrolls. `host`: under 1280x720 the regions give way to a request for a larger window.
+import { onBeforeUnmount, onMounted, ref, useSlots } from 'vue'
 import { t } from '@/i18n'
 
 defineProps<{ host?: boolean }>()
 const slots = useSlots()
+
+// --stage-w: the width the stage needs to show a 16:9 program at its current height. The wide-window arrangement
+// gives the stage's column exactly that, so no empty band is left beside the program.
+const body = ref<HTMLElement | null>(null)
+let observer: ResizeObserver | undefined
+onMounted(() => {
+  const stage = body.value?.querySelector<HTMLElement>('.studio-stage')
+  if (!stage) return
+  observer = new ResizeObserver(() => {
+    const s = getComputedStyle(stage)
+    const frameY = parseFloat(s.paddingTop) + parseFloat(s.paddingBottom)
+    const frameX = stage.offsetWidth - stage.clientWidth + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight)
+    body.value?.style.setProperty('--stage-w', `${Math.ceil(((stage.clientHeight - frameY) * 16) / 9 + frameX)}px`)
+  })
+  observer.observe(stage)
+})
+onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <template>
   <div class="studio" :class="{ host }">
     <header class="studio-head"><slot name="header" /></header>
-    <main class="studio-body" :class="{ 'no-side': !slots.side }">
+    <main ref="body" class="studio-body" :class="{ 'no-side': !slots.side }">
       <slot name="stage" />
       <div class="studio-row">
         <slot name="picker"><span /></slot>

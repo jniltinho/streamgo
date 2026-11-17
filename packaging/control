@@ -1,0 +1,21 @@
+Package: streamgo
+Version: @VERSION@
+Architecture: amd64
+Maintainer: Nilton OS <jniltinho@users.noreply.github.com>
+Installed-Size: @SIZE@
+Section: video
+Priority: optional
+Homepage: https://github.com/jniltinho/streamgo
+Depends: passwd, ffmpeg
+Suggests: postgresql | mariadb-server, nginx | caddy
+Description: Self-hosted live-streaming studio
+ StreamGo is a browser studio: invite guests, put cameras and screens on
+ stage, and go live to RTMP and RTMPS destinations (YouTube, Twitch,
+ Facebook, your own server), served by one static binary with the web app
+ embedded.
+ .
+ Everything is installed in /opt/streamgo, with the LiveKit and MediaMTX
+ servers the studio needs, and runs as the streamgo user under systemd
+ (streamgo.service, streamgo-livekit.service, streamgo-mediamtx.service).
+ The database is SQLite by default, or MariaDB or PostgreSQL. The program is
+ encoded with the distribution's ffmpeg.

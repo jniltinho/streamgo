@@ -1,0 +1,57 @@
+# Portions adapted from MeetHub (MIT): .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Lint, vet, vulnerabilities, frontend checks
+        run: make check
+      - name: Unit tests (Go -race, frontend)
+        run: make test
+      - name: Database matrix (SQLite, MariaDB, PostgreSQL)
+        run: make test-db
+
+  # the browser tests that need no running stack: the dev server serves the app and each test stubs the API; the
+  # runner's Google Chrome is the browser (playwright.config.ts, channel "chrome")
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.16"
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Browser tests
+        run: npx playwright test
+
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Static linux/amd64 binary
+        run: make build && ./dist/streamgo version

@@ -1,0 +1,47 @@
+# MediaMTX for StreamGo (receives the program by WHIP and serves it to ffmpeg over RTSP): /opt/streamgo/bin/mediamtx
+# with /opt/streamgo/mediamtx.yml, as the streamgo user. Its user and password are StreamGo's own, from
+# /opt/streamgo/streamgo.env. WHIP, RTSP and the API listen on 127.0.0.1; only the WebRTC media port (8189, UDP and
+# TCP) must be reachable by browsers.
+[Unit]
+Description=StreamGo: MediaMTX (program ingest)
+Documentation=https://github.com/jniltinho/streamgo/blob/main/docs/install-linux.md
+Wants=network-online.target
+After=network-online.target
+Before=streamgo.service
+
+[Service]
+Type=simple
+User=streamgo
+Group=streamgo
+WorkingDirectory=/opt/streamgo
+EnvironmentFile=/opt/streamgo/streamgo.env
+ExecStart=/bin/sh -c 'export MTX_AUTHINTERNALUSERS_0_USER="$${STREAMGO_MEDIAMTX_USER}" MTX_AUTHINTERNALUSERS_0_PASS="$${STREAMGO_MEDIAMTX_SECRET}"; exec /opt/streamgo/bin/mediamtx /opt/streamgo/mediamtx.yml'
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0027
+
+# nothing to write: no ReadWritePaths
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+# AF_NETLINK: MediaMTX lists the host's interfaces for the addresses it advertises
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

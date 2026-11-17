@@ -1,0 +1,15 @@
+StreamGo
+Copyright (c) 2026 jniltinho — MIT License (see LICENSE)
+
+Layout, conventions and parts of the code follow MeetHub (https://github.com/jniltinho/meethub), MIT License, by the
+same author. Each adapted file carries the header "Portions adapted from MeetHub (MIT): <original path>".
+The theme system and its 20 themes are copied from MeetHub, whose theme system is adapted from ad-manager
+(https://github.com/jniltinho/ad-manager), MIT License.
+
+The Linux packages and the all-in-one image carry two media servers, unmodified, under their own licences:
+LiveKit server (Apache-2.0) and MediaMTX (MIT). The file THIRD_PARTY names their versions, sources and checksums and
+carries their licence texts.
+
+The program is encoded with ffmpeg, which StreamGo never builds or ships in its packages: the .deb depends on the
+distribution's ffmpeg, the .rpm recommends it, and the container images install their base distribution's package
+(Alpine's or Debian's), under that distribution's own terms.

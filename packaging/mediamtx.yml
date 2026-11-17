@@ -1,0 +1,49 @@
+# MediaMTX of the StreamGo package (/opt/streamgo/mediamtx.yml, run by streamgo-mediamtx.service): it receives the
+# program by WHIP from StreamGo only and serves it to ffmpeg over RTSP. Only RTSP, WebRTC and the control API are on,
+# and every listener but the WebRTC media port is on the loopback address. No secret here: the unit hands MediaMTX
+# the user and password of /opt/streamgo/streamgo.env (MTX_AUTHINTERNALUSERS_0_USER and _PASS).
+#
+# Browsers reach only the WebRTC media port (8189, UDP and TCP: open it in the firewall), at the host's own
+# addresses. On a host behind NAT, add the public address: webrtcAdditionalHosts: [203.0.113.10]
+# After a change: systemctl restart streamgo-mediamtx
+logLevel: info
+
+authMethod: internal
+authInternalUsers:
+  - user: streamgo
+    pass: ""
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: api
+
+api: true
+apiAddress: 127.0.0.1:9997
+metrics: false
+pprof: false
+playback: false
+
+rtsp: true
+rtspTransports: [tcp]
+rtspEncryption: "no"
+rtspAddress: 127.0.0.1:8554
+
+rtmp: false
+hls: false
+srt: false
+moq: false
+
+webrtc: true
+webrtcAddress: 127.0.0.1:8889
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+webrtcIPsFromInterfaces: true
+webrtcAdditionalHosts: []
+# no STUN or TURN in this version: the owner reaches the media port directly
+webrtcICEServers2: []
+
+pathDefaults:
+  source: publisher
+paths:
+  all_others:

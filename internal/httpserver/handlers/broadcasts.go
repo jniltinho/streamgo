@@ -23,13 +23,17 @@ type BroadcastsDeps struct {
 	Studio StudioSettings
 }
 
-// StudioSettings are the server settings the owner's studio builds on: the stage limit, the program size and
-// the transcoder's video bitrate (the WHIP sender's ceiling stays above it).
+// StudioSettings are what the owner's studio builds on: the stage limit (the server's), and the broadcast's
+// own output quality: the program size, the transcoder's video bitrate (the WHIP sender's ceiling stays above
+// it), the resolution and the resolutions the owner may choose. The deps carry MaxOnStage; the detail fills
+// the rest per broadcast.
 type StudioSettings struct {
-	MaxOnStage       int `json:"max_on_stage"`
-	ProgramWidth     int `json:"program_width"`
-	ProgramHeight    int `json:"program_height"`
-	VideoBitrateKbps int `json:"video_bitrate_kbps"`
+	MaxOnStage       int      `json:"max_on_stage"`
+	ProgramWidth     int      `json:"program_width"`
+	ProgramHeight    int      `json:"program_height"`
+	VideoBitrateKbps int      `json:"video_bitrate_kbps"`
+	Resolution       string   `json:"resolution"`
+	Resolutions      []string `json:"resolutions"`
 }
 
 // RegisterBroadcasts adds the broadcast routes to g (srv.UserAPI()).
@@ -37,7 +41,7 @@ func RegisterBroadcasts(g *echo.Group, d BroadcastsDeps) {
 	g.GET("/broadcasts", d.list)
 	g.POST("/broadcasts", d.create)
 	g.GET("/broadcasts/:id", d.get)
-	g.PATCH("/broadcasts/:id", d.rename)
+	g.PATCH("/broadcasts/:id", d.update)
 	g.DELETE("/broadcasts/:id", d.delete)
 	g.POST("/broadcasts/:id/invite", d.rotateInvite)
 	g.PUT("/broadcasts/:id/destinations", d.selectDestinations)
@@ -102,8 +106,15 @@ func (d BroadcastsDeps) detail(ctx context.Context, b *broadcast.Broadcast) (bro
 	if err != nil {
 		return broadcastDetailView{}, err
 	}
+	studio := d.Studio
+	p := d.Broadcasts.Profile(b)
+	studio.ProgramWidth, studio.ProgramHeight, studio.VideoBitrateKbps, studio.Resolution = p.Width, p.Height, p.VideoKbps, p.Resolution
+	studio.Resolutions = nil
+	for _, c := range d.Broadcasts.Choices() {
+		studio.Resolutions = append(studio.Resolutions, c.Resolution)
+	}
 	return broadcastDetailView{broadcastView: newBroadcastView(b), InviteURL: invite,
-		Stage: json.RawMessage(b.Stage), Destinations: selectedViews(dests), Studio: d.Studio}, nil
+		Stage: json.RawMessage(b.Stage), Destinations: selectedViews(dests), Studio: studio}, nil
 }
 
 func (d BroadcastsDeps) writeDetail(c *echo.Context, status int, b *broadcast.Broadcast) error {
@@ -150,14 +161,19 @@ func (d BroadcastsDeps) get(c *echo.Context) error {
 	return d.writeDetail(c, http.StatusOK, b)
 }
 
-func (d BroadcastsDeps) rename(c *echo.Context) error {
-	var body titleBody
+// update applies a patch of the title, the resolution or both: all or nothing.
+func (d BroadcastsDeps) update(c *echo.Context) error {
+	var body struct {
+		Title      *string `json:"title"`
+		Resolution *string `json:"resolution"`
+	}
 	if err := c.Bind(&body); err != nil {
 		return err
 	}
-	b, err := d.Broadcasts.Rename(c.Request().Context(), httpserver.UserID(c), c.Param("id"), body.Title)
+	b, err := d.Broadcasts.Update(c.Request().Context(), httpserver.UserID(c), c.Param("id"),
+		broadcast.Patch{Title: body.Title, Resolution: body.Resolution})
 	if err != nil {
-		return err
+		return conflict(err, "The output quality can change only while the broadcast is offline.")
 	}
 	return d.writeDetail(c, http.StatusOK, b)
 }

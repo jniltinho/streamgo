@@ -6,7 +6,21 @@ are the section of that version.
 
 ## [Unreleased]
 
-—
+### Added
+
+- **Output quality per broadcast** — the owner picks 720p, 1080p or 1440p (QHD) in the studio's Destinations tab
+  while the broadcast is offline; the program canvas, a shared screen and the transcoder follow. The operator sets
+  the highest one with `output.max_resolution` (default `1080p`); `output.resolution` stays the default of new
+  broadcasts. 4K was measured and left out: the host's browser could not compose and send it at 30 fps.
+
+### Changed
+
+- **BREAKING: the video bitrate follows the resolution** — `output.video_bitrate_kbps` is now `0` by default, which
+  sends 4000, 6000 and 12000 kbit/s at 720p, 1080p and 1440p. An install that did not set it and uses 1080p now
+  sends 6000 instead of 4000 kbit/s; set `video_bitrate_kbps = 4000` to keep the old rate. Any value from 500 to
+  40000 still applies to every resolution.
+- **Sharper shared screens** — a screen is captured at up to the program's size instead of at most 1080p.
+- **`PATCH /api/v1/broadcasts/:id`** takes `title`, `resolution` or both, applied together or not at all.
 
 ## [0.1.0] — 2026-11-17
 

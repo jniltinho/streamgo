@@ -66,7 +66,7 @@ func TestDefaults(t *testing.T) {
 		{"livekit", cfg.LiveKit.URL != "" && cfg.LiveKit.APIURL != ""},
 		{"mediamtx", cfg.MediaMTX.WHIPURL != "" && cfg.MediaMTX.RTSPURL != "" && cfg.MediaMTX.APIURL != ""},
 		{"studio", cfg.Studio.MaxParticipants == 10 && cfg.Studio.MaxOnStage == 6},
-		{"output", o.FFmpegPath == "ffmpeg" && o.Resolution == "720p" && o.VideoBitrateKbps > 0 && o.AudioBitrateKbps > 0 &&
+		{"output", o.FFmpegPath == "ffmpeg" && o.Resolution == "720p" && o.MaxResolution == "1080p" && o.VideoBitrateKbps == 0 && o.AudioBitrateKbps > 0 &&
 			o.MaxDestinations == 5 && o.MaxConcurrent == 2 && o.StartTimeout.Std() == 30*time.Second &&
 			o.ReconnectGrace.Std() == 120*time.Second && !o.AllowPrivateDestinations},
 	}
@@ -94,7 +94,12 @@ func TestInvalid(t *testing.T) {
 		{name: "secret key in the file", file: "[secret]\nkey = \"" + validKey + "\"\n", want: []string{"STREAMGO_SECRET_KEY"}},
 		{name: "no stage", env: map[string]string{"STREAMGO_STUDIO_MAX_ON_STAGE": "0"}, want: []string{"studio.max_on_stage", "between 1 and 6"}},
 		{name: "stage too large", file: "[studio]\nmax_on_stage = 7\n", want: []string{"studio.max_on_stage", "between 1 and 6"}},
-		{name: "resolution", env: map[string]string{"STREAMGO_OUTPUT_RESOLUTION": "4k"}, want: []string{"output.resolution", `"720p"`, `"1080p"`}},
+		{name: "resolution", env: map[string]string{"STREAMGO_OUTPUT_RESOLUTION": "4k"}, want: []string{"output.resolution", "720p, 1080p, 1440p"}},
+		{name: "max resolution", env: map[string]string{"STREAMGO_OUTPUT_MAX_RESOLUTION": "8k"}, want: []string{"output.max_resolution", "8k"}},
+		{name: "default above the ceiling", env: map[string]string{"STREAMGO_OUTPUT_RESOLUTION": "1440p"},
+			want: []string{"output.resolution", "output.max_resolution", `"1440p"`, `"1080p"`}},
+		{name: "bitrate too high", env: map[string]string{"STREAMGO_OUTPUT_VIDEO_BITRATE_KBPS": "40001"}, want: []string{"output.video_bitrate_kbps", "between 500 and 40000"}},
+		{name: "bitrate too low", env: map[string]string{"STREAMGO_OUTPUT_VIDEO_BITRATE_KBPS": "499"}, want: []string{"output.video_bitrate_kbps"}},
 		{name: "grace", env: map[string]string{"STREAMGO_OUTPUT_RECONNECT_GRACE": "1s"}, want: []string{"output.reconnect_grace"}},
 		{name: "not a number", env: map[string]string{"STREAMGO_OUTPUT_MAX_CONCURRENT": "two"}, want: []string{"STREAMGO_OUTPUT_MAX_CONCURRENT", "not an integer"}},
 		{name: "missing secret key", env: map[string]string{"STREAMGO_SECRET_KEY": ""}, want: []string{"STREAMGO_SECRET_KEY is required"}},
@@ -148,6 +153,9 @@ func TestValid(t *testing.T) {
 		{"https", map[string]string{"STREAMGO_SERVER_PUBLIC_URL": "https://studio.example.com"}},
 		{"mariadb with dsn", map[string]string{"STREAMGO_DATABASE_DRIVER": "mariadb", "STREAMGO_DATABASE_DSN": "u:p@tcp(db)/s"}},
 		{"bounds", map[string]string{"STREAMGO_STUDIO_MAX_ON_STAGE": "1", "STREAMGO_OUTPUT_RESOLUTION": "1080p"}},
+		{"top quality", map[string]string{"STREAMGO_OUTPUT_RESOLUTION": "1440p", "STREAMGO_OUTPUT_MAX_RESOLUTION": "1440p",
+			"STREAMGO_OUTPUT_VIDEO_BITRATE_KBPS": "40000"}},
+		{"bitrate override", map[string]string{"STREAMGO_OUTPUT_VIDEO_BITRATE_KBPS": "8000"}},
 		{"proxies", map[string]string{"STREAMGO_SERVER_TRUSTED_PROXIES": "10.0.0.0/8,::1"}},
 		{"self-signed", map[string]string{"STREAMGO_SERVER_SELF_SIGNED": "true", "STREAMGO_SERVER_PUBLIC_URL": "https://localhost:8443"}},
 		{"livekit through the server", map[string]string{"STREAMGO_LIVEKIT_URL": ""}},

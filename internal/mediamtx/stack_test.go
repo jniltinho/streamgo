@@ -89,6 +89,9 @@ func newStack(t *testing.T, settings store.Settings) *stack {
 	return assemble(t, mtxHost, sink, settings, db)
 }
 
+// quality is the stack's output: 720p by default, up to 1440p, at a bitrate a shared runner keeps up with.
+var quality = broadcast.Quality{Default: "720p", Max: "1440p", VideoKbps: 2500}
+
 func assemble(t *testing.T, mtxHost, sink string, settings store.Settings, db *store.DB) *stack {
 	t.Helper()
 	box, err := sealed.New(bytes.Repeat([]byte{7}, 32))
@@ -97,7 +100,7 @@ func assemble(t *testing.T, mtxHost, sink string, settings store.Settings, db *s
 	}
 	s := &stack{t: t, mtxHost: mtxHost, sink: sink, settings: settings, db: db, locks: &broadcast.Locks{},
 		broadcasts: store.NewBroadcasts(db), destRepo: store.NewDestinations(db), log: &syncBuffer{}}
-	s.broadcastSvc = &broadcast.Service{Repo: s.broadcasts, Locks: s.locks, Sealer: box, PublicURL: origin}
+	s.broadcastSvc = &broadcast.Service{Repo: s.broadcasts, Locks: s.locks, Sealer: box, PublicURL: origin, Quality: quality}
 	s.destSvc = &destination.Service{Repo: s.destRepo, Broadcasts: s.broadcasts, Locks: s.locks, Sealer: box,
 		AllowPrivate: true, MaxPerBroadcast: 5}
 	s.mtx, err = mediamtx.New("http://"+mtxHost+":8889", "http://"+mtxHost+":9997", mtxUser, mtxSecret)
@@ -129,11 +132,12 @@ func assemble(t *testing.T, mtxHost, sink string, settings store.Settings, db *s
 func (s *stack) startOutput() {
 	logger := slog.New(slog.NewTextHandler(s.log, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sup := ffmpeg.New(ffmpeg.Options{Path: "ffmpeg", RTSPURL: "rtsp://" + s.mtxHost + ":8554", User: mtxUser, Secret: mtxSecret,
-		Width: 1280, Height: 720, VideoKbps: 2500, AudioKbps: 128, Logger: logger})
+		AudioKbps: 128, Logger: logger})
 	s.out = &output.Service{
 		Broadcasts: s.broadcasts, Locks: s.locks, Destinations: s.destRepo, Targets: s.destSvc,
 		Stage:  &stage.Writer{Broadcasts: s.broadcasts, Locks: s.locks, Rooms: nopPusher{}, MaxOnStage: 6, Logger: logger},
-		Ingest: s.mtx, Processes: sup, MaxConcurrent: 4, StartTimeout: 30 * time.Second, Grace: grace, Logger: logger,
+		Ingest: s.mtx, Processes: sup, MaxConcurrent: 4, StartTimeout: 30 * time.Second, Grace: grace, Quality: quality,
+		Logger: logger,
 	}
 	s.destSvc.Statuses, s.destSvc.Notifier = s.out, s.out
 	srv := httpserver.New(httpserver.Options{PublicOrigin: origin, Logger: logger,

@@ -71,7 +71,7 @@ To put it on a server for guests elsewhere, or to install without Docker, follow
 | 🏷️ **Your brand** | Your logo, your accent colour, name tags and lower-third banners prepared ahead and shown at the right moment. |
 | 📡 **Multistreaming** | RTMP and RTMPS destinations per broadcast. YouTube, Twitch, Facebook and Instagram come ready: you only paste the stream key, which is encrypted at rest. |
 | 🔁 **Made to stay on air** | A destination that drops is retried; a program that disappears pauses the broadcast and resumes it, even across a server restart. |
-| 🖥️ **Any screen** | The interface scales from Full HD to 4K monitors and uses the whole window. The stream goes out in 720p or 1080p at 30 fps. |
+| 🖥️ **Any screen** | The interface scales from Full HD to 4K monitors and uses the whole window. Each broadcast goes out in 720p, 1080p or 1440p (QHD) at 30 fps, chosen in the studio up to the limit the operator sets. |
 | 🎨 **22 themes, two languages** | Light, dark and 20 more themes; English and Brazilian Portuguese; keyboard and screen-reader friendly. |
 | 📦 **Runs your way** | One Docker image, Docker Compose, a `.deb`, an `.rpm` or the plain binary (linux/amd64), with SQLite, MariaDB or PostgreSQL. |
 
@@ -94,7 +94,9 @@ This is the first version. So you can plan around it:
 - **The host needs a desktop Chromium-based browser** (Chrome, Edge, Brave); guests can use any current browser.
   The program is composed in the host's browser, so the broadcast depends on that tab staying open.
 - **The media ports must be reachable** from your guests' networks: there is no TURN server yet.
-- **Not included yet**: recordings, and output above 1080p.
+- **Not included yet**: recordings, and output above 1440p (4K was measured and the host's browser could not keep up).
+- **1440p is opt-in**: the operator raises `output.max_resolution`; it needs about two server cores per live
+  broadcast and up to 24 Mbit/s of the host's upload.
 
 More in the [documentation](docs/README.md#where-it-stands) and the [architecture guide](docs/architecture.md#limits).
 

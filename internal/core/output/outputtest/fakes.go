@@ -67,6 +67,11 @@ func (f *Broadcasts) SetOutput(_ context.Context, id string, o broadcast.Output)
 	return f.update(id, func(b *broadcast.Broadcast) { b.Output = o })
 }
 
+// Update stores the title and the resolution.
+func (f *Broadcasts) Update(_ context.Context, id, title, resolution string) error {
+	return f.update(id, func(b *broadcast.Broadcast) { b.Title, b.Resolution = title, resolution })
+}
+
 // SetStage stores the stage state.
 func (f *Broadcasts) SetStage(_ context.Context, id, s string, v int64) error {
 	return f.update(id, func(b *broadcast.Broadcast) { b.Stage, b.StageVersion = s, v })
@@ -156,8 +161,9 @@ func (f *Destinations) SetSelection(_ context.Context, broadcastID string, ids [
 // Proc is a started fake process.
 type Proc struct {
 	Broadcast string
-	Dest      string // "" for the transcoder
-	Target    string // the relay's URL
+	Dest      string            // "" for the transcoder
+	Target    string            // the relay's URL
+	Profile   broadcast.Profile // the transcoder's
 	Notify    output.Notify
 	mu        sync.Mutex
 	stopped   bool
@@ -190,9 +196,9 @@ type Processes struct {
 	stopAlls int
 }
 
-// StartTranscoder records a transcoder.
-func (f *Processes) StartTranscoder(id string, notify output.Notify) output.Stopper {
-	return f.add(&Proc{Broadcast: id, Notify: notify})
+// StartTranscoder records a transcoder with its profile.
+func (f *Processes) StartTranscoder(id string, p broadcast.Profile, notify output.Notify) output.Stopper {
+	return f.add(&Proc{Broadcast: id, Profile: p, Notify: notify})
 }
 
 // StartRelay records a relay.

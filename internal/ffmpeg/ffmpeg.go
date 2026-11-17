@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jniltinho/streamgo/internal/core/broadcast"
 	"github.com/jniltinho/streamgo/internal/core/destination"
 	"github.com/jniltinho/streamgo/internal/core/output"
 )
@@ -48,9 +49,6 @@ type Options struct {
 	Path         string // output.ffmpeg_path
 	RTSPURL      string // mediamtx.rtsp_url, e.g. rtsp://mediamtx:8554
 	User, Secret string // the media server's internal credentials
-	Width        int
-	Height       int
-	VideoKbps    int
 	AudioKbps    int
 	Timing       Timing // zero: DefaultTiming
 	Logger       *slog.Logger
@@ -76,14 +74,6 @@ func New(o Options) *Supervisor {
 		o.Timing = DefaultTiming
 	}
 	return &Supervisor{o: o, procs: map[*proc]struct{}{}}
-}
-
-// Size is the program's frame size for output.resolution.
-func Size(resolution string) (width, height int) {
-	if resolution == "1080p" {
-		return 1920, 1080
-	}
-	return 1280, 720
 }
 
 // TranscoderArgs is the transcoder's command line from the spike (docs/spike-media-path.md),
@@ -114,10 +104,10 @@ func RelayArgs(in, target string) []string {
 	}
 }
 
-// StartTranscoder starts the transcoder of the broadcast: program/<id> to air/<id>.
-func (s *Supervisor) StartTranscoder(broadcastID string, notify output.Notify) output.Stopper {
+// StartTranscoder starts the transcoder of the broadcast at the profile: program/<id> to air/<id>.
+func (s *Supervisor) StartTranscoder(broadcastID string, p broadcast.Profile, notify output.Notify) output.Stopper {
 	args := TranscoderArgs(s.path("program", broadcastID), s.path("air", broadcastID),
-		s.o.Width, s.o.Height, s.o.VideoKbps, s.o.AudioKbps)
+		p.Width, p.Height, p.VideoKbps, s.o.AudioKbps)
 	return s.start(args, s.redact, notify)
 }
 

@@ -91,7 +91,7 @@ func TestLiveOutput(t *testing.T) {
 	}
 
 	t.Log("output format (VP8 program)")
-	checkFormat(t, "rtsp://"+s.sink+":8554/live/a-KEYA")
+	checkFormat(t, "rtsp://"+s.sink+":8554/live/a-KEYA", 1280, 720)
 
 	t.Log("a destination stalls")
 	proxy.stalled.Store(true)
@@ -130,7 +130,7 @@ func TestLiveOutput(t *testing.T) {
 	s.waitState(b, broadcast.Live, 20*time.Second)
 	s.waitStatus(b, dA, destination.Live, 15*time.Second)
 	t.Log("output format (H.264 program)")
-	checkFormat(t, "rtsp://"+s.sink+":8554/live/a-KEYA")
+	checkFormat(t, "rtsp://"+s.sink+":8554/live/a-KEYA", 1280, 720)
 
 	t.Log("graceful stop while live, then restart: the broadcast resumes")
 	s.stopOutput()
@@ -175,6 +175,20 @@ func TestLiveOutput(t *testing.T) {
 	}
 	s.waitFor(5*time.Second, "no ffmpeg of the broadcast", func() bool { return len(ffmpegPIDs(b)) == 0 })
 
+	t.Log("1440p reaches the destination")
+	patch := "/api/v1/broadcasts/" + b
+	s.expect(http.StatusOK, http.MethodPatch, patch, ana, "application/json", `{"resolution":"1440p"}`)
+	s.expect(http.StatusOK, http.MethodPost, live, ana, "", "")
+	s.expect(http.StatusConflict, http.MethodPatch, patch, ana, "application/json", `{"resolution":"720p"}`)
+	pub = s.publish(b, "h264")
+	s.waitState(b, broadcast.Live, 20*time.Second)
+	s.waitStatus(b, dA, destination.Live, 15*time.Second)
+	checkFormat(t, "rtsp://"+s.sink+":8554/live/a-KEYA", 2560, 1440)
+	s.expect(http.StatusOK, http.MethodDelete, live, ana, "", "")
+	stopPublisher(pub)
+	s.waitFor(10*time.Second, "no ffmpeg of the broadcast", func() bool { return len(ffmpegPIDs(b)) == 0 })
+	s.expect(http.StatusOK, http.MethodPatch, patch, ana, "application/json", `{"resolution":"720p"}`)
+
 	t.Log("restarts do not extend an outage")
 	s.expect(http.StatusOK, http.MethodPost, live, ana, "", "")
 	s.stopOutput()
@@ -198,8 +212,8 @@ func TestLiveOutput(t *testing.T) {
 	}
 }
 
-// checkFormat: H.264 1280x720 at 30 fps with keyframes 2 s apart, AAC 48 kHz stereo.
-func checkFormat(t *testing.T, url string) {
+// checkFormat: H.264 at width x height and 30 fps with keyframes 2 s apart, AAC 48 kHz stereo.
+func checkFormat(t *testing.T, url string, width, height int) {
 	t.Helper()
 	var info struct {
 		Streams []struct {
@@ -218,7 +232,7 @@ func checkFormat(t *testing.T, url string) {
 	for _, st := range info.Streams {
 		switch st.CodecName {
 		case "h264":
-			video = st.Width == 1280 && st.Height == 720 && st.FrameRate == "30/1"
+			video = st.Width == width && st.Height == height && st.FrameRate == "30/1"
 		case "aac":
 			audio = st.SampleRate == "48000" && st.Channels == 2
 		}

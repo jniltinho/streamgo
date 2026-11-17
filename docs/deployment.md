@@ -122,6 +122,17 @@ that ignore the policy. With Caddy, leave access logging off (its default) or fi
 header out of the log; [Behind a reverse proxy](reverse-proxy.md#the-join-route-is-never-logged) has
 examples for nginx and Caddy.
 
+## Output quality
+
+`output.resolution` (default `720p`) is the quality new broadcasts start at, and `output.max_resolution` (default
+`1080p`) the highest one an owner may pick in the studio: `720p`, `1080p` or `1440p`, all at 30 fps. Raise the
+ceiling to `1440p` only if the server and the owners can afford it: each live 1440p broadcast costs the server
+about two cores (one transcoder), and the owner's browser sends up to 24 Mbit/s. Some platforms accept at most
+1080p. `output.video_bitrate_kbps` is `0` by default, which sends each resolution at its own bitrate (4000, 6000 and
+12000 kbit/s); any other value, from 500 to 40000, is used for every resolution. Lowering the ceiling later is safe:
+a broadcast stored above it goes out at the ceiling. The measurements behind these numbers are in the
+[architecture guide](architecture.md#output-quality).
+
 ## One StreamGo instance per deployment
 
 Run exactly one StreamGo process per deployment, even with MariaDB or PostgreSQL: each process supervises its own

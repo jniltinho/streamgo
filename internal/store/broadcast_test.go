@@ -67,7 +67,7 @@ func TestBroadcastRepository(t *testing.T) {
 		out := broadcast.Output{State: broadcast.Interrupted, Reason: "program_lost", Run: 3, Deadline: deadline,
 			IngestID: "s1", IngestURL: "http://m/whip", StartedAt: deadline.Add(-time.Hour)}
 		for _, err := range []error{
-			r.SetTitle(ctx, first.ID, "Renamed"),
+			r.Update(ctx, first.ID, "Renamed", "1440p"),
 			r.SetInvite(ctx, first.ID, []byte{9}, pad64("h9")),
 			r.SetStage(ctx, first.ID, `{"v":1}`, 7),
 			r.SetLogo(ctx, first.ID, "abc.png"),
@@ -81,7 +81,7 @@ func TestBroadcastRepository(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.Title != "Renamed" || string(got.InviteSealed) != "\x09" || got.InviteHash != pad64("h9") ||
+		if got.Title != "Renamed" || got.Resolution != "1440p" || string(got.InviteSealed) != "\x09" || got.InviteHash != pad64("h9") ||
 			got.Stage != `{"v":1}` || got.StageVersion != 7 || got.Logo != "abc.png" ||
 			got.Output.State != out.State || got.Output.Reason != out.Reason || got.Output.Run != 3 ||
 			!got.Output.Deadline.Equal(deadline) || !got.Output.StartedAt.Equal(out.StartedAt) ||

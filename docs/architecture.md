@@ -78,9 +78,10 @@ the first, which says the studio was opened elsewhere.
    answer. The media itself then flows **directly** from the browser to MediaMTX's WebRTC port, over UDP, or TCP
    as the fallback. A broadcast has one ingest session: a new offer replaces the previous one.
 4. **Transcoder.** One ffmpeg per live broadcast reads `program/<id>` from MediaMTX over RTSP, scales it to
-   `output.resolution` (720p or 1080p), encodes H.264 (libx264, `veryfast`, 30 fps constant, a keyframe every
-   2 seconds, capped bitrate) and AAC (48 kHz stereo), and publishes `air/<id>` back to MediaMTX. Whatever size or
-   rate the browser sends, the destinations get the configured one.
+   the broadcast's output quality (720p, 1080p or 1440p, see [Output quality](#output-quality)), encodes H.264
+   (libx264, `veryfast`, 30 fps constant, a keyframe every 2 seconds, capped bitrate) and AAC (48 kHz stereo), and
+   publishes `air/<id>` back to MediaMTX. Whatever size or rate the browser sends, the destinations get the
+   broadcast's.
 5. **Relays.** One ffmpeg per enabled destination reads `air/<id>` and copies it (`-c copy -f flv`) to the
    destination's `rtmp://` or `rtmps://` address. Starting or stopping one relay does not touch the others.
 
@@ -109,6 +110,36 @@ ffmpeg runs without a shell, with a minimal environment that holds none of Strea
 group, and dies with the server even when the server is killed. At startup StreamGo checks that the configured
 ffmpeg has the encoders, decoders, formats, protocols and filters the two command lines need, and refuses to start
 otherwise.
+
+### Output quality
+
+Each broadcast has its own resolution, chosen by its owner in the studio's Destinations tab while it is offline;
+a new one starts at `output.resolution` and none goes above `output.max_resolution` (a broadcast stored above a
+ceiling lowered later goes out at the ceiling). The ladder, in `internal/core/broadcast/profile.go`, is the one
+place that spells a size: 720p 1280x720 at 4000 kbit/s, 1080p 1920x1080 at 6000, 1440p 2560x1440 at 12000;
+`output.video_bitrate_kbps` replaces the bitrate of all three when it is not 0. The broadcast detail gives the
+studio its program size and bitrate: the canvas is drawn at that size, a shared screen is captured at up to it,
+and the WHIP sender's ceiling is twice the bitrate. The resolution is read when the transcoder starts and cannot
+change until the broadcast is offline again, so a run has one size from start to end.
+
+What ships was measured first (task 1.1 of `add-output-quality`), on the development machine (24 threads, ffmpeg
+8.0.1) with **headless** Chrome, which has no GPU: an owner and a guest with Chrome's fake 720p cameras and a
+shared screen at the program's size (a page of text scrolling at 30 fps) on stage, live to a test RTMP
+destination, 20 s recorded there.
+
+| Program | Compositor tick (mean / p95 / max) | Ticks/s | WHIP sender | Distinct frames received | Keyframes | StreamGo container CPU |
+|---|---|---|---|---|---|---|
+| 1080p, 6000 kbit/s | 8.0 / 9.8 / 13.3 ms | 30.0 | 1920x1080, 30.0 fps, 9.3 Mbit/s | 555 of 555 (30 fps) | every 60 | 0.7 to 0.8 core |
+| 1440p, 12000 kbit/s | 11.1 / 14.6 / 21.1 ms | 30.0 | 2560x1440, 30.0 fps, 10.6 Mbit/s | 556 of 558 (30 fps) | every 60 | 1.4 to 1.5 cores |
+| 2160p, 20000 kbit/s | not measurable | – | – | 30 to 40 of 471 to 575 (1.5 to 2 fps) | every 60 | – |
+
+At 2160p the owner's page could not keep up: going live took 48 s instead of about one, the page stopped
+answering for more than 15 s at a time, the destination got 30 to 40 distinct pictures in 20 s (the transcoder
+repeats the last picture to keep 30 fps constant, so only the distinct ones count), and the program was then lost.
+With Chrome's own fake screen capture instead of the scrolling page the broadcast did not even reach live within
+60 s. 2160p is therefore left out. A desktop Chrome with a GPU may do better; it was not measured. The
+transcoder's own command line on a synthetic picture, measured before (one core is 100 %): 0.5 core at 1080p, 0.9
+at 1440p, 2.3 at 2160p.
 
 ## Going live
 
@@ -217,7 +248,9 @@ These are the limits of this version. None of them is hidden from the people usi
 - **The broadcast depends on the owner's browser.** The program is composed there. If the browser closes or loses
   the network for longer than `output.reconnect_grace`, the broadcast ends. A reload needs one click to resume the
   sound, and a screen share must be shared again. The owner's machine and upload speed limit the quality; WebRTC
-  lowers the resolution under congestion, and the transcoder keeps the output at the configured size.
+  lowers the resolution under congestion, and the transcoder keeps the output at the broadcast's size. 1440p asks
+  the owner's upload for up to 24 Mbit/s and the server for about two cores per live broadcast; output above 1440p
+  is not offered (see [Output quality](#output-quality)).
 - **A minimized window is not proven.** A hidden tab was measured and passed; a minimized window passed only in an
   emulation and is checked on a real desktop before the release. The studio warns while its tab is hidden.
 - **No TURN.** The owner's browser must reach MediaMTX's WebRTC port over UDP, or at least TCP, and guests must

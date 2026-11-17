@@ -1,5 +1,6 @@
-// The studio screens against a real StreamGo and LiveKit (tasks 4.1, 4.2 and 4.4). Run with a running stack whose
-// studio.max_participants is 3 (the "Studio full" scenario fills it with the owner and two guests):
+// The studio screens against a real StreamGo and LiveKit (tasks 4.1, 4.2 and 4.4; the output quality of
+// add-output-quality). Run with a running stack whose studio.max_participants is 3 (the "Studio full" scenario fills
+// it with the owner and two guests) and whose output.max_resolution is 1440p:
 //   E2E_BASE_URL=http://localhost:28190 E2E_OWNER_EMAIL=… E2E_OWNER_PASSWORD=… [E2E_SHOTS=dir] \
 //     npx playwright test 20-studio
 // Owner and guests are separate browser contexts with Chrome's fake camera and microphone. Skipped without the stack.
@@ -60,6 +61,16 @@ async function guestJoins(browser: Browser, invite: string, name: string, viewpo
   await page.getByRole('button', { name: 'Enter studio' }).click()
   await expect(page.locator('[data-guest-place]')).toBeVisible({ timeout: 20_000 })
   return { ctx, page }
+}
+
+// recordConstraints keeps every applyConstraints call of the page's tracks in window.__constraints
+function recordConstraints() {
+  const calls: unknown[] = ((window as unknown as { __constraints: unknown[] }).__constraints = [])
+  const native = MediaStreamTrack.prototype.applyConstraints
+  MediaStreamTrack.prototype.applyConstraints = function (c?: MediaTrackConstraints) {
+    calls.push(c)
+    return native.call(this, c)
+  }
 }
 
 const card = (page: Page, name: string) => page.locator(`[data-card="${name}"]`)
@@ -133,6 +144,7 @@ test.describe('owner studio', () => {
 
   test.beforeAll(async ({ browser }) => {
     ctx = await ownerContext(browser)
+    await ctx.addInitScript(recordConstraints)
     b = await newBroadcast(ctx, 'Weekly Product Live')
     const dest = await api(ctx, 'POST', '/destinations', {
       name: destName,
@@ -313,6 +325,52 @@ test.describe('owner studio', () => {
     await studio.getByRole('button', { name: 'Remove the logo' }).click()
     await expect(studio.locator('img[data-logo]')).toHaveCount(0)
     await studio.getByRole('radio', { name: '#3d41cf' }).click()
+    await studio.getByRole('tab', { name: 'Banners' }).click()
+  })
+
+  test('Output quality: picked in the open studio, the canvas and a shared screen follow; locked while live', async () => {
+    test.setTimeout(90_000)
+    const program = studio.locator('[data-program]')
+    const quality = studio.getByLabel('Output quality')
+    const hint = studio.locator('#output-quality-hint')
+    await studio.getByRole('tab', { name: 'Destinations' }).click()
+    await expect(quality).toHaveValue('720p')
+    await expect(quality.locator('option')).toHaveText(['720p (HD)', '1080p (Full HD)', '1440p (QHD)'])
+    await expect(hint).toHaveText(/1280x720 at 30 fps; uses up to 8 Mbit\/s/)
+    await expect(hint).not.toContainText('1080p')
+    await expect.poll(() => program.evaluate((c: HTMLCanvasElement) => `${c.width}x${c.height}`)).toBe('1280x720')
+
+    // a screen already shared is asked for the new size
+    await studio.getByRole('toolbar').getByRole('button', { name: 'Share screen' }).click()
+    await expect(studio.getByRole('toolbar').getByRole('button', { name: 'Stop sharing' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await quality.selectOption('1440p')
+    await expect(studio.getByText('Output quality set to 1440p.')).toBeVisible()
+    await expect.poll(() => program.evaluate((c: HTMLCanvasElement) => `${c.width}x${c.height}`)).toBe('2560x1440')
+    await expect(hint).toContainText('2560x1440 at 30 fps; uses up to 24 Mbit/s')
+    await expect(hint).toContainText('Some platforms accept at most 1080p.')
+    await expect
+      .poll(() => studio.evaluate(() => (window as unknown as { __constraints: unknown[] }).__constraints))
+      .toContainEqual({ width: { ideal: 2560 }, height: { ideal: 1440 }, frameRate: 30 })
+    const d = await api(ctx, 'GET', `/broadcasts/${b.id}`)
+    expect(d.studio).toMatchObject({
+      resolution: '1440p',
+      program_width: 2560,
+      program_height: 1440,
+      video_bitrate_kbps: 12000,
+    })
+    await studio.getByRole('toolbar').getByRole('button', { name: 'Stop sharing' }).click()
+
+    // not offline: the control is disabled and says why
+    await studio.getByRole('button', { name: 'Go live' }).click()
+    await expect(studio.locator('[data-output-state]')).toHaveText(/Starting|Live|Interrupted/, { timeout: 10_000 })
+    await expect(quality).toBeDisabled()
+    await expect(hint).toHaveText('The quality can change only while the broadcast is offline.')
+    await api(ctx, 'DELETE', `/broadcasts/${b.id}/live`) // the studio's poll sees it within 3 s
+    await expect(quality).toBeEnabled({ timeout: 10_000 })
+    await quality.selectOption('720p')
+    await expect.poll(() => program.evaluate((c: HTMLCanvasElement) => `${c.width}x${c.height}`)).toBe('1280x720')
     await studio.getByRole('tab', { name: 'Banners' }).click()
   })
 

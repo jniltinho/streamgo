@@ -31,7 +31,9 @@ type Broadcast struct {
 	Stage        string
 	StageVersion int64
 	Logo         string // file name under <data_dir>/assets; empty: none
-	Output       Output
+	// Resolution is the output resolution the owner chose; empty: the server's default (Quality.Profile).
+	Resolution string
+	Output     Output
 }
 
 // Output is the stored state of the live output (design D5).
@@ -56,7 +58,8 @@ type Repository interface {
 	ListByOwner(ctx context.Context, ownerID string) ([]Broadcast, error)
 	// ListByOutputState lists the broadcasts in any of the states (restart recovery, D5).
 	ListByOutputState(ctx context.Context, states ...OutputState) ([]Broadcast, error)
-	SetTitle(ctx context.Context, id, title string) error
+	// Update writes the title and the resolution in one statement (made under the broadcast's lock).
+	Update(ctx context.Context, id, title, resolution string) error
 	SetInvite(ctx context.Context, id string, sealed []byte, hash string) error
 	SetStage(ctx context.Context, id, stage string, version int64) error
 	SetLogo(ctx context.Context, id, logo string) error

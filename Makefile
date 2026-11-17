@@ -47,7 +47,8 @@ TOOLS_IMAGE := streamgo-tools
 TOOLS_RUN    = docker run --rm -u $(shell id -u):$(shell id -g) -v $(CURDIR):/src -v streamgo-cache:/cache \
 	$(1) $(TOOLS_IMAGE) sh -c '$(2)'
 NPM_CI      := cd frontend && npm ci --no-audit --no-fund >/dev/null
-GO_FILES    := find . -name "*.go" -not -path "./frontend/*" -not -path "./spike/*"
+# (hidden directories hold other checkouts, such as agents' worktrees: the go tool skips them, so gofmt does too)
+GO_FILES    := find . -name "*.go" -not -path "./frontend/*" -not -path "./spike/*" -not -path "./.*/*"
 
 tools: ## Build the tools image (Go + gcc, golangci-lint, govulncheck, Node, ffmpeg)
 	@docker build -q -f docker/tools.Dockerfile -t $(TOOLS_IMAGE) docker >/dev/null

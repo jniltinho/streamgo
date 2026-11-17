@@ -20,10 +20,12 @@ are the section of that version.
 
 ### Changed
 
-- **BREAKING: the video bitrate follows the resolution** — `output.video_bitrate_kbps` is now `0` by default, which
-  sends 4000, 6000 and 12000 kbit/s at 720p, 1080p and 1440p. An install that did not set it and uses 1080p now
-  sends 6000 instead of 4000 kbit/s; set `video_bitrate_kbps = 4000` to keep the old rate. Any value from 500 to
-  40000 still applies to every resolution.
+- **The video bitrate follows the resolution** — `output.video_bitrate_kbps` is now `0` by default, which sends
+  4000, 6000 and 12000 kbit/s at 720p, 1080p and 1440p; any other value from 500 to 40000 applies to every
+  resolution. **When you upgrade:** a `config.toml` made from the example of 0.1.0 (the Compose stack's and the
+  packages' are) spells `video_bitrate_kbps = 4000`, so every resolution keeps going out at 4000 kbit/s. Set it to
+  `0` to follow the resolution; the server warns at start when the fixed value is below what the highest
+  resolution is meant for. An install without that line that uses 1080p now sends 6000 instead of 4000 kbit/s.
 - **Sharper shared screens** — a screen is captured at up to the program's size instead of at most 1080p.
 - **`PATCH /api/v1/broadcasts/:id`** takes `title`, `resolution` or both, applied together or not at all.
 

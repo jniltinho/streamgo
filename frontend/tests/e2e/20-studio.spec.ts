@@ -1,6 +1,7 @@
 // The studio screens against a real StreamGo and LiveKit (tasks 4.1, 4.2 and 4.4; the output quality of
 // add-output-quality). Run with a running stack whose studio.max_participants is 3 (the "Studio full" scenario fills
-// it with the owner and two guests) and whose output.max_resolution is 1440p:
+// it with the owner and two guests), whose output.max_resolution is 1440p and whose output.video_bitrate_kbps is 0
+// (the bitrate follows the resolution):
 //   E2E_BASE_URL=http://localhost:28190 E2E_OWNER_EMAIL=… E2E_OWNER_PASSWORD=… [E2E_SHOTS=dir] \
 //     npx playwright test 20-studio
 // Owner and guests are separate browser contexts with Chrome's fake camera and microphone. Skipped without the stack.
@@ -366,11 +367,14 @@ test.describe('owner studio', () => {
   })
 
   test('axe: the studio has no accessibility violations', async () => {
+    await expect(studio.locator('.toast')).toHaveCount(0, { timeout: 15_000 })
     const r = await new AxeBuilder({ page: studio }).analyze()
     expect(r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(' ')}`)).toEqual([])
   })
 
   test('Studio in every theme: labels, on-air and status marks meet the contrast matrix', async () => {
+    // a toast of an earlier test that is still fading out has no contrast to measure
+    await expect(studio.locator('.toast')).toHaveCount(0, { timeout: 15_000 })
     const failures: string[] = []
     for (const theme of themeCatalog) {
       await setTheme(studio, theme.id)

@@ -5,6 +5,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"net/url"
 	"os/signal"
@@ -95,6 +96,7 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	} else if pending {
 		return errors.New("the database has pending migrations: run streamgo migrate up (or start without --no-migrate)")
 	}
+	warnFixedBitrate(logger, cfg)
 
 	// Integration (task 3.I) registers each package's routes here and appends the LiveKit and MediaMTX checks.
 	accounts := account.New(store.NewAccounts(db), account.Options{})
@@ -239,6 +241,18 @@ func studioSettings(cfg *config.Config) handlers.StudioSettings {
 // quality is the output's resolutions: the default of new broadcasts, the ceiling and the bitrate override.
 func quality(cfg *config.Config) broadcast.Quality {
 	return broadcast.Quality{Default: cfg.Output.Resolution, Max: cfg.Output.MaxResolution, VideoKbps: cfg.Output.VideoBitrateKbps}
+}
+
+// warnFixedBitrate tells the operator when a fixed video bitrate starves the highest resolution a broadcast may
+// use. A config.toml copied from the example of 0.1.0 spells video_bitrate_kbps = 4000, which then applies to
+// every resolution: 0 lets the bitrate follow the resolution.
+func warnFixedBitrate(logger *slog.Logger, cfg *config.Config) {
+	fixed := cfg.Output.VideoBitrateKbps
+	byResolution := broadcast.Quality{Default: cfg.Output.MaxResolution, Max: cfg.Output.MaxResolution}.Profile(cfg.Output.MaxResolution)
+	if fixed != 0 && fixed < byResolution.VideoKbps {
+		logger.Warn("output.video_bitrate_kbps is fixed below what the highest resolution is meant for: set it to 0 to follow the resolution",
+			"video_bitrate_kbps", fixed, "max_resolution", cfg.Output.MaxResolution, "by_resolution_kbps", byResolution.VideoKbps)
+	}
 }
 
 // roomRemover is the broadcasts package's Remover: deleting a broadcast closes its room and removes its logo.

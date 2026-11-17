@@ -5,7 +5,9 @@ on stage, and broadcasts the composed program to several RTMP destinations. One 
 LiveKit hosts the studio, MediaMTX receives the program, ffmpeg relays it.
 
 **Documentation:** [docs/README.md](docs/README.md): installing, HTTPS, the reverse proxy, the architecture and
-the security model.
+the security model. To install: [the Linux packages](docs/install-linux.md) (`.deb` and `.rpm`),
+[the all-in-one image](docs/install-docker.md#the-all-in-one-image), [Docker Compose](docs/install-docker.md) or
+[the binary by hand](docs/install-binary.md). What each release brings: [CHANGELOG.md](CHANGELOG.md).
 
 ## Quick start
 

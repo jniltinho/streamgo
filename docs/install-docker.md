@@ -4,6 +4,7 @@ This guide runs StreamGo with Docker Compose from a checkout of the repository: 
 containers on one host, with SQLite by default or MariaDB or PostgreSQL. It takes you from a clean checkout to
 the first user signed in, then covers the ports, the database, upgrading, backups and stopping. The details of
 the stack (advertised addresses behind NAT, HTTPS in front of it) are in the [deployment guide](deployment.md).
+For one container without a checkout, see [the all-in-one image](#the-all-in-one-image) at the end.
 
 ![The Compose stack: the streamgo, livekit and mediamtx containers, an optional database, the volumes and the published ports](images/diagram-deploy-docker.svg)
 
@@ -225,6 +226,50 @@ stops the stack and **deletes its volumes**: the database, the logos and everyth
 
 ## The all-in-one image
 
-A single image with StreamGo, LiveKit, MediaMTX and Debian's ffmpeg under one supervisor, running as a non-root
-user with its state in `/data`, arrives with the packaging step and will be described here. Until then, the
-Compose stack above is the way to run StreamGo in Docker.
+One container with StreamGo, LiveKit, MediaMTX and Alpine's ffmpeg under supervisord, for a single host. It runs
+as a non-root user (uid 65532), keeps everything in `/data` (SQLite, logos, the secrets), and needs no checkout.
+LiveKit's signalling stays inside the container: browsers reach it through StreamGo at `/livekit/`.
+
+The image is published as `ghcr.io/jniltinho/streamgo` with these tags:
+
+| Tag | What |
+|---|---|
+| `X.Y.Z-allinone`, for example `0.1.0-allinone` | That release |
+| `X.Y-allinone` | The latest release of that minor version |
+| `allinone` | The latest release |
+| `main-allinone` | The current state of the `main` branch, not a release |
+
+Start it, with `NODE_IP` set to the address browsers reach the server at (its public address behind NAT):
+
+```bash
+docker run -d --name streamgo --restart unless-stopped --stop-timeout 50 -v streamgo-data:/data -p 8080:8080 -p 7881:7881 -p 7882:7882/udp -p 8189:8189 -p 8189:8189/udp -e NODE_IP=203.0.113.10 ghcr.io/jniltinho/streamgo:0.1.0-allinone
+```
+
+On the first start the container creates the secret key and the credentials the three services share in
+`/data/streamgo.env`, and never replaces them afterwards. `docker ps` shows the container as `healthy` once
+`/readyz` answers.
+
+Create the first user; it asks for the password twice:
+
+```bash
+docker exec -it streamgo streamgo user add --email you@example.com --name "Your Name"
+```
+
+Then sign in at `http://<server>:8080`.
+
+| | |
+|---|---|
+| Ports | 8080/tcp (the app, the API and `/livekit/`), 7881/tcp and 7882/udp (LiveKit's media), 8189/udp and 8189/tcp (MediaMTX's media). Publish the media ports on the **same numbers**: LiveKit and MediaMTX give browsers those numbers. The app's port may differ, but then set `STREAMGO_SERVER_PUBLIC_URL` to match (for example `-p 38080:8080 -e STREAMGO_SERVER_PUBLIC_URL=http://localhost:38080`), or every sign-in is refused by the origin check. |
+| `NODE_IP` | The address LiveKit and MediaMTX advertise for media; `127.0.0.1` by default, which only serves a browser on the same machine. |
+| Settings | Any `STREAMGO_<SECTION>_<KEY>` given with `-e` (a value given to the container wins over `/data/streamgo.env`). |
+| HTTPS | `-e STREAMGO_SERVER_SELF_SIGNED=true -e STREAMGO_SERVER_PUBLIC_URL=https://studio.example.com:8080`, see [Standalone HTTPS](standalone-https.md), or a reverse proxy in front of 8080 ([Behind a reverse proxy](reverse-proxy.md)). |
+| Logs | `docker logs -f streamgo` (the three services) |
+| Services | `docker exec streamgo supervisorctl status` |
+| Backup | Stop the container and copy the `streamgo-data` volume: it holds the database, the logos and the secret key together. |
+| Upgrade | Pull the new tag, remove the container and start a new one on the same volume. |
+
+A host directory instead of a named volume must belong to uid 65532 (`chown -R 65532:65532 <dir>`); otherwise the
+container stops at once saying `/data` is not writable.
+
+To build the image from a checkout instead: `make image-allinone` tags it `streamgo:<version>-allinone` and
+`streamgo:allinone`.

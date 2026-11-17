@@ -47,8 +47,20 @@ api_url = "http://127.0.0.1:7880"                # where StreamGo reaches LiveKi
 
 With neither a certificate nor `self_signed`, StreamGo speaks plain HTTP, as before.
 
-At every start, the log names the certificate in use and its SHA-256 fingerprint; it never prints the key. A
-certificate that cannot be read, or a key that does not match it, stops the start with an error naming the file.
+At every start, the log names the certificate in use, its SHA-256 fingerprint and its expiry date; it never
+prints the key. The log is JSON; the line looks like this:
+
+```json
+{"level":"INFO","msg":"https certificate","subject":"CN=studio.example.com,O=StreamGo (self-signed)","sha256":"dbe1b21f0f728b5a14e534a05c56c13bf7c51f96d1a7a9e03c57e2dc1023c3fa","not_after":"2027-11-17T18:46:32Z"}
+```
+
+followed by `"msg":"http server listening","addr":":8443","tls":true`. To find it on a package install:
+
+```bash
+journalctl -u streamgo | grep 'https certificate'
+```
+
+A certificate that cannot be read, or a key that does not match it, stops the start with an error naming the file.
 
 **Port 443.** Listening on a port under 1024 needs the permission to bind it (root, or the
 `CAP_NET_BIND_SERVICE` capability). Without it, use a port such as 8443 and put it in `public_url`.
@@ -71,11 +83,13 @@ The key must be readable by the user StreamGo runs as, and by nobody else.
 ## A self-signed certificate
 
 Set `self_signed = true` and give no certificate files. On the first start StreamGo generates a certificate and
-its key under `<data_dir>/tls`, readable only by its own user (mode 0600):
+its key, and logs `generated a self-signed certificate` with the file and the host:
 
 | | |
 |---|---|
-| Names | The host of `public_url`, `localhost` and the loopback addresses |
+| Where | `<data_dir>/tls/selfsigned.crt` and `<data_dir>/tls/selfsigned.key`, readable only by StreamGo's user (mode 0600, directory 0700); on a package install, `/opt/streamgo/data/tls/`; in the all-in-one image, `/data/tls/` |
+| Names | The host of `public_url`, `localhost`, `127.0.0.1` and `::1`; the subject is `CN=<host>,O=StreamGo (self-signed)` |
+| Key | ECDSA P-256 |
 | Lasts | One year |
 | Renewed | At a start, when the files are missing, the certificate has expired or expires within 30 days, or it no longer covers the host of `public_url` |
 
@@ -83,12 +97,17 @@ StreamGo reuses the same certificate at the next starts, so its fingerprint stay
 looks at the certificate only when it starts: a server that is never restarted keeps its certificate until it
 expires, so restart it at least once in the 30 days before the expiry date.
 
-To read the fingerprint again later, run this on the server, with the certificate's file name from
-`<data_dir>/tls`:
+To read the fingerprint again later, on a package install:
 
 ```bash
-openssl x509 -noout -fingerprint -sha256 -in /path/to/data/tls/<certificate file>
+sudo openssl x509 -noout -fingerprint -sha256 -in /opt/streamgo/data/tls/selfsigned.crt
 ```
+
+openssl prints the same value as the log, in capitals and with colons
+(`DB:E1:B2:1F:…`); browsers show it the same way.
+
+On a package install, turning it on takes two lines in `/opt/streamgo/streamgo.env` and a restart; see
+[Install from the Linux packages](install-linux.md#6-https).
 
 ### What people see with a self-signed certificate
 
@@ -123,7 +142,7 @@ Open these in the firewall (and forward them on a NAT router, on the same number
 
 | Port | Protocol | Service | Who connects | What |
 |---|---|---|---|---|
-| `server.addr`, e.g. 443 or 8443 | TCP | StreamGo | everyone | The app, the API and LiveKit's signalling under `/livekit/` |
+| `server.addr`: 8080 on a package install or the all-in-one image unless you change it, or 443, 8443 | TCP | StreamGo | everyone | The app, the API and LiveKit's signalling under `/livekit/` |
 | 7881 | TCP | LiveKit | everyone in the studio | WebRTC media over TCP |
 | 7882 | UDP | LiveKit | everyone in the studio | WebRTC media over UDP |
 | 8189 | UDP and TCP | MediaMTX | the owner's browser | The program, by WebRTC; TCP is the fallback |

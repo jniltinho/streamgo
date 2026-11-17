@@ -1,9 +1,9 @@
 // Shapes of the REST contract (openspec/changes/add-live-studio/design.md, "REST contract"). Later packages add the
 // shapes of their own routes here.
 
-/** every error response: { "error": { "code", "message" } } */
+/** every error response: { "error": { "code", "message", "field"? } } */
 export interface ErrorEnvelope {
-  error: { code: string; message: string }
+  error: { code: string; message: string; field?: string }
 }
 
 /** GET /me, and the answer of POST /auth/login and PATCH /me */
@@ -32,3 +32,88 @@ export interface ThemeInfo {
 export interface ThemeList {
   themes: ThemeInfo[]
 }
+
+/** POST /auth/login */
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+/** the output of a broadcast (design D5) */
+export interface Output {
+  state: 'offline' | 'starting' | 'live' | 'interrupted'
+  reason: string
+  /** RFC 3339 */
+  started_at: string | null
+  /** RFC 3339 */
+  deadline: string | null
+}
+
+/** a broadcast in GET /broadcasts */
+export interface Broadcast {
+  id: string
+  title: string
+  output: Output
+}
+
+export interface Banner {
+  id: string
+  text: string
+}
+
+/** the stage state of design D1 */
+export interface Stage {
+  v: number
+  on_air: boolean
+  layout: string
+  sources: { p: string; k: string }[]
+  banner: Banner | null
+  logo: string | null
+  accent: string
+}
+
+/** a destination as the API returns it: the address and the key are write-only */
+export interface Destination {
+  id: string
+  name: string
+  scheme: string
+  host: string
+  has_key: boolean
+}
+
+export interface BroadcastDestination extends Destination {
+  status: 'off' | 'connecting' | 'live' | 'retrying'
+  error: string
+}
+
+/** POST /broadcasts (201), GET and PATCH /broadcasts/:id */
+export interface BroadcastDetail extends Broadcast {
+  invite_url: string
+  stage: Stage
+  destinations: BroadcastDestination[]
+}
+
+/** GET /broadcasts, newest first */
+export interface BroadcastList {
+  broadcasts: Broadcast[]
+}
+
+/** POST /broadcasts and PATCH /broadcasts/:id */
+export interface BroadcastTitle {
+  title: string
+}
+
+/** GET /destinations */
+export interface DestinationList {
+  destinations: Destination[]
+}
+
+/** POST /destinations */
+export interface DestinationCreate {
+  name: string
+  address: string
+  key?: string
+}
+
+/** PATCH /destinations/:id: an absent address or key keeps the stored one */
+export type DestinationPatch = Partial<DestinationCreate>

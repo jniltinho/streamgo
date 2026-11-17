@@ -3,7 +3,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api, ApiError } from '@/api/client'
-import type { Me, MePatch } from '@/api/types'
+import type { LoginRequest, Me, MePatch } from '@/api/types'
 import { isLanguage, setLanguage } from '@/i18n'
 import { themeCatalog } from '@/themes/catalog'
 import { applyTheme, forgetTheme } from '@/themes/apply'
@@ -30,9 +30,9 @@ export const useSession = defineStore('session', () => {
     }
   }
 
+  // the sign-in answers with the user (API shapes): no second request
   async function login(email: string, password: string): Promise<Me> {
-    await api('POST', '/auth/login', { email, password })
-    return accept(await api<Me>('GET', '/me'))
+    return accept(await api<Me>('POST', '/auth/login', { email, password } satisfies LoginRequest))
   }
 
   async function updateMe(patch: MePatch): Promise<Me> {

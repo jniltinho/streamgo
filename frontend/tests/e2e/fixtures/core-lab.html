@@ -1,0 +1,77 @@
+<!doctype html>
+<!-- An offline page for the frontend core tests (tests/e2e/04-core-*.spec.ts): it loads src/core through the dev
+     server and adds generated test sources. No server, no LiveKit. -->
+<meta charset="utf-8" />
+<title>core lab</title>
+<body>
+  <script type="module">
+    import * as compositor from '/src/core/compositor.ts'
+    import * as audioMix from '/src/core/audioMix.ts'
+    import * as whip from '/src/core/whip.ts'
+    import * as stageState from '/src/core/stageState.ts'
+
+    // a 30 fps camera-like video track, driven by the same worker clock as the compositor; each frame is filled
+    // with `color` and carries a frame counter as a grey level in its top-left 64x64 corner ((n % 8) * 32)
+    function videoSource(color, w = 640, h = 360) {
+      const c = new OffscreenCanvas(w, h)
+      const g = c.getContext('2d')
+      const gen = new MediaStreamTrackGenerator({ kind: 'video' })
+      const wr = gen.writable.getWriter()
+      const clock = new Worker('/src/core/compositorClock.ts', { type: 'module' })
+      let t0 = 0
+      clock.onmessage = (e) => {
+        const n = e.data
+        g.fillStyle = color
+        g.fillRect(0, 0, w, h)
+        const v = (n % 8) * 32
+        g.fillStyle = `rgb(${v},${v},${v})`
+        g.fillRect(0, 0, 64, 64)
+        t0 ||= performance.now() * 1000
+        const f = new VideoFrame(c, { timestamp: Math.round(t0 + (n * 1e6) / 30) })
+        wr.write(f).catch(() => {})
+        f.close()
+      }
+      clock.postMessage({ fps: 30 })
+      return { track: gen, stop: () => (clock.terminate(), gen.stop()) }
+    }
+
+    // a sine tone as a MediaStreamTrack (its own AudioContext, as a remote participant's would be), with an
+    // analyser on the tone itself as the reference level
+    function tone(freq, gain) {
+      const ctx = new AudioContext()
+      const osc = new OscillatorNode(ctx, { frequency: freq })
+      const g = new GainNode(ctx, { gain })
+      const dest = ctx.createMediaStreamDestination()
+      const ref = new AnalyserNode(ctx, { fftSize: 8192, smoothingTimeConstant: 0 })
+      osc.connect(g).connect(dest)
+      g.connect(ref)
+      osc.start()
+      return { ctx, track: dest.stream.getAudioTracks()[0], ref, stop: () => (osc.stop(), ctx.close()) }
+    }
+
+    // peak level in dB of the spectrum near freq
+    function levelAt(analyser, freq) {
+      const bins = new Float32Array(analyser.frequencyBinCount)
+      analyser.getFloatFrequencyData(bins)
+      const hz = analyser.context.sampleRate / analyser.fftSize
+      const i = Math.round(freq / hz)
+      return Math.max(...bins.slice(i - 3, i + 4))
+    }
+
+    // largest absolute sample over `ms` milliseconds
+    async function peak(analyser, ms) {
+      const buf = new Float32Array(analyser.fftSize)
+      let max = 0
+      const end = performance.now() + ms
+      while (performance.now() < end) {
+        analyser.getFloatTimeDomainData(buf)
+        for (const s of buf) max = Math.max(max, Math.abs(s))
+        await new Promise((r) => setTimeout(r, 20))
+      }
+      return max
+    }
+
+    window.lab = { ...compositor, ...audioMix, ...whip, ...stageState, videoSource, tone, levelAt, peak }
+    window.labReady = true
+  </script>
+</body>

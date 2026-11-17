@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1624" viewBox="0 0 1200 1624">
+  <title>Ports</title>
+  <desc>StreamGo ports grouped into browser access, internal-only services, and outgoing server connections. Each row lists the port, service, and purpose. The footer explains the owner and guest connectivity requirements without TURN.</desc>
+  <rect width="1200" height="1624" rx="8" fill="#0c1020"/>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="32" y="54" font-size="26" font-weight="600" fill="#f2f4fb">Ports</text>
+
+    <g id="browser-ports">
+      <rect x="32" y="88" width="1136" height="606" rx="8" fill="#151b31" stroke="#2c3458" stroke-width="1.5"/>
+      <text x="52" y="126" font-size="22" font-weight="600" fill="#b3b8ff">Reached by browsers: open in the firewall</text>
+      <text x="70" y="166" font-size="18" fill="#b9c0d8">Port</text>
+      <text x="328" y="166" font-size="18" fill="#b9c0d8">Service</text>
+      <text x="594" y="166" font-size="18" fill="#b9c0d8">What</text>
+
+      <g id="streamgo-https">
+        <rect x="52" y="186" width="1096" height="88" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="236" font-size="18" fill="#f2f4fb">443/tcp or 8443/tcp</text>
+        <g>
+          <rect x="310" y="186" width="266" height="88" fill="#3d41cf"/>
+          <text x="328" y="236" font-size="20" fill="#f2f4fb">StreamGo, HTTPS</text>
+        </g>
+        <path d="M310 186V274 M576 186V274" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="594" y="222" font-size="18" fill="#f2f4fb"><tspan x="594" y="222">app, API and /livekit/ signalling</tspan><tspan x="594" y="248">(8080/tcp, HTTP, in the Compose default)</tspan></text>
+      </g>
+
+      <g id="livekit-signalling">
+        <rect x="52" y="298" width="1096" height="72" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 298V370 M576 298V370" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="340" font-size="18" fill="#f2f4fb">7880/tcp</text>
+        <text x="328" y="340" font-size="20" fill="#f2f4fb">LiveKit signalling</text>
+        <text x="594" y="340" font-size="18" fill="#f2f4fb">only when it is not reached through /livekit/</text>
+      </g>
+
+      <g id="livekit-tcp">
+        <rect x="52" y="394" width="1096" height="72" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 394V466 M576 394V466" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="436" font-size="18" fill="#f2f4fb">7881/tcp</text>
+        <text x="328" y="436" font-size="20" fill="#f2f4fb">LiveKit</text>
+        <text x="594" y="436" font-size="18" fill="#f2f4fb">WebRTC media over TCP</text>
+      </g>
+
+      <g id="livekit-udp">
+        <rect x="52" y="490" width="1096" height="72" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 490V562 M576 490V562" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="532" font-size="18" fill="#f2f4fb">7882/udp</text>
+        <text x="328" y="532" font-size="20" fill="#f2f4fb">LiveKit</text>
+        <text x="594" y="532" font-size="18" fill="#f2f4fb">WebRTC media over UDP</text>
+      </g>
+
+      <g id="mediamtx-program">
+        <rect x="52" y="586" width="1096" height="88" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 586V674 M576 586V674" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="636" font-size="18" fill="#f2f4fb">8189/udp and 8189/tcp</text>
+        <text x="328" y="636" font-size="20" fill="#f2f4fb">MediaMTX</text>
+        <text x="594" y="622" font-size="18" fill="#f2f4fb"><tspan x="594" y="622">WebRTC media: the owner's program</tspan><tspan x="594" y="648">(TCP is the fallback)</tspan></text>
+      </g>
+    </g>
+
+    <g id="internal-ports">
+      <rect x="32" y="726" width="1136" height="574" rx="8" fill="#151b31" stroke="#2c3458" stroke-width="1.5"/>
+      <text x="52" y="764" font-size="22" font-weight="600" fill="#b9c0d8">Internal only: never published</text>
+      <text x="70" y="804" font-size="18" fill="#b9c0d8">Port</text>
+      <text x="328" y="804" font-size="18" fill="#b9c0d8">Service</text>
+      <text x="594" y="804" font-size="18" fill="#b9c0d8">What</text>
+
+      <g id="mediamtx-whip">
+        <rect x="52" y="824" width="1096" height="72" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 824V896 M576 824V896" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="866" font-size="18" fill="#f2f4fb">8889/tcp</text>
+        <text x="328" y="866" font-size="20" fill="#f2f4fb">MediaMTX WHIP</text>
+        <text x="594" y="866" font-size="18" fill="#f2f4fb">StreamGo only</text>
+      </g>
+
+      <g id="mediamtx-rtsp">
+        <rect x="52" y="920" width="1096" height="72" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 920V992 M576 920V992" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="962" font-size="18" fill="#f2f4fb">8554/tcp</text>
+        <text x="328" y="962" font-size="20" fill="#f2f4fb">MediaMTX RTSP</text>
+        <text x="594" y="962" font-size="18" fill="#f2f4fb">ffmpeg only</text>
+      </g>
+
+      <g id="mediamtx-control">
+        <rect x="52" y="1016" width="1096" height="72" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 1016V1088 M576 1016V1088" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="1058" font-size="18" fill="#f2f4fb">9997/tcp</text>
+        <text x="328" y="1058" font-size="20" fill="#f2f4fb">MediaMTX control API</text>
+        <text x="594" y="1058" font-size="18" fill="#f2f4fb">StreamGo only</text>
+      </g>
+
+      <g id="livekit-server-api">
+        <rect x="52" y="1112" width="1096" height="72" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 1112V1184 M576 1112V1184" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="1154" font-size="18" fill="#f2f4fb">7880/tcp</text>
+        <text x="328" y="1154" font-size="20" fill="#f2f4fb">LiveKit server API</text>
+        <text x="594" y="1154" font-size="18" fill="#f2f4fb">StreamGo and its /livekit/ proxy</text>
+      </g>
+
+      <g id="databases">
+        <rect x="52" y="1208" width="1096" height="72" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 1208V1280 M576 1208V1280" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="1250" font-size="18" fill="#f2f4fb">3306/tcp, 5432/tcp</text>
+        <text x="328" y="1250" font-size="20" fill="#f2f4fb">MariaDB, PostgreSQL</text>
+        <text x="594" y="1250" font-size="18" fill="#f2f4fb">when chosen instead of SQLite</text>
+      </g>
+    </g>
+
+    <g id="outgoing-ports">
+      <rect x="32" y="1332" width="1136" height="206" rx="8" fill="#151b31" stroke="#2c3458" stroke-width="1.5"/>
+      <text x="52" y="1370" font-size="22" font-weight="600" fill="#b3b8ff">Outgoing from the server</text>
+      <text x="70" y="1410" font-size="18" fill="#b9c0d8">Port</text>
+      <text x="328" y="1410" font-size="18" fill="#b9c0d8">Service</text>
+      <text x="594" y="1410" font-size="18" fill="#b9c0d8">What</text>
+
+      <g id="ffmpeg-relays">
+        <rect x="52" y="1430" width="1096" height="88" rx="6" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+        <path d="M310 1430V1518 M576 1430V1518" fill="none" stroke="#2c3458" stroke-width="1.5"/>
+        <text x="70" y="1480" font-size="18" fill="#f2f4fb">1935/tcp, 443/tcp</text>
+        <text x="328" y="1480" font-size="20" fill="#f2f4fb">ffmpeg relays</text>
+        <text x="594" y="1466" font-size="18" fill="#f2f4fb"><tspan x="594" y="1466">RTMP and RTMPS to the destinations</tspan><tspan x="594" y="1492">(or the port in their address)</tspan></text>
+      </g>
+    </g>
+
+    <text x="52" y="1586" font-size="18" fill="#b9c0d8">There is no TURN: the owner needs UDP, or at least TCP, to 8189; guests need it to 7881 or 7882.</text>
+  </g>
+</svg>

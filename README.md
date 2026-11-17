@@ -4,6 +4,9 @@ A self-hosted live-streaming studio in the browser: a host opens a studio, invit
 on stage, and broadcasts the composed program to several RTMP destinations. One Go binary with the web app embedded;
 LiveKit hosts the studio, MediaMTX receives the program, ffmpeg relays it.
 
+**Documentation:** [docs/README.md](docs/README.md): installing, HTTPS, the reverse proxy, the architecture and
+the security model.
+
 ## Quick start
 
 Everything builds in Docker; the host needs Docker and Make.

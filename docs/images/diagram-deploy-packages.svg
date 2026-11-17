@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1080" viewBox="0 0 1200 1080">
+  <title>Linux packages: everything in /opt/streamgo</title>
+  <desc>A Linux server installed from a .deb, .rpm or .tar.gz package contains three systemd units: StreamGo on port 8080, pinned LiveKit with loopback signalling, and pinned MediaMTX with loopback WHIP, RTSP and API endpoints. Browsers reach StreamGo over HTTP or HTTPS, LiveKit over WebRTC media ports 7881/tcp and 7882/udp, and MediaMTX over owner WebRTC media port 8189 udp+tcp. StreamGo calls the LiveKit and MediaMTX APIs over loopback, runs the distribution's ffmpeg, and connects to SQLite in /opt/streamgo/data. ffmpeg reads MediaMTX over loopback RTSP and sends RTMP or RTMPS to destinations outside the server. streamgo.env holds the secret key and shared credentials generated on the first install.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#b3b8ff"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1200" height="1080" rx="8" fill="#0c1020"/>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text id="diagram-title" x="32" y="54" font-size="26" fill="#f2f4fb">Linux packages: everything in /opt/streamgo</text>
+
+    <rect id="server-box" x="220" y="104" width="760" height="880" rx="8" fill="#151b31" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="server-title" x="244" y="148" font-size="22" fill="#f2f4fb">Linux server (.deb, .rpm or .tar.gz)</text>
+
+    <g fill="none" stroke="#b3b8ff" stroke-width="2">
+      <path id="browser-mediamtx" d="M 196 320 H 204 V 176 H 842 V 264" marker-end="url(#arrow)"/>
+      <path id="browser-livekit" d="M 196 344 H 216 V 200 H 598 V 264" marker-end="url(#arrow)"/>
+      <path id="browser-streamgo" d="M 36 392 V 558 H 280 V 428" marker-end="url(#arrow)"/>
+      <path id="streamgo-livekit" d="M 430 428 V 488 H 674 V 428" marker-end="url(#arrow)"/>
+      <path id="streamgo-mediamtx" d="M 400 428 V 574 H 786 V 428" marker-end="url(#arrow)"/>
+      <path id="streamgo-ffmpeg" d="M 354 428 V 628" marker-end="url(#arrow)"/>
+      <path id="streamgo-sqlite" d="M 300 428 V 596 H 252 V 808 H 276" marker-end="url(#arrow)"/>
+      <path id="ffmpeg-mediamtx" d="M 732 656 H 916 V 428" marker-end="url(#arrow)"/>
+      <path id="ffmpeg-destinations" d="M 732 712 H 1004" marker-end="url(#arrow)"/>
+    </g>
+
+    <g font-size="18" fill="#b3b8ff">
+      <text id="browser-mediamtx-label" x="826" y="222" text-anchor="end">
+        <tspan x="826" y="222">WebRTC media</tspan>
+        <tspan x="826" y="246">8189 udp+tcp (owner)</tspan>
+      </text>
+      <text id="browser-livekit-label" x="582" y="222" text-anchor="end">
+        <tspan x="582" y="222">WebRTC media</tspan>
+        <tspan x="582" y="246">7881/tcp, 7882/udp</tspan>
+      </text>
+      <text id="browser-streamgo-label" x="52" y="460">
+        <tspan x="52" y="460">HTTP :8080</tspan>
+        <tspan x="52" y="484">(HTTPS:</tspan>
+        <tspan x="52" y="508">standalone or</tspan>
+        <tspan x="52" y="532">a reverse proxy)</tspan>
+      </text>
+      <text id="streamgo-livekit-label" x="470" y="468">API (loopback)</text>
+      <text id="streamgo-mediamtx-label" x="454" y="554">WHIP, API (loopback)</text>
+      <text id="streamgo-ffmpeg-label" x="370" y="606">runs</text>
+      <text id="ffmpeg-mediamtx-label" x="742" y="606">RTSP (loopback)</text>
+      <text id="ffmpeg-destinations-label" x="784" y="692">RTMP / RTMPS</text>
+    </g>
+
+    <rect id="browsers-box" x="24" y="300" width="172" height="92" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="browsers-title" x="110" y="354" text-anchor="middle" font-size="20" fill="#f2f4fb">Browsers</text>
+
+    <rect id="streamgo-box" x="244" y="264" width="220" height="164" rx="8" fill="#3d41cf" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="streamgo-title" x="264" y="304" font-size="20" fill="#f2f4fb">streamgo.service</text>
+    <text id="streamgo-detail" x="264" y="342" font-size="18" fill="#f2f4fb">StreamGo, :8080</text>
+
+    <rect id="livekit-box" x="488" y="264" width="220" height="164" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="livekit-title" x="508" y="304" font-size="20" fill="#f2f4fb">livekit.service</text>
+    <text id="livekit-detail" x="508" y="340" font-size="18" fill="#b9c0d8">
+      <tspan x="508" y="340">livekit-server,</tspan>
+      <tspan x="508" y="364">pinned; signalling</tspan>
+      <tspan x="508" y="388">on 127.0.0.1</tspan>
+    </text>
+
+    <rect id="mediamtx-box" x="732" y="264" width="220" height="164" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="mediamtx-title" x="752" y="304" font-size="20" fill="#f2f4fb">mediamtx.service</text>
+    <text id="mediamtx-detail" x="752" y="340" font-size="18" fill="#b9c0d8">
+      <tspan x="752" y="340">mediamtx, pinned;</tspan>
+      <tspan x="752" y="364">WHIP, RTSP, API</tspan>
+      <tspan x="752" y="388">on 127.0.0.1</tspan>
+    </text>
+
+    <rect id="ffmpeg-box" x="276" y="628" width="456" height="112" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="ffmpeg-title" x="296" y="664" font-size="20" fill="#f2f4fb">ffmpeg from the distribution</text>
+    <text id="ffmpeg-detail" x="296" y="702" font-size="18" fill="#b9c0d8">.deb: a dependency; .rpm: recommended</text>
+
+    <rect id="destinations-box" x="1004" y="664" width="172" height="96" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="destinations-title" x="1020" y="703" font-size="20" fill="#f2f4fb">
+      <tspan x="1020" y="703">RTMP</tspan>
+      <tspan x="1020" y="731">destinations</tspan>
+    </text>
+
+    <rect id="sqlite-box" x="276" y="768" width="456" height="80" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="sqlite-title" x="296" y="815" font-size="20" fill="#f2f4fb">SQLite in /opt/streamgo/data</text>
+
+    <rect id="env-box" x="244" y="872" width="708" height="88" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text id="env-title" x="264" y="908" font-size="20" fill="#f2f4fb">streamgo.env:</text>
+    <text id="env-detail" x="264" y="938" font-size="18" fill="#b9c0d8">secret key and the shared credentials</text>
+
+    <text id="footer" x="32" y="1034" font-size="18" fill="#b9c0d8">The first install generates the secret key and the shared credentials.</text>
+  </g>
+</svg>

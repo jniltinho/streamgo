@@ -1,0 +1,52 @@
+// Portions adapted from MeetHub (MIT): frontend/src/i18n/pt-BR.ts
+// Portuguese (Brazil). Keys are the English source strings; "error.<code>" keys translate API error codes.
+import type { Catalog } from './index'
+
+const catalog: Catalog = {
+  Attention: 'Atenção',
+  Broadcasts: 'Transmissões',
+  Cancel: 'Cancelar',
+  Close: 'Fechar',
+  Confirm: 'Confirmar',
+  Confirmation: 'Confirmação',
+  'Could not sign out. Check the connection and try again.':
+    'Não foi possível sair. Verifique a conexão e tente novamente.',
+  Destinations: 'Destinos',
+  Dismiss: 'Dispensar',
+  'Enter a valid e-mail address.': 'Informe um endereço de e-mail válido.',
+  Error: 'Erro',
+  Information: 'Informação',
+  'Invalid value.': 'Valor inválido.',
+  'Join the studio': 'Entrar no estúdio',
+  Main: 'Principal',
+  Notice: 'Aviso',
+  OK: 'OK',
+  'Safety confirmation': 'Confirmação de segurança',
+  'Sign in': 'Entrar',
+  'Sign out': 'Sair',
+  Studio: 'Estúdio',
+  Success: 'Sucesso',
+  Theme: 'Tema',
+  'This field is required.': 'Este campo é obrigatório.',
+  'to confirm:': 'para confirmar:',
+  'Too short.': 'Curto demais.',
+  Type: 'Digite',
+  'Unexpected error.': 'Erro inesperado.',
+  'Your session ended.': 'Sua sessão terminou.',
+  'error.bad_request': 'A requisição está malformada.',
+  'error.invalid_input': 'Alguns campos são inválidos.',
+  'error.invalid_theme': 'Tema desconhecido.',
+  'error.invalid_language': 'Idioma não suportado.',
+  'error.invalid_credentials': 'E-mail ou senha inválidos.',
+  'error.unauthenticated': 'Você precisa entrar.',
+  'error.forbidden': 'Você não tem permissão para fazer isso.',
+  'error.not_found': 'Não encontrado.',
+  'error.conflict': 'Isso não pode ser feito no estado atual.',
+  'error.too_large': 'A requisição é grande demais.',
+  'error.rate_limited': 'Tentativas demais. Tente novamente mais tarde.',
+  'error.internal': 'Algo deu errado no servidor.',
+  'error.unavailable': 'O serviço está indisponível. Tente novamente em instantes.',
+  'error.network': 'Não foi possível contatar o servidor.',
+}
+
+export default catalog

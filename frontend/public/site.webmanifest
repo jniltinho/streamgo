@@ -1,0 +1,7 @@
+{
+  "name": "StreamGo",
+  "short_name": "StreamGo",
+  "theme_color": "#3d41cf",
+  "background_color": "#0c1020",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

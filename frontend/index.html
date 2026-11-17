@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- Portions adapted from MeetHub (MIT): frontend/index.html
+     %STREAMGO_THEME% / %STREAMGO_SCHEME%: replaced by the Go server with the signed-in user's theme and its scheme,
+     or with empty strings when there is no session (public/theme-boot.js then picks the theme) -->
+<html lang="en" data-theme="%STREAMGO_THEME%" data-user-theme="%STREAMGO_THEME%">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="%STREAMGO_SCHEME%" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <title>StreamGo</title>
+    <script src="/theme-boot.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

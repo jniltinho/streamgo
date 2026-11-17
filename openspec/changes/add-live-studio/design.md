@@ -391,8 +391,10 @@ What StreamGo adds on top:
 - Its own pair, `streamgo-dark` (default) and `streamgo-light`, in `themes/streamgo.css`: MeetHub's own pair
   (`themes/meethub.css`) renamed, since the chosen design uses that palette, plus the studio roles.
 - Studio roles in the contract (`on-air`, `stage-frame`, `on-stage`, `backstage`), each defaulting to an existing
-  role (`on-air` to the danger fill, and so on), so the 20 carried-over files are not edited to pass the contract
-  test; a theme may still refine them. Studio recipes are added to `matrix.json`.
+  role (`on-air` to the error colour, `stage-frame` to the page, `on-stage` to the link colour, `backstage` to
+  muted text), so the 20 carried-over files are not edited to pass the contract test; a theme may still refine
+  them. `on-air` is a mark colour held to 3:1 (the dot and frame of the live badge), not a text colour: the
+  danger fill fails that on dark themes. Studio recipes are added to `matrix.json`.
 - Corner radii: MeetHub's three shared tokens, unchanged (2, 3 and 4 px for small elements, controls and
   containers), which no theme declares. The owner asked for corners more square than round; a softer scale
   (6, 10, 14 px) was drawn as `design/variant-d-soft` and set aside; `design/variant-d-square` is the same screen

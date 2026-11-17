@@ -8,12 +8,16 @@ import (
 	"net"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jniltinho/streamgo/internal/buildinfo"
 	"github.com/jniltinho/streamgo/internal/config"
+	"github.com/jniltinho/streamgo/internal/core/account"
 	"github.com/jniltinho/streamgo/internal/httpserver"
+	"github.com/jniltinho/streamgo/internal/httpserver/handlers"
+	"github.com/jniltinho/streamgo/internal/ratelimit"
 	"github.com/jniltinho/streamgo/internal/store"
 	"github.com/jniltinho/streamgo/web"
 )
@@ -76,8 +80,13 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		return errors.New("the database has pending migrations: run streamgo migrate up (or start without --no-migrate)")
 	}
 
-	// Integration (task 3.I) registers each package's routes here, e.g.
-	// handlers.RegisterBroadcasts(srv.UserAPI(), deps), and appends the LiveKit and MediaMTX checks.
+	// Integration (task 3.I) registers each package's routes here and appends the LiveKit and MediaMTX checks.
+	accounts := account.New(store.NewAccounts(db), account.Options{})
+	authDeps := handlers.AuthDeps{
+		Accounts:     accounts,
+		Limiter:      ratelimit.New(10, time.Minute, 100_000), // sign-in attempts per client address
+		SecureCookie: cfg.SecureCookies(),
+	}
 	srv := httpserver.New(httpserver.Options{ //nolint:contextcheck // handlers use each request's own context
 		Addr:           cfg.Server.Addr,
 		PublicOrigin:   cfg.PublicOrigin(),
@@ -85,7 +94,11 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		Logger:         logger,
 		Dist:           web.Dist(),
 		ReadyChecks:    []httpserver.Check{{Name: "database", Check: db.Ping}},
+		Authenticate:   handlers.Authenticator(authDeps),
 	})
+	handlers.RegisterAuth(srv.API(), authDeps)
+	handlers.RegisterThemes(srv.API())
+	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: accounts})
 	if err := srv.Run(ctx, onListen); err != nil {
 		return err
 	}

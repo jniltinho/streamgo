@@ -61,6 +61,7 @@ func newRootCmd(c *cli) *cobra.Command {
 		newHealthcheckCmd(c),
 		newMigrateCmd(c),
 		newServerCmd(c),
+		newUserCmd(c),
 		newVersionCmd(c),
 	)
 	return root

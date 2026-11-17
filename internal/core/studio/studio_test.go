@@ -230,18 +230,24 @@ func TestTooManyGuests(t *testing.T) {
 func TestCapacity(t *testing.T) {
 	t.Parallel()
 	e := studiotest.New(t) // 4 participants, the owner included
-	var ids []string
+	var ids, cookies []string
 	for i := range e.MaxInStudio {
 		j := e.JoinGuest(t, "invite-b1", fmt.Sprint("guest ", i), "")
+		cookies = append(cookies, j.Cookie)
 		e.Clock.Advance(time.Second)
 		if err := e.Rooms.Connect("bc_b1", j.Identity, e.Clock.Now()); err != nil {
 			t.Fatal(err)
 		}
 		ids = append(ids, j.Identity)
 	}
-	extra := e.JoinGuest(t, "invite-b1", "late", "")
-	if err := e.Rooms.Connect("bc_b1", extra.Identity, e.Clock.Now()); err == nil {
-		t.Fatal("a fifth participant connected")
+	b, _ := e.Service.Invite(ctx, "invite-b1")
+	guests := e.Guests.Len()
+	if _, err := e.Service.JoinAsGuest(ctx, b, "late", ""); !errors.Is(err, studio.ErrRoomFull) || e.Guests.Len() != guests {
+		t.Fatalf("a fifth participant: %v, %d guests", err, e.Guests.Len())
+	}
+	// a guest in the room reloads the page: the same identity, not a refusal
+	if j, err := e.Service.JoinAsGuest(ctx, b, "guest 0", cookies[0]); err != nil || j.Identity != ids[0] {
+		t.Fatalf("reload in a full room: %v", err)
 	}
 
 	// the owner arrives: the guest who joined last makes room
@@ -253,6 +259,7 @@ func TestCapacity(t *testing.T) {
 	}
 	// a guest takes the slot first; the studio retries with a new token
 	e.Clock.Advance(time.Second)
+	extra := e.JoinGuest(t, "invite-b1", "late", "")
 	if err := e.Rooms.Connect("bc_b1", extra.Identity, e.Clock.Now()); err != nil {
 		t.Fatal(err)
 	}

@@ -62,6 +62,9 @@ func RegisterJoin(g *echo.Group, d JoinDeps) {
 		if errors.Is(err, studio.ErrFull) {
 			return httpserver.NewError(http.StatusTooManyRequests, "rate_limited", "This studio has too many guests.")
 		}
+		if errors.Is(err, studio.ErrRoomFull) {
+			return httpserver.NewError(http.StatusConflict, "studio_full", "The studio is full.")
+		}
 		if err != nil {
 			return err
 		}

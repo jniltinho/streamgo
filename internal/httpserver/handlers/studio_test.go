@@ -412,6 +412,24 @@ func TestJoinRoutes(t *testing.T) {
 }
 
 // Scenario "Too many guests" through the route.
+// Scenario "Studio full": the join route says so, and creates no guest.
+func TestJoinRouteRoomFull(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	for i := range h.MaxInStudio {
+		j := h.JoinGuest(t, "invite-b1", fmt.Sprint("guest ", i), "")
+		if err := h.Rooms.Connect("bc_b1", j.Identity, h.Clock.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n := h.Guests.Len()
+	rec := h.do(t, call{method: "POST", path: "/api/v1/join/invite-b1", body: `{"name":"late"}`})
+	want(t, rec, 409, "studio_full")
+	if h.Guests.Len() != n {
+		t.Fatalf("%d guests, want %d", h.Guests.Len(), n)
+	}
+}
+
 func TestJoinRouteFull(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)

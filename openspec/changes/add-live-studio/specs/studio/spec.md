@@ -85,8 +85,14 @@ joined last, and the studio SHALL retry the owner's connection up to three times
 
 #### Scenario: Studio full
 - **GIVEN** the room already holds `studio.max_participants` participants
-- **WHEN** another guest connects
-- **THEN** the connection is refused and the join page says the studio is full
+- **WHEN** another guest joins
+- **THEN** the join route answers 409 `studio_full` without creating a guest, and the join page says the studio
+  is full; a guest already in the room who reloads the page joins again
+
+#### Scenario: A failed connection is not a full studio
+- **GIVEN** the room has a free place
+- **WHEN** a guest's browser cannot connect to the media server
+- **THEN** the join page says it could not connect, not that the studio is full
 
 #### Scenario: Owner arrives at a full studio
 - **GIVEN** guests fill the room and the owner is not in it

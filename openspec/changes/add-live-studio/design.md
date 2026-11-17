@@ -646,7 +646,7 @@ POST   /broadcasts/:id/program/whip   application/sdp          201 application/s
 DELETE /broadcasts/:id/program/whip/sessions/:sid              200 | 404
 
 GET    /join/:token                                            200 { title } | 404
-POST   /join/:token           { name }                         200 Join + { title } | 404 | 429
+POST   /join/:token           { name }                         200 Join + { title } | 404 | 409 | 429
 ```
 
 Errors are `{ "error": { "code", "message", "field"? } }`. Codes: `bad_request` (400), `unauthenticated` (401),

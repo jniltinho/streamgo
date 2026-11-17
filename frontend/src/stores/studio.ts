@@ -6,8 +6,6 @@
 import { defineStore } from 'pinia'
 import { computed, markRaw, ref, shallowRef } from 'vue'
 import {
-  ConnectionError,
-  ConnectionErrorReason,
   createLocalTracks,
   DisconnectReason,
   type LocalAudioTrack,
@@ -80,33 +78,8 @@ const roomOptions = () => ({
   },
 })
 
-/** whether a LiveKit connection was refused because the room is at studio.max_participants */
-export const isFull = (e: unknown) => e instanceof StudioFullError
-
-export class StudioFullError extends Error {
-  constructor() {
-    super('The studio is full.')
-    this.name = 'StudioFullError'
-  }
-}
-
-// refusedAsFull: LiveKit refuses a join to a room at its participant limit by failing the WebSocket, and neither
-// livekit-client nor the validate endpoint says why (v1.13.10). When the validate endpoint still accepts the token
-// (server up, token valid, room open), the refusal is read as a full studio.
-// shortcut: another WebSocket failure with LiveKit up also reads as "full"; upgrade when LiveKit or the join route
-// reports a full room.
-async function refusedAsFull(e: unknown, j: Join): Promise<boolean> {
-  if (!(e instanceof ConnectionError) || e.reason === ConnectionErrorReason.NotAllowed) return false
-  const u = new URL(j.url.replace(/^ws/, 'http'))
-  u.pathname = `${u.pathname.replace(/\/$/, '')}/rtc/validate`
-  u.searchParams.set('access_token', j.token)
-  try {
-    const r = await fetch(u)
-    return r.ok && (await r.text()).trim() === 'success'
-  } catch {
-    return false
-  }
-}
+/** isFull: the join route refused a guest because the room holds as many people as it can */
+export const isFull = (e: unknown) => e instanceof ApiError && e.code === 'studio_full'
 
 /** a destination's status as words and as the colour of its dot */
 export const destinationLabel = (d: BroadcastDestination) =>
@@ -495,11 +468,7 @@ export const useStudio = defineStore('studio', () => {
     try {
       const j = await api<GuestJoin>('POST', `/join/${encodeURIComponent(token)}`, { name })
       title.value = j.title
-      try {
-        await connect(j, publish)
-      } catch (e) {
-        throw (await refusedAsFull(e, j)) ? new StudioFullError() : e
-      }
+      await connect(j, publish)
     } catch (e) {
       disconnect()
       throw e

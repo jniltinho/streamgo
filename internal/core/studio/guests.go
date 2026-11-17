@@ -66,6 +66,13 @@ func (s *Service) JoinAsGuest(ctx context.Context, b *broadcast.Broadcast, name,
 	if err != nil {
 		return nil, err
 	}
+	room := stage.Room(b.ID)
+	if err := s.Rooms.CreateRoom(ctx, room, b.Stage, s.MaxParticipants); err != nil {
+		return nil, fmt.Errorf("open the studio room: %w", err)
+	}
+	if err := s.roomHasPlace(ctx, b.ID, room, cookie); err != nil {
+		return nil, err
+	}
 	unlock, err := s.Locks.Lock(ctx, b.ID) // keeps the guest count exact
 	if err != nil {
 		return nil, err
@@ -75,15 +82,34 @@ func (s *Service) JoinAsGuest(ctx context.Context, b *broadcast.Broadcast, name,
 	if err != nil {
 		return nil, err
 	}
-	room := stage.Room(b.ID)
-	if err := s.Rooms.CreateRoom(ctx, room, b.Stage, s.MaxParticipants); err != nil {
-		return nil, fmt.Errorf("open the studio room: %w", err)
-	}
 	j, err := s.token(room, g.Identity(), name)
 	if err != nil {
 		return nil, err
 	}
 	return &GuestJoin{Join: *j, Title: b.Title, Cookie: cookie}, nil
+}
+
+// roomHasPlace answers ErrRoomFull when the room holds MaxParticipants and the cookie's guest is not one of
+// them (a reload replaces their own connection). It reserves nothing: two guests may pass at once, and the
+// media server then refuses one of them.
+func (s *Service) roomHasPlace(ctx context.Context, broadcastID, room, cookie string) error {
+	ps, err := s.Rooms.ListParticipants(ctx, room)
+	if err != nil {
+		return fmt.Errorf("list the studio's participants: %w", err)
+	}
+	if len(ps) < s.MaxParticipants {
+		return nil
+	}
+	if cookie != "" {
+		g, err := s.Guests.FindByCookie(ctx, broadcastID, Hash(cookie))
+		if err == nil && slices.ContainsFunc(ps, func(p Participant) bool { return p.Identity == g.Identity() }) {
+			return nil
+		}
+		if err != nil && !errors.Is(err, core.ErrNotFound) {
+			return err
+		}
+	}
+	return ErrRoomFull
 }
 
 func (s *Service) guestFor(ctx context.Context, broadcastID, name, cookie string) (*Guest, string, error) {

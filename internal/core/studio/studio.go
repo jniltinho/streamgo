@@ -40,6 +40,9 @@ const (
 // ErrFull is a join that would exceed MaxGuests; the HTTP layer answers 429.
 var ErrFull = errors.New("the studio has too many guests")
 
+// ErrRoomFull is a guest's join to a room that already holds MaxParticipants; the HTTP layer answers 409.
+var ErrRoomFull = errors.New("the studio is full")
+
 // Room is a LiveKit room.
 type Room struct {
 	Name     string

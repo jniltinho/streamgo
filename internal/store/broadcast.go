@@ -22,6 +22,7 @@ type broadcastRow struct {
 	Stage          string     `gorm:"column:stage"`
 	StageVersion   int64      `gorm:"column:stage_version"`
 	Logo           string     `gorm:"column:logo"`
+	Resolution     string     `gorm:"column:resolution"`
 	OutputState    string     `gorm:"column:output_state"`
 	OutputReason   string     `gorm:"column:output_reason"`
 	OutputRun      int64      `gorm:"column:output_run"`
@@ -36,7 +37,7 @@ func (broadcastRow) TableName() string { return "broadcasts" }
 func (r *broadcastRow) toCore() broadcast.Broadcast {
 	return broadcast.Broadcast{
 		ID: r.ID, OwnerID: r.OwnerID, Title: r.Title, InviteSealed: r.InviteSealed, InviteHash: r.InviteHash,
-		Stage: r.Stage, StageVersion: r.StageVersion, Logo: r.Logo,
+		Stage: r.Stage, StageVersion: r.StageVersion, Logo: r.Logo, Resolution: r.Resolution,
 		Output: broadcast.Output{
 			State: broadcast.OutputState(r.OutputState), Reason: r.OutputReason, Run: r.OutputRun,
 			Deadline: fromNullTime(r.OutputDeadline), IngestID: r.IngestID, IngestURL: r.IngestURL,
@@ -87,7 +88,7 @@ func (r *Broadcasts) Create(ctx context.Context, b *broadcast.Broadcast) error {
 	o := b.Output
 	row := broadcastRow{
 		ID: b.ID, OwnerID: b.OwnerID, Title: b.Title, InviteSealed: b.InviteSealed, InviteHash: b.InviteHash,
-		Stage: b.Stage, StageVersion: b.StageVersion, Logo: b.Logo,
+		Stage: b.Stage, StageVersion: b.StageVersion, Logo: b.Logo, Resolution: b.Resolution,
 		OutputState: string(o.State), OutputReason: o.Reason, OutputRun: o.Run, OutputDeadline: toNullTime(o.Deadline),
 		IngestID: o.IngestID, IngestURL: o.IngestURL, StartedAt: toNullTime(o.StartedAt),
 	}
@@ -147,9 +148,9 @@ func (r *Broadcasts) update(ctx context.Context, id string, cols map[string]any)
 	return Translate(r.db.WithContext(ctx).Model(&broadcastRow{}).Where("id = ?", id).Updates(cols).Error)
 }
 
-// SetTitle changes the title.
-func (r *Broadcasts) SetTitle(ctx context.Context, id, title string) error {
-	return r.update(ctx, id, map[string]any{"title": title})
+// Update writes the title and the resolution in one statement.
+func (r *Broadcasts) Update(ctx context.Context, id, title, resolution string) error {
+	return r.update(ctx, id, map[string]any{"title": title, "resolution": resolution})
 }
 
 // SetInvite replaces the invite token.

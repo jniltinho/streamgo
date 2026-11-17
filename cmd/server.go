@@ -143,6 +143,7 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	broadcasts := store.NewBroadcasts(db)
 	broadcastSvc := &broadcast.Service{
 		Repo: broadcasts, Locks: locks, Sealer: box, PublicURL: cfg.Server.PublicURL, Logger: logger,
+		Quality: quality(cfg),
 	}
 	destinations := store.NewDestinations(db)
 	destinationSvc := &destination.Service{
@@ -183,18 +184,15 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	}
 
 	// Live output: the state machine, the ffmpeg supervisor and the program ingest through MediaMTX.
-	width, height := ffmpeg.Size(cfg.Output.Resolution)
 	supervisor := ffmpeg.New(ffmpeg.Options{
 		Path: cfg.Output.FFmpegPath, RTSPURL: cfg.MediaMTX.RTSPURL,
-		User: cfg.MediaMTX.User, Secret: cfg.MediaMTX.Secret,
-		Width: width, Height: height,
-		VideoKbps: cfg.Output.VideoBitrateKbps, AudioKbps: cfg.Output.AudioBitrateKbps, Logger: logger,
+		User: cfg.MediaMTX.User, Secret: cfg.MediaMTX.Secret, AudioKbps: cfg.Output.AudioBitrateKbps, Logger: logger,
 	})
 	out := &output.Service{
 		Broadcasts: broadcasts, Locks: locks, Destinations: destinations, Targets: destinationSvc,
 		Stage: writer, Ingest: mtx, Processes: supervisor,
 		MaxConcurrent: cfg.Output.MaxConcurrent, StartTimeout: cfg.Output.StartTimeout.Std(),
-		Grace: cfg.Output.ReconnectGrace.Std(), Logger: logger,
+		Grace: cfg.Output.ReconnectGrace.Std(), Quality: quality(cfg), Logger: logger,
 	}
 	destinationSvc.Statuses, destinationSvc.Notifier = out, out
 	handlers.RegisterLive(srv.UserAPI(), handlers.LiveDeps{Output: out}) //nolint:contextcheck // handlers use each request's own context
@@ -232,12 +230,15 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	return nil
 }
 
-// studioSettings are the settings the studio reads from every broadcast detail.
+// studioSettings are the server's settings the studio reads from every broadcast detail; the handler adds the
+// broadcast's own program size and bitrate.
 func studioSettings(cfg *config.Config) handlers.StudioSettings {
-	w, h := ffmpeg.Size(cfg.Output.Resolution)
-	return handlers.StudioSettings{
-		MaxOnStage: cfg.Studio.MaxOnStage, ProgramWidth: w, ProgramHeight: h, VideoBitrateKbps: cfg.Output.VideoBitrateKbps,
-	}
+	return handlers.StudioSettings{MaxOnStage: cfg.Studio.MaxOnStage}
+}
+
+// quality is the output's resolutions: the default of new broadcasts, the ceiling and the bitrate override.
+func quality(cfg *config.Config) broadcast.Quality {
+	return broadcast.Quality{Default: cfg.Output.Resolution, Max: cfg.Output.MaxResolution, VideoKbps: cfg.Output.VideoBitrateKbps}
 }
 
 // roomRemover is the broadcasts package's Remover: deleting a broadcast closes its room and removes its logo.

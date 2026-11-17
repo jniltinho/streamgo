@@ -38,6 +38,7 @@ import { AudioMix, stageAudio } from '@/core/audioMix'
 import { AudioSuspendedError, WhipPublisher, type WhipState } from '@/core/whip'
 import { Compositor, type Source } from '@/core/compositor'
 import { type Layout, StageFeed, type StageSource, type StageState } from '@/core/stageState'
+import { screenCapture, sizeChanged } from '@/core/quality'
 
 // the server's defaults (studio.max_on_stage, output.resolution), until GET /broadcasts/:id answers with its own
 const DEFAULT_SETTINGS: StudioSettings = {
@@ -45,6 +46,8 @@ const DEFAULT_SETTINGS: StudioSettings = {
   program_width: 1280,
   program_height: 720,
   video_bitrate_kbps: 4000,
+  resolution: '720p',
+  resolutions: ['720p'],
 }
 const PREVIEW_SIZE = { width: 960, height: 540 }
 const POLL_MS = 3000
@@ -265,6 +268,12 @@ export const useStudio = defineStore('studio', () => {
     refresh()
   }
 
+  /** fitCanvas rebuilds the owner's program canvas when the broadcast's program size is not the canvas's */
+  function fitCanvas() {
+    const c = compositor?.canvas
+    if (c && role.value === 'owner' && sizeChanged(c, settings.value)) attachCanvas(c)
+  }
+
   function detachCanvas() {
     compositor?.stop()
     compositor = null
@@ -359,9 +368,7 @@ export const useStudio = defineStore('studio', () => {
       const d = await api<BroadcastDetail>('GET', `/broadcasts/${id}`)
       detail.value = d
       title.value = d.title
-      // the canvas was attached before the server's program size was known
-      const c = compositor?.canvas
-      if (c && (c.width !== d.studio.program_width || c.height !== d.studio.program_height)) attachCanvas(c)
+      fitCanvas() // the canvas was attached before the broadcast's program size was known
       applyStage(d.stage)
       void loadBanners().catch(() => {})
       schedulePoll()
@@ -397,6 +404,7 @@ export const useStudio = defineStore('studio', () => {
   async function refreshDetail() {
     const d = await api<BroadcastDetail>('GET', `/broadcasts/${broadcastId.value}`)
     detail.value = d
+    fitCanvas()
     applyStage(d.stage)
     // ended elsewhere or past its deadline: stop sending; still on: make sure the program goes out
     if (d.output.state === 'offline') await stopPublishing()
@@ -561,7 +569,11 @@ export const useStudio = defineStore('studio', () => {
 
   async function setSharing(on: boolean) {
     if (!room) return
-    await room.localParticipant.setScreenShareEnabled(on, { audio: true, contentHint: 'detail' })
+    await room.localParticipant.setScreenShareEnabled(on, {
+      audio: true,
+      contentHint: 'detail',
+      resolution: screenCapture(settings.value),
+    })
     sharing.value = on
     refresh()
   }
@@ -692,6 +704,22 @@ export const useStudio = defineStore('studio', () => {
     if (detail.value) detail.value.invite_url = r.invite_url
   }
 
+  /**
+   * setQuality changes the broadcast's output resolution (only while it is offline, so no program is being sent):
+   * the canvas is rebuilt at the new size, a screen already shared is asked for it, and the WHIP sender reads the
+   * new bitrate when the broadcast next goes live.
+   */
+  async function setQuality(resolution: string) {
+    const d = await api<BroadcastDetail>('PATCH', `/broadcasts/${broadcastId.value}`, { resolution })
+    detail.value = d
+    fitCanvas()
+    const screen = room?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track?.mediaStreamTrack
+    const c = screenCapture(d.studio)
+    await screen
+      ?.applyConstraints({ width: { ideal: c.width }, height: { ideal: c.height }, frameRate: c.frameRate })
+      .catch(() => {}) // the capture keeps its size: the program scales it
+  }
+
   async function setDestinations(ids: string[]) {
     const r = await api<BroadcastDestinationList>('PUT', `${base()}/destinations`, { ids })
     if (detail.value) detail.value.destinations = r.destinations
@@ -758,5 +786,6 @@ export const useStudio = defineStore('studio', () => {
     deleteLogo,
     rotateInvite,
     setDestinations,
+    setQuality,
   }
 })

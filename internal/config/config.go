@@ -16,6 +16,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/jniltinho/streamgo/internal/core/broadcast"
 )
 
 // Database drivers accepted in database.driver.
@@ -25,7 +27,7 @@ const (
 	DriverPostgres = "postgres"
 )
 
-// Program resolutions accepted in output.resolution.
+// Defaults of output.resolution and output.max_resolution; the accepted values are broadcast.Resolutions().
 const (
 	Resolution720p  = "720p"
 	Resolution1080p = "1080p"
@@ -91,6 +93,7 @@ type Studio struct {
 type Output struct {
 	FFmpegPath               string   `toml:"ffmpeg_path"`
 	Resolution               string   `toml:"resolution"`
+	MaxResolution            string   `toml:"max_resolution"`
 	VideoBitrateKbps         int      `toml:"video_bitrate_kbps"`
 	AudioBitrateKbps         int      `toml:"audio_bitrate_kbps"`
 	MaxDestinations          int      `toml:"max_destinations"`
@@ -148,7 +151,8 @@ func Default() *Config {
 		Output: Output{
 			FFmpegPath:       "ffmpeg",
 			Resolution:       Resolution720p,
-			VideoBitrateKbps: 4000,
+			MaxResolution:    Resolution1080p,
+			VideoBitrateKbps: 0,
 			AudioBitrateKbps: 128,
 			MaxDestinations:  5,
 			MaxConcurrent:    2,
@@ -292,10 +296,20 @@ func (c *Config) Validate() error {
 	if c.Output.FFmpegPath == "" {
 		bad("output.ffmpeg_path", "must not be empty")
 	}
-	if c.Output.Resolution != Resolution720p && c.Output.Resolution != Resolution1080p {
-		bad("output.resolution", "must be %q or %q, got %q", Resolution720p, Resolution1080p, c.Output.Resolution)
+	resolutions := strings.Join(broadcast.Resolutions(), ", ")
+	if !broadcast.Known(c.Output.Resolution) {
+		bad("output.resolution", "must be one of %s, got %q", resolutions, c.Output.Resolution)
 	}
-	between("output.video_bitrate_kbps", c.Output.VideoBitrateKbps, 500, 12000)
+	if !broadcast.Known(c.Output.MaxResolution) {
+		bad("output.max_resolution", "must be one of %s, got %q", resolutions, c.Output.MaxResolution)
+	}
+	if broadcast.Known(c.Output.Resolution) && broadcast.Known(c.Output.MaxResolution) &&
+		broadcast.Above(c.Output.Resolution, c.Output.MaxResolution) {
+		bad("output.resolution", "%q is above output.max_resolution %q", c.Output.Resolution, c.Output.MaxResolution)
+	}
+	if c.Output.VideoBitrateKbps != 0 { // 0: the ladder's bitrate of each resolution
+		between("output.video_bitrate_kbps", c.Output.VideoBitrateKbps, 500, 40000)
+	}
 	between("output.audio_bitrate_kbps", c.Output.AudioBitrateKbps, 64, 320)
 	between("output.max_destinations", c.Output.MaxDestinations, 1, 10)
 	between("output.max_concurrent", c.Output.MaxConcurrent, 1, 32)

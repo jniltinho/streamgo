@@ -164,6 +164,13 @@ const catalog: Catalog = {
   'Where this broadcast goes when it is live': 'Where this broadcast goes when it is live',
   'You have no destinations yet.': 'You have no destinations yet.',
   'Manage destinations': 'Manage destinations',
+  'Output quality': 'Output quality',
+  'Output quality set to {resolution}.': 'Output quality set to {resolution}.',
+  'The quality can change only while the broadcast is offline.':
+    'The quality can change only while the broadcast is offline.',
+  '{width}x{height} at 30 fps; uses up to {mbps} Mbit/s of your upload.':
+    '{width}x{height} at 30 fps; uses up to {mbps} Mbit/s of your upload.',
+  'Some platforms accept at most 1080p.': 'Some platforms accept at most 1080p.',
   'That device could not be used.': 'That device could not be used.',
   Microphone: 'Microphone',
   Default: 'Default',

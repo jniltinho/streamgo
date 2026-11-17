@@ -6,12 +6,15 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -104,7 +107,8 @@ func newEnv(t *testing.T, mutate ...func(*destination.Service)) *env {
 	}
 	locks := &broadcast.Locks{}
 	e := &env{t: t, db: db, repo: store.NewBroadcasts(db), remover: &remover{dir: t.TempDir()}}
-	e.bs = &broadcast.Service{Repo: e.repo, Locks: locks, Sealer: box, PublicURL: publicURL, Remover: e.remover}
+	e.bs = &broadcast.Service{Repo: e.repo, Locks: locks, Sealer: box, PublicURL: publicURL, Remover: e.remover,
+		Quality: broadcast.Quality{Default: "720p", Max: "1440p"}}
 	e.ds = &destination.Service{Repo: store.NewDestinations(db), Broadcasts: e.repo, Locks: locks, Sealer: box,
 		Resolver: publicResolver{}, MaxPerBroadcast: 2}
 	for _, m := range mutate {
@@ -120,7 +124,7 @@ func newEnv(t *testing.T, mutate ...func(*destination.Service)) *env {
 		},
 	})
 	handlers.RegisterBroadcasts(e.srv.UserAPI(), handlers.BroadcastsDeps{Broadcasts: e.bs, Destinations: e.ds,
-		Studio: handlers.StudioSettings{MaxOnStage: 4, ProgramWidth: 1920, ProgramHeight: 1080, VideoBitrateKbps: 6000}})
+		Studio: handlers.StudioSettings{MaxOnStage: 4}})
 	handlers.RegisterDestinations(e.srv.UserAPI(), handlers.DestinationsDeps{Destinations: e.ds})
 	return e
 }
@@ -307,7 +311,9 @@ func TestInviteLink(t *testing.T) {
 		t.Fatalf("link changed: %q then %q", d.InviteURL, again.InviteURL)
 	}
 	// the studio's read-only settings come with every detail
-	if want := (handlers.StudioSettings{MaxOnStage: 4, ProgramWidth: 1920, ProgramHeight: 1080, VideoBitrateKbps: 6000}); again.Studio != want || d.Studio != want {
+	want := handlers.StudioSettings{MaxOnStage: 4, ProgramWidth: 1280, ProgramHeight: 720, VideoBitrateKbps: 4000,
+		Resolution: "720p", Resolutions: []string{"720p", "1080p", "1440p"}}
+	if !reflect.DeepEqual(again.Studio, want) || !reflect.DeepEqual(d.Studio, want) {
 		t.Fatalf("studio settings: %+v and %+v, want %+v", d.Studio, again.Studio, want)
 	}
 	oldToken := strings.TrimPrefix(d.InviteURL, publicURL+"/join/")
@@ -383,5 +389,76 @@ func assertNotInDatabase(t *testing.T, db *store.DB, secret string) {
 		if bytes.Contains(b, []byte(secret)) {
 			t.Fatalf("%s holds the secret", filepath.Base(f))
 		}
+	}
+}
+
+// patch sends PATCH /broadcasts/:id as ana with a JSON body.
+func (e *env) patch(id string, body string) (int, []byte) {
+	e.t.Helper()
+	return e.do(ana, http.MethodPatch, "/broadcasts/"+id, json.RawMessage(body))
+}
+
+// Requirement "Quality of a broadcast": choose, the ceiling, not while live, a ceiling lowered later, someone
+// else's broadcast, and patches of the resolution alone, of both fields, and refused ones that change nothing.
+func TestOutputQuality(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	d := e.createBroadcast(ana, "Show")
+	get := func() detail {
+		var out detail
+		e.call(ana, http.MethodGet, "/broadcasts/"+d.ID, nil, http.StatusOK, &out)
+		return out
+	}
+	quality := func(x detail) string {
+		return fmt.Sprintf("%s %dx%d %d", x.Studio.Resolution, x.Studio.ProgramWidth, x.Studio.ProgramHeight, x.Studio.VideoBitrateKbps)
+	}
+
+	// Choose, the resolution alone: the title stays
+	var got detail
+	e.call(ana, http.MethodPatch, "/broadcasts/"+d.ID, map[string]string{"resolution": "1440p"}, http.StatusOK, &got)
+	if quality(got) != "1440p 2560x1440 12000" || got.Title != "Show" ||
+		!slices.Equal(got.Studio.Resolutions, []string{"720p", "1080p", "1440p"}) || quality(get()) != "1440p 2560x1440 12000" {
+		t.Fatalf("chosen: %+v", got)
+	}
+	// both fields at once
+	e.call(ana, http.MethodPatch, "/broadcasts/"+d.ID, map[string]string{"title": "Both", "resolution": "1080p"}, http.StatusOK, &got)
+	if got.Title != "Both" || quality(got) != "1080p 1920x1080 6000" {
+		t.Fatalf("both: %+v", got)
+	}
+	// refused patches change nothing, the title included
+	for _, body := range []string{`{"title":"Lost","resolution":"2160p"}`, `{"title":"Lost","resolution":""}`, `{"title":"","resolution":"720p"}`, `{}`} {
+		code, raw := e.patch(d.ID, body)
+		if code != http.StatusUnprocessableEntity {
+			t.Fatalf("%s: %d %s", body, code, raw)
+		}
+		if x := get(); x.Title != "Both" || quality(x) != "1080p 1920x1080 6000" {
+			t.Fatalf("%s changed the broadcast: %+v", body, x)
+		}
+	}
+	// someone else's
+	if code, _ := e.do(bruno, http.MethodPatch, "/broadcasts/"+d.ID, map[string]string{"resolution": "720p"}); code != http.StatusNotFound {
+		t.Fatalf("bruno: %d", code)
+	}
+	// not while the output is not offline; the value it already has is not a change
+	for _, state := range []broadcast.OutputState{broadcast.Starting, broadcast.Live, broadcast.Interrupted} {
+		e.setState(d.ID, state)
+		code, raw := e.patch(d.ID, `{"title":"Live title","resolution":"720p"}`)
+		if code != http.StatusConflict || !strings.Contains(string(raw), "offline") {
+			t.Fatalf("%s: %d %s", state, code, raw)
+		}
+		if x := get(); x.Title != "Both" || quality(x) != "1080p 1920x1080 6000" {
+			t.Fatalf("%s: changed %+v", state, x)
+		}
+		e.call(ana, http.MethodPatch, "/broadcasts/"+d.ID, map[string]string{"title": "Both", "resolution": "1080p"}, http.StatusOK, nil)
+	}
+	e.setState(d.ID, broadcast.Offline)
+
+	// Above the ceiling, and a ceiling lowered later: the stored 1440p goes out, and shows, 1080p
+	e.call(ana, http.MethodPatch, "/broadcasts/"+d.ID, map[string]string{"resolution": "1440p"}, http.StatusOK, nil)
+	e.bs.Quality.Max = "1080p"
+	code, raw := e.patch(d.ID, `{"resolution":"1440p"}`)
+	assertInvalid(t, code, raw, "resolution")
+	if x := get(); quality(x) != "1080p 1920x1080 6000" || !slices.Equal(x.Studio.Resolutions, []string{"720p", "1080p"}) {
+		t.Fatalf("under a lower ceiling: %+v", x.Studio)
 	}
 }

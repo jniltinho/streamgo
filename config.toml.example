@@ -59,10 +59,15 @@ max_on_stage = 6
 # The ffmpeg binary; it must offer the libx264 and aac encoders, the h264, vp8 and opus decoders, the rtsp
 # demuxer, the rtsp, rtp and flv muxers, the tcp, tls, rtmp and rtmps protocols and the scale, pad and format filters.
 ffmpeg_path = "ffmpeg"
-# Program resolution sent to destinations: 720p or 1080p (30 fps).
+# Output resolution of new broadcasts (30 fps): 720p, 1080p or 1440p; at most max_resolution. The owner can
+# change it per broadcast in the studio, up to max_resolution.
 resolution = "720p"
-# Video bitrate in kbit/s (500 to 12000).
-video_bitrate_kbps = 4000
+# The highest resolution a broadcast may use. 1440p costs the server about two cores per live broadcast and the
+# owner's upload up to 24 Mbit/s; some platforms accept at most 1080p.
+max_resolution = "1080p"
+# Video bitrate in kbit/s for every resolution (500 to 40000); 0 uses each resolution's own: 4000 for 720p,
+# 6000 for 1080p, 12000 for 1440p.
+video_bitrate_kbps = 0
 # Audio bitrate in kbit/s (64 to 320).
 audio_bitrate_kbps = 128
 # Destinations per broadcast (1 to 10).

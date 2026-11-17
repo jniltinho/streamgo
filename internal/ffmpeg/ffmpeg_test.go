@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jniltinho/streamgo/internal/core/broadcast"
 	"github.com/jniltinho/streamgo/internal/core/destination"
 	"github.com/jniltinho/streamgo/internal/core/output/outputtest"
 	"github.com/jniltinho/streamgo/internal/ffmpeg"
@@ -98,8 +99,20 @@ func TestArgsAreTheSpikes(t *testing.T) {
 	if got != want {
 		t.Fatalf("relay\n got %s\nwant %s", got, want)
 	}
-	if w, h := ffmpeg.Size("1080p"); w != 1920 || h != 1080 {
-		t.Fatal("1080p")
+}
+
+// TestTranscoderTakesTheProfile: the transcoder encodes at the size and bitrate of the profile it is started with.
+func TestTranscoderTakesTheProfile(t *testing.T) {
+	path := script(t, `echo "$*" >&2; exit 3`)
+	s := ffmpeg.New(ffmpeg.Options{Path: path, RTSPURL: "rtsp://mediamtx:8554", AudioKbps: 128, Timing: fast})
+	defer s.StopAll()
+	ev, notify := watch()
+	s.StartTranscoder("B1", broadcast.Profile{Resolution: "1440p", Width: 2560, Height: 1440, VideoKbps: 12000}, notify)
+	reason := ev.waitEnded(t, 2*time.Second)
+	for _, want := range []string{"scale=2560:1440:", "pad=2560:1440:", "-b:v 12000k -maxrate 12000k -bufsize 24000k", "-b:a 128k"} {
+		if !strings.Contains(reason, want) {
+			t.Errorf("the transcoder's command line %q lacks %q", reason, want)
+		}
 	}
 }
 
@@ -143,7 +156,7 @@ exit 1`)
 	s2 := ffmpeg.New(ffmpeg.Options{Path: path, RTSPURL: "rtsp://mediamtx:8554", User: "streamgo", Secret: "int3rnal-pw", Timing: fast})
 	defer s2.StopAll()
 	ev, notify = watch()
-	s2.StartTranscoder("B1", notify)
+	s2.StartTranscoder("B1", broadcast.Profile{Width: 1280, Height: 720, VideoKbps: 4000}, notify)
 	if reason := ev.waitEnded(t, 2*time.Second); reason != "rtsp://***@mediamtx:8554/program/B1: 404 Not Found" {
 		t.Fatalf("reason %q", reason)
 	}
@@ -284,7 +297,7 @@ func TestHelperServer(t *testing.T) {
 	}
 	s := ffmpeg.New(ffmpeg.Options{Path: path, Timing: ffmpeg.Timing{StallAfter: time.Hour, FirstFlowWithin: time.Hour, StopGrace: time.Hour}})
 	done := make(chan struct{})
-	go func() { s.StartTranscoder("B1", func(bool, string) {}); close(done) }() // a goroutine that ends at once
+	go func() { s.StartTranscoder("B1", broadcast.Profile{}, func(bool, string) {}); close(done) }() // a goroutine that ends at once
 	<-done
 	for range 100 { // churn threads
 		go func() { _ = errors.New("x") }()

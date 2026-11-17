@@ -41,6 +41,7 @@ type Service struct {
 	Sealer    Sealer
 	PublicURL string  // server.public_url; invite links are <PublicURL>/join/<token>
 	Remover   Remover // nil: nothing outside the row is removed
+	Quality   Quality // the output resolutions: default, ceiling, bitrate
 	Logger    *slog.Logger
 }
 
@@ -77,21 +78,68 @@ func (s *Service) Get(ctx context.Context, owner, id string) (*Broadcast, error)
 	return b, nil
 }
 
-// Rename changes the title of the owner's broadcast.
-func (s *Service) Rename(ctx context.Context, owner, id, title string) (*Broadcast, error) {
-	title, err := validTitle(title)
+// Patch is a change to a broadcast; a nil field is left as it is.
+type Patch struct {
+	Title      *string
+	Resolution *string
+}
+
+// Update applies the patch to the owner's broadcast under its lock, all or nothing: a resolution must be
+// allowed by the ceiling (core.Invalid) and can change only while the output is offline (core.ErrConflict).
+func (s *Service) Update(ctx context.Context, owner, id string, p Patch) (*Broadcast, error) {
+	if p.Title == nil && p.Resolution == nil {
+		return nil, core.Invalid("title", "give a title or a resolution")
+	}
+	var title string
+	if p.Title != nil {
+		t, err := validTitle(*p.Title)
+		if err != nil {
+			return nil, err
+		}
+		title = t
+	}
+	if p.Resolution != nil && !s.Quality.Allowed(*p.Resolution) {
+		return nil, core.Invalid("resolution", "must be one of "+strings.Join(s.resolutions(), ", "))
+	}
+	unlock, err := s.Locks.Lock(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+	defer unlock()
 	b, err := s.Get(ctx, owner, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.Repo.SetTitle(ctx, id, title); err != nil {
-		return nil, fmt.Errorf("rename broadcast: %w", err)
+	if p.Title != nil {
+		b.Title = title
 	}
-	b.Title = title
+	if p.Resolution != nil {
+		// the value it already goes out at is not a change, in any state
+		if b.Output.State != Offline && *p.Resolution != s.Quality.Profile(b.Resolution).Resolution {
+			return nil, fmt.Errorf("change the resolution: the output is %s: %w", b.Output.State, core.ErrConflict)
+		}
+		if b.Output.State == Offline {
+			b.Resolution = *p.Resolution
+		}
+	}
+	if err := s.Repo.Update(ctx, id, b.Title, b.Resolution); err != nil {
+		return nil, fmt.Errorf("update broadcast: %w", err)
+	}
 	return b, nil
+}
+
+// Profile is what the broadcast goes out at.
+func (s *Service) Profile(b *Broadcast) Profile { return s.Quality.Profile(b.Resolution) }
+
+// Choices are the profiles the owner may choose from.
+func (s *Service) Choices() []Profile { return s.Quality.Choices() }
+
+func (s *Service) resolutions() []string {
+	var out []string
+	for _, p := range s.Quality.Choices() {
+		out = append(out, p.Resolution)
+	}
+	return out
 }
 
 // Delete deletes the owner's broadcast with its banners, guests and destination selections,

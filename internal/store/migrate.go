@@ -54,8 +54,15 @@ func NewMigrator(db *DB, logger *slog.Logger) (*Migrator, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newMigrator(db, sources, logger)
+}
+
+// newMigrator builds a Migrator of the given migrations. Out of order is allowed: changes
+// developed in parallel take numbers ahead of each other, and an install already past a
+// number still gets that migration when it arrives (add-output-quality, Q7).
+func newMigrator(db *DB, sources fs.FS, logger *slog.Logger) (*Migrator, error) {
 	dialect := map[string]goose.Dialect{SQLite: goose.DialectSQLite3, MariaDB: goose.DialectMySQL, Postgres: goose.DialectPostgres}[db.Driver]
-	opts := []goose.ProviderOption{goose.WithDisableGlobalRegistry(true)}
+	opts := []goose.ProviderOption{goose.WithDisableGlobalRegistry(true), goose.WithAllowOutofOrder(true)}
 	if logger != nil {
 		opts = append(opts, goose.WithSlog(logger))
 	}

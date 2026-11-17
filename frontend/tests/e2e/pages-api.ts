@@ -34,7 +34,14 @@ function detail(b: Broadcast): BroadcastDetail {
     invite_url: `http://127.0.0.1/join/tok-${b.id}`,
     stage: { v: 1, on_air: false, layout: 'grid', sources: [], banner: null, logo: null, accent: '#3b46d8' },
     destinations: [],
-    studio: { max_on_stage: 6, program_width: 1280, program_height: 720, video_bitrate_kbps: 4000 },
+    studio: {
+      max_on_stage: 6,
+      program_width: 1280,
+      program_height: 720,
+      video_bitrate_kbps: 4000,
+      resolution: '720p',
+      resolutions: ['720p', '1080p'],
+    },
   }
 }
 

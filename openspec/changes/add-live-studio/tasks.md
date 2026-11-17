@@ -190,5 +190,5 @@ counter into its video and plays a distinct tone.
   one; verify the `build-and-deploy` "Restore from a backup" scenario
 - [ ] 6.4 `make check test test-db build`, `make test-package test-package-systemd test-allinone`, `openspec validate add-live-studio --strict`, and a Codex review of
   the whole change (`codex exec --sandbox read-only`); fix what they find
-- [ ] 6.5 Tag `v0.1.0` when the owner approves; verify the `build-and-deploy` "Release assets" and "Published
+- [x] 6.5 Tag `v0.1.0` when the owner approves; verify the `build-and-deploy` "Release assets" and "Published
   images" tag scenarios on the published release

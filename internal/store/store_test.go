@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/pressly/goose/v3"
@@ -156,6 +157,37 @@ func TestMigrationUserAdmin(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestMigrateOutOfOrder: a migration numbered below one already applied (a change developed in parallel that
+// shipped later) is applied, not refused (add-output-quality, design Q7).
+func TestMigrateOutOfOrder(t *testing.T) {
+	t.Parallel()
+	sql := func(table string) *fstest.MapFile {
+		return &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE " + table + " (id INT NOT NULL);\n")}
+	}
+	for _, d := range storetest.Drivers() {
+		t.Run(d, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			db := storetest.OpenEmpty(t, storetest.NewSettings(t, d))
+			files := fstest.MapFS{"00001_a.sql": sql("ooo_a"), "00003_c.sql": sql("ooo_c")}
+			m, err := store.NewMigratorFrom(db, files, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if n, err := m.Up(ctx); err != nil || n != 2 {
+				t.Fatalf("first up: %d, %v", n, err)
+			}
+			files["00002_b.sql"] = sql("ooo_b")
+			if m, err = store.NewMigratorFrom(db, files, nil); err != nil {
+				t.Fatal(err)
+			}
+			if n, err := m.Up(ctx); err != nil || n != 1 {
+				t.Fatalf("up with the missing 00002: %d, %v", n, err)
+			}
+		})
 	}
 }
 

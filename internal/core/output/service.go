@@ -44,7 +44,8 @@ type Stopper interface{ Stop() }
 
 // Processes runs the transcoder and the relays (internal/ffmpeg implements it).
 type Processes interface {
-	StartTranscoder(broadcastID string, notify Notify) Stopper
+	// StartTranscoder encodes the broadcast's program at the profile's size and bitrate.
+	StartTranscoder(broadcastID string, p broadcast.Profile, notify Notify) Stopper
 	StartRelay(broadcastID string, target destination.Target, notify Notify) Stopper
 	// StopAll stops every process at once under one deadline and waits for them (shutdown).
 	StopAll()
@@ -90,7 +91,7 @@ type OnAir interface {
 	SetOnAir(ctx context.Context, id string, on bool) (stage.State, error)
 }
 
-// Service is the live output. Every field is required except Logger and Now. It implements
+// Service is the live output. Every field is required except Quality, Logger and Now. It implements
 // destination.Statuses and destination.SelectionNotifier.
 type Service struct {
 	Broadcasts    broadcast.Repository
@@ -103,8 +104,11 @@ type Service struct {
 	MaxConcurrent int           // output.max_concurrent
 	StartTimeout  time.Duration // output.start_timeout
 	Grace         time.Duration // output.reconnect_grace
-	Logger        *slog.Logger
-	Now           func() time.Time
+	// Quality gives the transcoder the broadcast's profile (zero: 720p). The resolution cannot change
+	// while the output is not offline, so every transcoder of a run gets the same profile.
+	Quality broadcast.Quality
+	Logger  *slog.Logger
+	Now     func() time.Time
 
 	// mu is the global lock: capacity, destination claims and the in-memory states. It is
 	// taken after a broadcast's lock, never before.
@@ -376,7 +380,7 @@ func (s *Service) apply(ctx context.Context, b *broadcast.Broadcast, events ...E
 		for _, c := range cmds {
 			switch c.Kind {
 			case StartTranscoder:
-				s.setProc(id, "", s.Processes.StartTranscoder(id, s.notifier(id, c, TranscoderFlowing, ProgramLost))) //nolint:contextcheck // process events outlive the request
+				s.setProc(id, "", s.Processes.StartTranscoder(id, s.Quality.Profile(b.Resolution), s.notifier(id, c, TranscoderFlowing, ProgramLost))) //nolint:contextcheck // process events outlive the request
 			case StartRelay:
 				t, err := s.Targets.Target(ctx, c.Dest)
 				if err != nil {

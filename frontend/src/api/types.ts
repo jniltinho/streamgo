@@ -131,6 +131,10 @@ export interface StudioSettings {
   program_height: number
   /** the transcoder's video bitrate: the WHIP sender's ceiling stays above it */
   video_bitrate_kbps: number
+  /** the broadcast's output resolution, e.g. "1080p" */
+  resolution: string
+  /** the resolutions the owner may choose, lowest first (up to output.max_resolution) */
+  resolutions: string[]
 }
 
 /** POST /broadcasts (201), GET and PATCH /broadcasts/:id */

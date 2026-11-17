@@ -1191,8 +1191,8 @@ dialog.pnl.closing::backdrop {
     flex: none;
     align-items: center;
     gap: 0.75rem;
-    height: 3.75rem;
-    padding: 0 1.25rem;
+    height: 2.5rem; /* slim, as the owner asked: the height goes to the stage */
+    padding: 0 1rem;
     border-bottom: 1px solid var(--color-line);
     background: var(--color-panel);
     color: var(--color-fg);
@@ -1204,14 +1204,14 @@ dialog.pnl.closing::backdrop {
     padding-right: 0.75rem;
     border-right: 1px solid var(--color-line);
     color: var(--color-fg-strong);
-    font-size: 1rem;
+    font-size: 0.9375rem;
     font-weight: 600;
   }
   .studio-mark {
     display: grid;
     place-items: center;
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 1.5rem;
+    height: 1.5rem;
     border-radius: var(--radius-md);
     background: var(--color-action);
     color: var(--color-on-action);

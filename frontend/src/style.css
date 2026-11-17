@@ -1454,8 +1454,32 @@ dialog.pnl.closing::backdrop {
       overflow: hidden auto;
       padding-bottom: 0;
     }
+    /* one line per card, so that a full studio fits in the column: the picture, the name, then the actions; beside
+       "Take off" the dot alone says "On stage" (the words stay for screen readers) */
     .studio-card {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.625rem;
       width: 100%;
+      min-height: 0;
+      padding: 0.375rem 0.625rem;
+    }
+    .studio-card > :first-child {
+      flex: 1;
+    }
+    .studio-card > :last-child {
+      flex: none;
+    }
+    .studio-card.add {
+      flex-direction: row;
+      gap: 0.5rem;
+      padding: 0.5rem;
+    }
+    .studio-card-video {
+      width: 4rem;
+    }
+    .studio-state:has(+ button) > .studio-state-text {
+      @apply sr-only;
     }
   }
   /* under 1280x720 the owner's studio asks for a larger window (studio-ui "Window too small"); a guest's still works */

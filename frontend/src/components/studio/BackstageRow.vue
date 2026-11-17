@@ -92,14 +92,15 @@ async function removeGuest(p: Person) {
         </span>
         <span v-else class="studio-avatar avatar" aria-hidden="true">{{ initials(c.person.name) }}</span>
         <div class="min-w-0">
-          <div class="truncate text-sm">{{ label(c) }}</div>
+          <div class="truncate text-sm" :title="label(c)">{{ label(c) }}</div>
           <div class="studio-meta">{{ role(c) }}</div>
         </div>
       </div>
       <div class="flex items-center gap-2">
         <template v-if="studio.isOnStage(c.source)">
-          <span class="flex items-center gap-1.5 text-xs whitespace-nowrap text-on-stage">
-            <span class="studio-dot status-dot bg-on-stage" aria-hidden="true" />{{ t('On stage') }}
+          <span class="studio-state flex items-center gap-1.5 text-xs whitespace-nowrap text-on-stage">
+            <span class="studio-dot status-dot bg-on-stage" aria-hidden="true" />
+            <span class="studio-state-text">{{ t('On stage') }}</span>
           </span>
           <button
             v-if="owner"

@@ -75,6 +75,11 @@ the raw path or the query string, so invite tokens, session values and LiveKit t
 - **WHEN** a guest opens `/api/v1/join/<token>` and the server log is searched
 - **THEN** the token does not appear, and the entry names the route as `/api/v1/join/:token`
 
+#### Scenario: No Referer from the join page
+- **WHEN** any page or API route answers
+- **THEN** the response has `Referrer-Policy: no-referrer`, so requests made from the join page do not carry its
+  address
+
 #### Scenario: Responses not cached
 - **WHEN** any API route answers
 - **THEN** the response has `Cache-Control: no-store`

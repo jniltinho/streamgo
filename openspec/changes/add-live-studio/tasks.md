@@ -168,7 +168,7 @@ counter into its video and plays a distinct tone.
 - [ ] 5.P4 Add the three workflows (`ci.yml`, `packages.yml`, `docker-image-publish.yml`) with actions pinned by
   commit, and `CHANGELOG.md`; verify the `build-and-deploy` "Continuous integration" scenario on a pull request,
   and "Published images" for `main` after the push
-- [ ] 5.W1 Write `docs/README.md`, `architecture.md`, `install-docker.md`, `standalone-https.md`,
+- [x] 5.W1 Write `docs/README.md`, `architecture.md`, `install-docker.md`, `standalone-https.md`,
   `reverse-proxy.md` and `security.md`, and generate the diagrams with Codex as SVG with a PNG each under
   `docs/images/`; add the documentation test; verify the `documentation` "Index is complete", "No dead links",
   "Every diagram has both formats" and "Diagrams match the design" scenarios and the Docker half of "Commands in

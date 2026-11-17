@@ -131,6 +131,8 @@ dedicated user, alone in their container in the Compose stack. Do not run other 
 - Each request is logged with its method, route pattern, status, duration and client address. The route pattern
   is `/api/v1/join/:token`, never the raw path or the query string, and no body, cookie or header is logged, so
   invite tokens and session values do not reach the log.
+- StreamGo answers every request with `Referrer-Policy: no-referrer`, so browsers do not send the join
+  page's address (which carries the invite token) along with the requests that page makes.
 - The reverse proxy must follow the same rule for the join routes and the `Referer` header; see
   [Behind a reverse proxy](reverse-proxy.md#the-join-route-is-never-logged).
 - With HTTPS from the binary, the log names the certificate and its fingerprint, never the key.

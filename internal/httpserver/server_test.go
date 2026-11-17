@@ -297,3 +297,16 @@ func TestSession(t *testing.T) {
 		t.Fatalf("an unknown route behind no session: %d", w.Code)
 	}
 }
+
+// TestNoReferrer: every response, the join page's included, forbids the Referer header, so the invite
+// token in the page's address is not sent along with the requests the page makes.
+func TestNoReferrer(t *testing.T) {
+	t.Parallel()
+	ts := newServer(t)
+	for _, target := range []string{"/join/inv1teT0ken", "/api/v1/join/inv1teT0ken", "/broadcasts", "/healthz"} {
+		w := ts.do(request(http.MethodGet, target, ""))
+		if got := w.Header().Get("Referrer-Policy"); got != "no-referrer" {
+			t.Errorf("%s: Referrer-Policy %q, want no-referrer", target, got)
+		}
+	}
+}

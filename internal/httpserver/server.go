@@ -193,9 +193,11 @@ func (s *Server) ready(c *echo.Context) error {
 	return c.JSON(status, map[string]any{"status": overall, "checks": results})
 }
 
-// noStore keeps API responses out of every cache.
+// noStore keeps API responses out of every cache, and tells browsers never to send a Referer: the join
+// page's address carries the invite token, which would otherwise reach the logs of every request it makes.
 func noStore(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c *echo.Context) error {
+		c.Response().Header().Set("Referrer-Policy", "no-referrer")
 		if strings.HasPrefix(c.Request().URL.Path, "/api/") {
 			c.Response().Header().Set("Cache-Control", "no-store")
 		}

@@ -52,7 +52,7 @@ func TestNoFFmpegBuild(t *testing.T) {
 		}
 	}
 	docker := read(t, "../Dockerfile")
-	for _, want := range []string{"apk add --no-cache ffmpeg", "apt-get install -y --no-install-recommends ffmpeg"} {
+	for _, want := range []string{"apk add --no-cache ffmpeg \\\n", "apk add --no-cache ffmpeg supervisor"} { // runtime, allinone
 		if !strings.Contains(docker, want) {
 			t.Errorf("the Dockerfile does not install the distribution's ffmpeg (%q)", want)
 		}

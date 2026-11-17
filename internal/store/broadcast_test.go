@@ -28,9 +28,12 @@ func seedUser(t *testing.T, db *store.DB, name string) string {
 	return id
 }
 
+// pad64 pads s to the 64 characters of an invite hash (CHAR(64) pads on PostgreSQL).
+func pad64(s string) string { return s + strings.Repeat("0", 64-len(s)) }
+
 func newBroadcast(t *testing.T, r *store.Broadcasts, owner, hash string) *broadcast.Broadcast {
 	t.Helper()
-	b := &broadcast.Broadcast{OwnerID: owner, Title: "Show " + hash, InviteSealed: []byte{1, 2, 3}, InviteHash: hash,
+	b := &broadcast.Broadcast{OwnerID: owner, Title: "Show " + hash, InviteSealed: []byte{1, 2, 3}, InviteHash: pad64(hash),
 		Stage: broadcast.DefaultStage}
 	if err := r.Create(context.Background(), b); err != nil {
 		t.Fatal(err)
@@ -53,7 +56,7 @@ func TestBroadcastRepository(t *testing.T) {
 		if err != nil || len(list) != 2 || list[0].ID != second.ID || list[1].ID != first.ID {
 			t.Fatalf("list: %+v %v", list, err)
 		}
-		if got, err := r.FindByInviteHash(ctx, "h2"); err != nil || got.ID != second.ID {
+		if got, err := r.FindByInviteHash(ctx, pad64("h2")); err != nil || got.ID != second.ID {
 			t.Fatalf("by hash: %+v %v", got, err)
 		}
 		if _, err := r.Get(ctx, "missing"); !errors.Is(err, core.ErrNotFound) {
@@ -65,7 +68,7 @@ func TestBroadcastRepository(t *testing.T) {
 			IngestID: "s1", IngestURL: "http://m/whip", StartedAt: deadline.Add(-time.Hour)}
 		for _, err := range []error{
 			r.SetTitle(ctx, first.ID, "Renamed"),
-			r.SetInvite(ctx, first.ID, []byte{9}, "h9"),
+			r.SetInvite(ctx, first.ID, []byte{9}, pad64("h9")),
 			r.SetStage(ctx, first.ID, `{"v":1}`, 7),
 			r.SetLogo(ctx, first.ID, "abc.png"),
 			r.SetOutput(ctx, first.ID, out),
@@ -78,7 +81,7 @@ func TestBroadcastRepository(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.Title != "Renamed" || string(got.InviteSealed) != "\x09" || got.InviteHash != "h9" ||
+		if got.Title != "Renamed" || string(got.InviteSealed) != "\x09" || got.InviteHash != pad64("h9") ||
 			got.Stage != `{"v":1}` || got.StageVersion != 7 || got.Logo != "abc.png" ||
 			got.Output.State != out.State || got.Output.Reason != out.Reason || got.Output.Run != 3 ||
 			!got.Output.Deadline.Equal(deadline) || !got.Output.StartedAt.Equal(out.StartedAt) ||

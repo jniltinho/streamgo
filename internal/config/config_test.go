@@ -63,7 +63,7 @@ func TestDefaults(t *testing.T) {
 		{"server", s.Addr == ":8080" && s.PublicURL == "http://localhost:8080" && s.DataDir == "./data" && len(s.TrustedProxies) == 0},
 		{"database", d.Driver == "sqlite" && cfg.SQLitePath() == filepath.Join("data", "streamgo.db")},
 		{"livekit", cfg.LiveKit.URL != "" && cfg.LiveKit.APIURL != ""},
-		{"mediamtx", cfg.MediaMTX.WHIPURL != "" && cfg.MediaMTX.RTSPURL != ""},
+		{"mediamtx", cfg.MediaMTX.WHIPURL != "" && cfg.MediaMTX.RTSPURL != "" && cfg.MediaMTX.APIURL != ""},
 		{"studio", cfg.Studio.MaxParticipants == 10 && cfg.Studio.MaxOnStage == 6},
 		{"output", o.FFmpegPath == "ffmpeg" && o.Resolution == "720p" && o.VideoBitrateKbps > 0 && o.AudioBitrateKbps > 0 &&
 			o.MaxDestinations == 5 && o.MaxConcurrent == 2 && o.StartTimeout.Std() == 30*time.Second &&
@@ -207,8 +207,9 @@ var fakeListings = map[string]string{
 	"-encoders":  "Encoders:\n V..... = Video\n ------\n V....D libx264              libx264 H.264\n A....D aac                  AAC\n",
 	"-decoders":  "Decoders:\n ------\n V....D h264  H.264\n V....D vp8  On2 VP8\n A....D opus  Opus\n",
 	"-demuxers":  "Formats:\n D. = Demuxing supported\n ---\n D  rtsp            RTSP input\n D  mov,mp4,m4a     QuickTime\n",
-	"-muxers":    "Formats:\n .E = Muxing supported\n ---\n  E rtsp            RTSP output\n  E flv             FLV\n",
-	"-protocols": "Supported file protocols:\nInput:\n  rtmp\n  rtmps\n  rtsp\nOutput:\n  file\n  rtmp\n  rtmps\n",
+	"-muxers":    "Formats:\n .E = Muxing supported\n ---\n  E rtsp            RTSP output\n  E rtp             RTP output\n  E flv             FLV\n",
+	"-protocols": "Supported file protocols:\nInput:\n  rtmp\n  rtmps\n  rtsp\n  tcp\n  tls\nOutput:\n  file\n  rtmp\n  rtmps\n  tcp\n  tls\n",
+	"-filters":   "Filters:\n  T.. = Timeline support\n  | = Source or sink filter\n ... format            V->V       Convert the input video.\n ... pad               V->V       Pad the input video.\n ..C scale             V->V       Scale the input video.\n",
 }
 
 // fakeFFmpeg writes a script that prints the listing named by its second argument, with
@@ -245,6 +246,9 @@ func TestCheckFFmpeg(t *testing.T) {
 		{"no rtmps", "rtmps", "the rtmps output protocol"},
 		{"no flv", "flv", "the flv muxer"},
 		{"no vp8", "vp8", "the vp8 decoder"},
+		{"no rtp", "rtp", "the rtp muxer"},
+		{"no tls", "tls", "the tls output protocol"},
+		{"no pad", "pad", "the pad filter"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

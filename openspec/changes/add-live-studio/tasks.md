@@ -173,7 +173,7 @@ counter into its video and plays a distinct tone.
   `docs/images/`; add the documentation test; verify the `documentation` "Index is complete", "No dead links",
   "Every diagram has both formats" and "Diagrams match the design" scenarios and the Docker half of "Commands in
   the guides run"
-- [ ] 5.W2 Write `docs/install-linux.md` and `docs/install-binary.md` once the packages exist, with the RPM
+- [x] 5.W2 Write `docs/install-linux.md` and `docs/install-binary.md` once the packages exist, with the RPM
   Fusion steps for the RHEL family; verify the `linux-packages` "Installation documents" and "Start on the RHEL
   family with RPM Fusion" scenarios and the packages half of "Commands in the guides run" by following the guide
   on a clean Ubuntu 26.04 container

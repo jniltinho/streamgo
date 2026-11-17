@@ -122,7 +122,7 @@ test-package: package ## Install the packages on Debian, Ubuntu, AlmaLinux (and 
 test-package-systemd: package ## The .deb under a real systemd (privileged Debian 13 and Ubuntu 26.04 containers)
 	packaging/systemd.sh $(DIST)/packages
 
-# ── all-in-one image: StreamGo, LiveKit, MediaMTX and Debian's ffmpeg under supervisord (docker/allinone/) ──
+# ── all-in-one image: StreamGo, LiveKit, MediaMTX and Alpine's ffmpeg under supervisord (docker/allinone/) ──
 image-allinone: ## Build the all-in-one image $(IMAGE):$(VERSION)-allinone
 	docker build $(BUILD_ARGS) --target allinone -t $(IMAGE):$(VERSION)-allinone -t $(IMAGE):allinone .
 

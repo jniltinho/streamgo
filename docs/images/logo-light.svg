@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="64" viewBox="0 0 300 64" role="img" aria-label="StreamGo">
+  <rect x="4" y="8" width="48" height="48" rx="4" fill="#3d41cf"/>
+  <path d="M22 21 L38 32 L22 43 Z" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round"/>
+  <text x="66" y="43" font-family="Inter, 'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="34" font-weight="700" fill="#14172b">StreamGo</text>
+</svg>

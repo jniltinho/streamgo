@@ -5,11 +5,12 @@ import { ref } from 'vue'
 import AppModal from '@/components/AppModal.vue'
 import UiAlert from '@/components/ui/UiAlert.vue'
 import type { Destination, DestinationPatch } from '@/api/types'
+import { destinationPresets } from '@/core/destinationPresets'
 import { destinationError, useDestinations } from '@/stores/destinations'
 import { toast } from '@/feedback/toasts'
 import { t } from '@/i18n'
 
-const props = defineProps<{ destination: Destination | null }>()
+const props = defineProps<{ destination: Destination | null; preset?: string }>()
 const emit = defineEmits<{ close: [] }>()
 const store = useDestinations()
 const name = ref(props.destination?.name ?? '')
@@ -17,6 +18,20 @@ const address = ref('')
 const key = ref('')
 const error = ref('')
 const busy = ref(false)
+
+// a popular platform fills its address and, unless the user typed one, its name; "Other" takes them back
+const platform = ref('')
+const chosen = () => destinationPresets.find((p) => p.id === platform.value)
+function applyPlatform() {
+  const p = chosen()
+  const fromPreset = (v: string, k: 'name' | 'address') => !v.trim() || destinationPresets.some((x) => x[k] === v)
+  if (fromPreset(name.value, 'name')) name.value = p?.name ?? ''
+  if (fromPreset(address.value, 'address')) address.value = p?.address ?? ''
+}
+if (!props.destination && props.preset) {
+  platform.value = props.preset
+  applyPlatform()
+}
 
 async function save() {
   busy.value = true
@@ -47,6 +62,13 @@ async function save() {
     <form novalidate @submit.prevent="($event.target as HTMLFormElement).reportValidity() && save()">
       <div class="pnl-body grid gap-3">
         <UiAlert v-if="error" kind="error">{{ error }}</UiAlert>
+        <div v-if="!destination">
+          <label class="lbl" for="d-platform">{{ t('Platform') }}</label>
+          <select id="d-platform" v-model="platform" class="inp" @change="applyPlatform">
+            <option value="">{{ t('Other (type the address)') }}</option>
+            <option v-for="p in destinationPresets" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
         <div>
           <label class="lbl" for="d-name">{{ t('Name') }}</label>
           <input id="d-name" v-model="name" class="inp" required maxlength="60" pattern=".*\S.*" />
@@ -70,7 +92,12 @@ async function save() {
                 ? t('An address is set ({address}). Leave the field empty to keep it.', {
                     address: `${destination.scheme}://${destination.host}`,
                   })
-                : t('The rtmp:// or rtmps:// address the platform gives you.')
+                : chosen()
+                  ? t(
+                      'The usual address of {platform}. Compare it with the one the platform shows you, then paste your stream key.',
+                      { platform: chosen()!.name },
+                    )
+                  : t('The rtmp:// or rtmps:// address the platform gives you.')
             }}
           </p>
         </div>

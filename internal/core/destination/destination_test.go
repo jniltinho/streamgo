@@ -40,6 +40,11 @@ func TestParseAddress(t *testing.T) {
 	}{
 		{"rtmp", "rtmp://a.rtmp.youtube.com/live2", "k", ""},
 		{"rtmps with port", "rtmps://live.example.com:443/app", "", ""},
+		// the platform presets of the web app (frontend/src/core/destinationPresets.ts)
+		{"youtube preset", "rtmps://a.rtmps.youtube.com/live2", "k", ""},
+		{"twitch preset", "rtmps://live.twitch.tv/app", "k", ""},
+		{"facebook preset", "rtmps://live-api-s.facebook.com:443/rtmp/", "k", ""},
+		{"instagram preset", "rtmps://live-upload.instagram.com:443/rtmp/", "k", ""},
 		{"query without key", "rtmp://h.example.com/app?k=1", "", ""},
 		{"http", "http://h.example.com/app", "", "address"},
 		{"no host", "rtmp:///app", "", "address"},

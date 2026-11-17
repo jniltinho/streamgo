@@ -54,7 +54,8 @@ StreamGo is in its first version. This documentation describes the design the pr
 behaviour was measured rather than only designed, the [architecture guide](architecture.md) says so and gives the
 numbers from the [media spike](spike-media-path.md). Two things are known and not yet checked on real hardware: a
 host whose browser window is minimized (it passed only in an emulation), and the media ports reached from an
-outside network behind NAT. Both are part of the manual run before the first release.
+outside network behind NAT. The live output was tested against an RTMP server in the test stack; a long broadcast
+to a public platform is part of the manual checks still to run.
 
 Not in this version, so you can plan around it: recordings, more than one StreamGo process, a TURN server, and
 composing the program on the server (the broadcast depends on the host's browser staying open; see
@@ -62,6 +63,52 @@ composing the program on the server (the broadcast depends on the host's browser
 
 ## For developers
 
-Everything builds and tests in Docker; the host needs Docker and `make`. The commands are in the
-[root README](../README.md), the rules in [AGENTS.md](../AGENTS.md), and the plan with its specifications in
-[`openspec/`](../openspec/).
+StreamGo is Go at the repository root (Cobra, Echo, GORM) with a Vue 3 and TypeScript web app in `frontend/`,
+embedded in the binary. Everything builds and tests in Docker; the host needs Docker and `make`. The rules are in
+[AGENTS.md](../AGENTS.md), and the plan with its specifications in [`openspec/`](../openspec/).
+
+### Build and run from source
+
+```bash
+make init                      # config.toml and .env (secret key and credentials), only when missing
+make build                     # dist/streamgo, a static linux/amd64 binary
+dist/streamgo version
+```
+
+Run the server directly (SQLite under `./data`, an ffmpeg with libx264 on the `PATH`, and a LiveKit and a MediaMTX
+to talk to):
+
+```bash
+set -a; . ./.env; set +a       # secrets come only from the environment
+dist/streamgo server           # http://localhost:8080; GET /healthz and /readyz; applies pending migrations
+```
+
+`dist/streamgo --help` lists the commands. Every setting is documented with its default in
+[`config.toml.example`](../config.toml.example) and can be overridden by `STREAMGO_<SECTION>_<KEY>`. The secret key,
+the database connection string and the LiveKit and MediaMTX credentials are read only from the environment.
+
+### The whole stack
+
+```bash
+make up                        # StreamGo, LiveKit and MediaMTX with Docker Compose (DB=sqlite|mariadb|postgres)
+make dev                       # the same stack with the Vite dev server in front, on http://localhost:5173
+make down                      # stop it (volumes are kept)
+```
+
+`make up` advertises the host's network address for media unless `NODE_IP` is set; the published ports come from
+`HTTP_PORT`, `LIVEKIT_PORT`, `LIVEKIT_TCP_PORT`, `LIVEKIT_UDP_PORT` and `MEDIAMTX_WEBRTC_PORT`, in the environment
+or in `.env`. [Deployment](deployment.md) has the details.
+
+### Check and test
+
+```bash
+make check          # gofmt, go vet, golangci-lint (with the layering rule), govulncheck, frontend check and build
+make test           # Go tests with -race on SQLite, frontend unit tests
+make test-db        # Go tests on SQLite, MariaDB and PostgreSQL, with LiveKit, MediaMTX and ffmpeg (throwaway containers)
+make test-package   # build the .deb, .rpm and .tar.gz and install them in clean distribution containers
+make test-allinone  # build and smoke test the all-in-one image
+```
+
+The studio's browser suite (`frontend/tests/e2e/20-studio.spec.ts`) runs against a running stack; its header says
+how. Releases are cut from a tag: the Packages workflow builds and publishes the files, and the image workflow
+pushes the all-in-one image.

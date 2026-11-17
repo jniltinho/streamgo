@@ -113,4 +113,4 @@ extract the new archive with the same `tar` command; put your four files back; c
 applies new database migrations when it starts.
 
 To build the binary yourself from a checkout instead, `make build` writes `dist/streamgo`; the
-[root README](../README.md#quick-start) shows how to run it. It still needs LiveKit, MediaMTX and ffmpeg.
+[documentation index](README.md#build-and-run-from-source) shows how to run it. It still needs LiveKit, MediaMTX and ffmpeg.

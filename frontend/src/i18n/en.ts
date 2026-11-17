@@ -94,6 +94,11 @@ const catalog: Catalog = {
   Remove: 'Remove',
   Backstage: 'Backstage',
   'Everyone in the studio': 'Everyone in the studio',
+  Platform: 'Platform',
+  'Other (type the address)': 'Other (type the address)',
+  'Popular platforms': 'Popular platforms',
+  'The usual address of {platform}. Compare it with the one the platform shows you, then paste your stream key.':
+    'The usual address of {platform}. Compare it with the one the platform shows you, then paste your stream key.',
   'Connecting to the studio…': 'Connecting to the studio…',
   'The stage is empty. Use "Add to stage" in the backstage to put a camera or a screen on it.':
     'The stage is empty. Use "Add to stage" in the backstage to put a camera or a screen on it.',

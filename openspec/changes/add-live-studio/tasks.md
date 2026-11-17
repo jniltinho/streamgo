@@ -110,7 +110,7 @@ counter into its video and plays a distinct tone.
 - [x] 3.F App pages: the sign-in, broadcasts and destinations views with their stores and API modules, the route
   guard and the language switch, in a centred column that follows the D13 scale; verify every `web-shell`
   scenario with Playwright against the running server
-- [ ] 3.G Themes: copy MeetHub's 20 carried-over theme files, `matrix.json`, `catalog.ts`, `apply.ts` and the
+- [x] 3.G Themes: copy MeetHub's 20 carried-over theme files, `matrix.json`, `catalog.ts`, `apply.ts` and the
   lockstep, contract and contrast tests; add `themes/streamgo.css` from MeetHub's own pair renamed, the studio
   roles with their defaults and the studio recipes in the matrix; `GET /api/v1/themes` (`handlers/themes.go`), the
   picker with previews,
@@ -123,7 +123,7 @@ counter into its video and plays a distinct tone.
   `build-and-deploy` "Image starts", "Up and ready", "Media servers configured", "Media server not exposed",
   "Init keeps existing secrets", "Media server down" and "Guide covers the list" scenarios (LiveKit's signalling
   behind the same TLS reverse proxy as the app)
-- [ ] 3.I Integration: wire every package's adapters and routes in `cmd/server.go`, run the whole suite on the
+- [x] 3.I Integration: wire every package's adapters and routes in `cmd/server.go`, run the whole suite on the
   three databases against the Compose stack, and fix what does not meet between packages; verify
   `make check test test-db build` and a route test listing every route of the REST contract with its owner check
 

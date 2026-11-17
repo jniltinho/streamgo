@@ -8,7 +8,7 @@ are the section of that version.
 
 —
 
-## [0.1.0]
+## [0.1.0] — 2026-11-17
 
 **The first version: a self-hosted live-streaming studio. Invite guests, arrange the stage in the browser and go
 live to RTMP and RTMPS destinations.**
@@ -22,6 +22,11 @@ live to RTMP and RTMPS destinations.**
 - **Studio** — the owner opens the studio and guests join backstage from the invite link with a name, no account.
   The owner puts cameras and shared screens on stage (up to 6), picks one of six layouts, shows a logo and one
   lower-third banner at a time, removes a guest and rotates the invite link.
+- **Backstage** — every card shows the live picture of its camera or shared screen before it goes on stage, and
+  its microphone mark changes while that person is heard. A studio holds 10 people by default
+  (`studio.max_participants`, up to 100); a guest who arrives at a full studio is told so.
+- **Wide windows** — in a window of 19:10 or wider the backstage and the side panel share the right-hand column,
+  and the program fills the stage with no empty band beside it.
 - **Program** — the owner's browser draws the stage, mixes the on-stage audio and publishes the result by WHIP,
   through StreamGo, to MediaMTX: what the owner sees on stage is what goes out.
 - **Live output** — one ffmpeg per broadcast transcodes the program to H.264 and AAC, and one copy per destination
@@ -29,14 +34,16 @@ live to RTMP and RTMPS destinations.**
   retried on failure; a program that disappears interrupts the broadcast, which resumes when it comes back in time,
   also across a server restart.
 - **Destinations** — named RTMP targets per user; everything after the host is encrypted at rest and never returned
-  by the API. Addresses in private networks are refused unless the operator allows them.
+  by the API. Addresses in private networks are refused unless the operator allows them. YouTube, Twitch, Facebook
+  and Instagram are one click away: the form fills their address, you paste the stream key.
 - **Web app** — sign-in, broadcasts, destinations, the studio (owner and guest views) and the guest join page, in
   English and Brazilian Portuguese, designed at Full HD and scaled on QHD and 4K monitors.
 - **Themes** — 22 themes: StreamGo's own dark and light pair and the 20 themes of MeetHub's catalog.
 - **Databases** — SQLite by default, MariaDB or PostgreSQL by configuration, with the same behaviour on the three.
 - **HTTPS from the binary** — a certificate you bring or a self-signed one StreamGo generates, with LiveKit's
   signalling proxied at `/livekit/` on the same origin: one HTTPS port is a complete install.
-- **Docker** — a Compose stack of StreamGo, LiveKit and MediaMTX (`make up`), and an all-in-one image with the three
+- **Docker** — a Compose stack of StreamGo, LiveKit and MediaMTX (`make up`, which advertises the host's network
+  address for media unless `NODE_IP` is set), and an all-in-one image with the three
   and ffmpeg under one supervisor, published as `ghcr.io/jniltinho/streamgo:<version>-allinone`.
 - **Linux packages** (linux/amd64) — `streamgo_<version>_amd64.deb`, `streamgo-<version>-1.x86_64.rpm` and
   `streamgo_<version>_linux_amd64.tar.gz`: StreamGo with LiveKit 1.13.10 and MediaMTX 1.21.4 under `/opt/streamgo`

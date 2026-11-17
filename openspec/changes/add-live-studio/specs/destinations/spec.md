@@ -12,6 +12,12 @@ a slash and the key. Users SHALL see and change only their own destinations.
 - **WHEN** Ana creates "YouTube" with `rtmp://a.rtmp.youtube.com/live2` and a key
 - **THEN** it appears in her list and not in Bruno's
 
+#### Scenario: Platform presets
+- **WHEN** the user picks YouTube, Twitch, Facebook or Instagram in the new-destination form, or its shortcut on
+  the empty destinations page
+- **THEN** the form fills that platform's name and RTMPS address, both still editable, and only the stream key is
+  left to paste; picking "Other" clears what the preset filled
+
 #### Scenario: Invalid address
 - **WHEN** a destination is saved with an `http` address, an address without a host, one containing a space or a
   line break, or a blank name

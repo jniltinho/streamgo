@@ -64,6 +64,11 @@ bigger empty area.
 - **THEN** the page does not scroll, the program stays 16:9 and centred, and no control is cut off; the backstage
   row scrolls sideways when its cards do not fit
 
+#### Scenario: Wide window
+- **WHEN** the window is 19:10 or wider, such as 2340x1170 or 3440x1440
+- **THEN** the backstage stands beside the stage as a column that scrolls inside itself, the layout picker and
+  the controls stay in one row below both, and the program is larger than it would be above a backstage row
+
 #### Scenario: Window too small
 - **WHEN** the window is narrower than 1280 px or shorter than 720 px
 - **THEN** the studio says a larger window is needed to host, and the guest view still works

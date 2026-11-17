@@ -1422,6 +1422,37 @@ dialog.pnl.closing::backdrop {
     padding: calc(var(--view-h) * var(--dialog-top)) 1rem 1rem;
   }
   /* under 1280x720 the owner's studio asks for a larger window (studio-ui "Window too small"); a guest's still works */
+  /* A window much wider than 16:9 leaves the stage short and empty at its sides: there the backstage stands
+     beside the stage as a column, and the stage takes its height. */
+  @media (min-aspect-ratio: 19 / 10) {
+    .studio-body {
+      grid-template:
+        'back stage side' minmax(0, 1fr)
+        'row row side' auto
+        / 15.25rem minmax(0, 1fr) 20.5rem;
+    }
+    .studio-body.no-side {
+      grid-template:
+        'back stage' minmax(0, 1fr)
+        'row row' auto
+        / 15.25rem minmax(0, 1fr);
+    }
+    .studio-back {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .studio-cards {
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden auto;
+      padding-bottom: 0;
+    }
+    .studio-card {
+      width: 100%;
+    }
+  }
   @media (max-width: 1279.98px), (max-height: 719.98px) {
     .studio.host > :not(.studio-small) {
       display: none;

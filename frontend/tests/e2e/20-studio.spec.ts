@@ -214,8 +214,9 @@ test.describe('owner studio', () => {
     await tabTo(studio, show)
     await studio.keyboard.press('Enter')
     await expect(studio.locator('[data-banner="Q3 roadmap: what ships next"]')).toContainText('Showing')
-    // the banner is drawn in the program: white, above the name tags
-    await expect.poll(async () => Math.min(...(await pixel(studio, 0.3, 0.855)))).toBeGreaterThan(230)
+    // the banner is drawn in the program: white, above the name tags (a point in its top padding, clear of the
+    // text at 720p and at 1080p)
+    await expect.poll(async () => Math.min(...(await pixel(studio, 0.2, 0.818)))).toBeGreaterThan(230)
   })
 
   test('Guest knows where they are: Backstage, On stage and back', async () => {
@@ -434,8 +435,10 @@ test.describe('Screen sizes', () => {
     [2560, 1440],
     [3840, 2160],
     [3440, 1440],
+    [2340, 1170],
   ] as const
   const fhd: Record<string, number[]> = {}
+  const rem = (w: number, h: number) => Math.min(Math.max(16, Math.min(w / 120, h / 67.5)), 32)
 
   for (const [width, height] of sizes)
     test(`${width}x${height}: no page scroll, every region and control visible, the program 16:9 and centred`, async ({
@@ -470,6 +473,13 @@ test.describe('Screen sizes', () => {
       expect(Math.abs(px! - sx! - (sx! + sw! - px! - pw!))).toBeLessThan(0.3) // centred across
       expect(Math.abs(py! - sy! - (sy! + sh! - py! - ph!))).toBeLessThan(0.3) // and down
       if (width === 1920) Object.assign(fhd, g)
+      // "Wide window": from 19:10 up the backstage stands beside the stage, and the program is larger for it
+      const wide = width / height >= 1.9
+      expect(g.back[0]! < g.stage[0]!, 'the backstage is beside the stage').toBe(wide)
+      if (wide) {
+        expect(Math.abs(g.back[1]! - g.stage[1]!)).toBeLessThan(0.3)
+        expect(ph!).toBeGreaterThan(fhd.program![3]! * (rem(width, height) < 16.5 ? 0.9 : 1.08))
+      }
       if (width === 2560 || width === 3840) {
         // the Full HD arrangement, larger: the same rectangles in rem, within 1 % (hairline borders stay 1 px)
         expect(g.rem).toBeCloseTo((width / 1920) * 16, 1)
@@ -502,7 +512,7 @@ test.describe('Screen sizes', () => {
         expect(radii.container).toBeCloseTo(8, 2)
         expect(radii.stage).toBeCloseTo(8, 2)
       }
-      if (shots && [1280, 1920, 2560, 3840, 3440].includes(width)) {
+      if (shots && [1280, 1920, 2560, 3840, 3440, 2340].includes(width)) {
         mkdirSync(shots, { recursive: true })
         await page.screenshot({ path: `${shots}/sizes-${width}x${height}.png` })
       }

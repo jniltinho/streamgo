@@ -143,15 +143,36 @@ counter into its video and plays a distinct tone.
 - [ ] 4.4 Build the guest join page and guest view; verify every `studio-ui` "Guest join page and guest view"
   scenario and the `studio` "Reload keeps the identity" scenario with two browser contexts
 
-## 5. Validation
+## 5. Packages, images and release (after group 4; package P, files in design.md)
 
-- [ ] 5.1 Add the end-to-end smoke test to the Compose stack (a synthetic program by WHIP to the test RTMP sink);
+- [ ] 5.P1 Build the packages as MeetHub does (`packaging/build.sh`, the units, the maintainer scripts, the
+  `packages` stage, `make package`), with the pinned LiveKit and MediaMTX binaries verified by checksum, their
+  configuration with loopback listeners, the first-install secrets, and `THIRD_PARTY`; verify the
+  `linux-packages` "Package build", "Install layout", "First-install secrets" and "Data survives upgrades and
+  removal" scenarios
+- [ ] 5.P2 Write `packaging/smoke.sh` and `make test-package` (Debian 13 and Ubuntu 26.04 with a real start;
+  AlmaLinux 9 and 10 layout only) and `make test-package-systemd` (Debian 13 and Ubuntu 26.04 containers running
+  systemd); verify the `linux-packages` "systemd services", "Package smoke test" and "Start under a real
+  systemd" scenarios
+- [ ] 5.P3 Build the all-in-one image (`docker/allinone/`, the `allinone` stage, `make image-allinone`,
+  `make test-allinone`); verify the `build-and-deploy` "All-in-one image" scenarios
+- [ ] 5.P4 Add the three workflows (`ci.yml`, `packages.yml`, `docker-image-publish.yml`) with actions pinned by
+  commit, and `CHANGELOG.md`; verify the `build-and-deploy` "Continuous integration" scenario on a pull request,
+  and "Published images" for `main` after the push
+- [ ] 5.P5 Write `docs/install-linux.md` and `docs/install-binary.md` and link them from the README; verify the
+  `linux-packages` "Installation documents" scenario by following the guide on a clean Ubuntu 26.04 container
+
+## 6. Validation and first release
+
+- [ ] 6.1 Add the end-to-end smoke test to the Compose stack (a synthetic program by WHIP to the test RTMP sink);
   verify the `build-and-deploy` "End-to-end smoke" scenario in `make test-e2e`
-- [ ] 5.2 Run a 30-minute live broadcast by hand, with the server behind NAT and the owner on another network,
+- [ ] 6.2 Run a 30-minute live broadcast by hand, with the server behind NAT and the owner on another network,
   one guest, two destinations (one real platform), a layout change, a banner, a destination switched off and on,
   an owner reload and a server restart; verify the `build-and-deploy` "Reachable from outside" scenario and
   record the result in `docs/spike-media-path.md`
-- [ ] 5.3 Back up the database, the assets and the secret key of a stack with data and restore them into a new
+- [ ] 6.3 Back up the database, the assets and the secret key of a stack with data and restore them into a new
   one; verify the `build-and-deploy` "Restore from a backup" scenario
-- [ ] 5.4 `make check test test-db build`, `openspec validate add-live-studio --strict`, and a Codex review of
+- [ ] 6.4 `make check test test-db build`, `make test-package test-package-systemd test-allinone`, `openspec validate add-live-studio --strict`, and a Codex review of
   the whole change (`codex exec --sandbox read-only`); fix what they find
+- [ ] 6.5 Tag `v0.1.0` when the owner approves; verify the `build-and-deploy` "Release assets" and "Published
+  images" tag scenarios on the published release

@@ -41,12 +41,16 @@ First version of the application; everything is new.
   test suite on the three.
 - **Deployment**: a Docker-only build and a Compose stack of StreamGo (with ffmpeg), LiveKit and MediaMTX, run as
   a single StreamGo instance without Redis or a job queue.
+- **Packages and releases** (linux/amd64 only, as in MeetHub): a `.deb`, an `.rpm` and a `.tar.gz` that install
+  StreamGo with pinned LiveKit and MediaMTX under `/opt/streamgo` as systemd services, validated on Debian 13 and
+  Ubuntu 26.04; an all-in-one Docker image published to GHCR; GitHub Actions for checks, packages and images; a
+  `v*` tag publishes the release.
 
 Not in this change: recording; studio chat and comments from the platforms; signing in to YouTube or Twitch to
 fetch keys or set titles; RTMP or OBS input; scheduled broadcasts; playing video files; tickers, countdowns and
 backgrounds; muting a guest from the owner's side; several owners, teams or roles; hosting from a phone; a
-server-side composition fallback; more than one StreamGo instance; background jobs; single sign-on; Linux
-packages.
+server-side composition fallback; more than one StreamGo instance; background jobs; single sign-on;
+architectures other than amd64; package repositories (apt or dnf).
 
 ## Capabilities
 
@@ -65,7 +69,10 @@ packages.
 - `studio-ui`: the studio screen, the compositor, the guest join page and guest view.
 - `web-shell`: the single-page app shell: routes, sign-in, broadcasts and destinations pages, language, feedback.
 - `ui-themes`: the theme catalog, contract, contrast, picker and persistence.
-- `build-and-deploy`: the build, the runtime image, the Compose stack and the layering rule.
+- `build-and-deploy`: the build, the runtime and all-in-one images, the Compose stack, the layering rule,
+  continuous integration and release assets.
+- `linux-packages`: the `.deb`, `.rpm` and `.tar.gz`, their layout, units, first-install secrets, upgrades,
+  smoke tests and installation documents.
 
 ### Modified Capabilities
 

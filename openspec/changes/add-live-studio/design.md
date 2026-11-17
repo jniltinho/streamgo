@@ -465,6 +465,36 @@ preview is the program scaled up by the browser, slightly soft, and that is deli
 exactly what goes out. This decision is about the interface only; program resolutions above 1080p are not in
 this change.
 
+### D14. Packages, images and releases, as in MeetHub, for linux/amd64 only
+
+Packaging follows MeetHub's (`packaging/`, the `packages` and `allinone` stages of the `Dockerfile`, the three
+workflows), adapted to one difference: MeetHub runs without LiveKit, StreamGo cannot run a studio without
+LiveKit and MediaMTX. A package that installed only StreamGo would leave the administrator to find, pin,
+configure and wire two media servers by hand, so both artifacts carry them:
+
+- **`.deb`, `.rpm`, `.tar.gz`** (`make package`): everything under `/opt/streamgo`, with the pinned
+  `livekit-server` and `mediamtx` binaries (the versions the spike proved, verified by checksum in the build and
+  listed with their licences in `THIRD_PARTY`) and three units. The first install generates the secret key and
+  the credentials the three share, so the stack is ready on `http://localhost:8080` after `apt install`. The
+  media servers' HTTP, RTSP and API listeners bind to the loopback address; only the app and the WebRTC media
+  ports are reachable. HTTPS stays the administrator's reverse proxy, in front of the app and of LiveKit's
+  signalling, with a worked example in `docs/install-linux.md`.
+- **ffmpeg is not shipped** in the packages: the `.deb` depends on the distribution's, which has libx264 on
+  Debian and Ubuntu; the `.rpm` only recommends it, because the RHEL family has none with libx264 in its own
+  repositories. On AlmaLinux the package installs and the service refuses to start until one is added, which
+  the guide explains; the smoke test checks the layout there and a real start on Debian 13 and Ubuntu 26.04.
+- **All-in-one image** (`make image-allinone`): StreamGo, LiveKit, MediaMTX and Debian's ffmpeg under
+  supervisord, non-root, state in `/data`, published to `ghcr.io/<owner>/streamgo` with the `-allinone` tags.
+  The plain runtime image (`make image`) is what the Compose stack uses and is built locally.
+- **Workflows**: `ci.yml` (checks, tests, database matrix, browser tests, build), `packages.yml` (smoke test in
+  clean containers, install under the runner's systemd, release assets on a `v*` tag) and
+  `docker-image-publish.yml` (smoke test, then GHCR), with actions pinned by commit.
+- **Validation targets**: Debian 13 and Ubuntu 26.04, in clean containers and under a real systemd
+  (`make test-package`, `make test-package-systemd`).
+
+- *Alternative: package only StreamGo and document the media servers.* Smaller package, but the install is not
+  usable or testable end to end, and every administrator repeats the same wiring.
+
 ## REST contract (all under `/api/v1`, JSON; errors are `{ "error": { "code", "message" } }`)
 
 | Route | Who | Notes |
@@ -513,6 +543,7 @@ separate agents against the contract above. Each shared piece has one owner:
 | F app pages | `frontend/src/views/{Login,Broadcasts,Destinations}*`, their stores and API modules |
 | G themes | `frontend/src/themes/**`, the theme picker, theme tests, `handlers/themes.go`, `NOTICE` |
 | H deployment | `docker/`, `deployments/`, `Makefile` targets beyond the foundation's, docs |
+| P packaging (group 6) | `packaging/`, `docker/allinone/`, the `packages` and `allinone` stages of the `Dockerfile`, `.github/workflows/`, `THIRD_PARTY`, `CHANGELOG.md`, `docs/install-*.md` |
 
 The foundation declares the tables, the contracts more than one package depends on (the broadcast repository,
 the per-broadcast lock, the theme registry) and nothing else: no placeholder handlers, and each package defines

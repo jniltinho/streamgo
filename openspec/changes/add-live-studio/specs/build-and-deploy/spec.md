@@ -92,3 +92,54 @@ restored: the database, the assets directory and the secret key together.
 - **WHEN** they are restored into a new stack
 - **THEN** the user signs in, the logo is served, the invite link is the same, and going live relays to the
   destination with its key
+
+### Requirement: All-in-one image
+`make image-allinone` SHALL build, for linux/amd64 only, an image that runs StreamGo, LiveKit, MediaMTX and an
+ffmpeg with libx264 under one supervisor as a non-root user, keeps everything it must not lose in the `/data`
+volume, and generates the secret key and the shared credentials there on the first start.
+
+#### Scenario: Smoke test
+- **WHEN** `make test-allinone` starts the image with an empty volume
+- **THEN** the container becomes healthy, `/readyz` answers 200, a user created with the CLI signs in, and a new
+  container on the same volume keeps the user and the secret key
+
+#### Scenario: One command instead
+- **WHEN** the image is run with `streamgo version` as its command
+- **THEN** it prints the version and exits without starting the services
+
+### Requirement: Published images
+Pushes to `main` and `v*` tags SHALL publish the all-in-one image, only after its smoke test passed, to the
+repository's container package `ghcr.io/<owner>/streamgo` for linux/amd64, tagged `main-allinone` and
+`sha-<short>-allinone` from `main`, and `X.Y.Z-allinone`, `X.Y-allinone`, `allinone` and `sha-<short>-allinone`
+from a tag `vX.Y.Z`, using the workflow's own token.
+
+#### Scenario: Tag published
+- **WHEN** `v1.2.3` is pushed and the smoke test passes
+- **THEN** `ghcr.io/<owner>/streamgo:1.2.3-allinone`, `:1.2-allinone` and `:allinone` exist for linux/amd64
+
+#### Scenario: Failing image is not published
+- **WHEN** the smoke test fails
+- **THEN** no tag is pushed
+
+### Requirement: Continuous integration
+Every pull request and push to `main` SHALL run, in GitHub Actions with actions pinned by commit, `make check`,
+`make test`, `make test-db`, the browser tests, `make build`, the package smoke test with an install under the
+runner's systemd, and the all-in-one image's smoke test.
+
+#### Scenario: Pull request
+- **WHEN** a pull request is opened
+- **THEN** the checks, tests, build, package smoke test and image smoke test run and report on it
+
+### Requirement: Release assets
+A `v*` tag SHALL publish the three packages and `SHA256SUMS` as assets of that tag's GitHub release, only after
+the package smoke test and the start under systemd passed, with names carrying the release's version, and the
+release notes SHALL come from `CHANGELOG.md`.
+
+#### Scenario: Tag published
+- **WHEN** `v1.2.3` is pushed
+- **THEN** the release `v1.2.3` holds `streamgo_1.2.3_amd64.deb`, `streamgo-1.2.3-1.x86_64.rpm`,
+  `streamgo_1.2.3_linux_amd64.tar.gz` and `SHA256SUMS`
+
+#### Scenario: Failing package is not published
+- **WHEN** the smoke test fails for a tag
+- **THEN** no asset is uploaded

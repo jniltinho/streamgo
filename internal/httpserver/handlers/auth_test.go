@@ -273,6 +273,19 @@ func TestPreferences(t *testing.T) {
 		t.Fatalf("an invalid patch changed the preferences: %s", after.body)
 	}
 
+	// the display name: trimmed, kept by the other fields, refused when empty
+	r = env.do(http.MethodPatch, "/api/v1/me", ck, `{"name":"  Ana Maria  "}`)
+	if r.status != http.StatusOK || !strings.Contains(r.body, `"name":"Ana Maria"`) || !strings.Contains(r.body, `"theme":"streamgo-light"`) {
+		t.Fatalf("rename: %d %s", r.status, r.body)
+	}
+	r = env.do(http.MethodPatch, "/api/v1/me", ck, `{"name":"   ","theme":"streamgo-dark"}`)
+	if r.status != http.StatusUnprocessableEntity || !strings.Contains(r.body, `"field":"name"`) {
+		t.Fatalf("empty name: %d %s", r.status, r.body)
+	}
+	if after := env.do(http.MethodGet, "/api/v1/me", ck, ""); !strings.Contains(after.body, `"name":"Ana Maria"`) || !strings.Contains(after.body, `"theme":"streamgo-light"`) {
+		t.Fatalf("a refused name changed something: %s", after.body)
+	}
+
 	// only the given field changes; "" clears a choice
 	r = env.do(http.MethodPatch, "/api/v1/me", ck, `{"language":""}`)
 	if !strings.Contains(r.body, `"theme":"streamgo-light"`) || !strings.Contains(r.body, `"language":""`) {

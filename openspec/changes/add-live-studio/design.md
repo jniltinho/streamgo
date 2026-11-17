@@ -573,7 +573,7 @@ not the file.
 
 | Route | Who | Notes |
 |---|---|---|
-| `POST /auth/login`, `POST /auth/logout`, `GET /me`, `PATCH /me` | anyone / user | `PATCH /me` sets `theme`, `language` |
+| `POST /auth/login`, `POST /auth/logout`, `GET /me`, `PATCH /me` | anyone / user | `PATCH /me` sets `name`, `theme`, `language` |
 | `GET /themes` | anyone | ids, labels, schemes, default |
 | `GET/POST /broadcasts`, `GET/PATCH/DELETE /broadcasts/:id` | owner | `GET :id` includes output state and destination statuses |
 | `POST /broadcasts/:id/invite` | owner | rotates and returns the link; `GET :id` returns the current link |
@@ -615,7 +615,7 @@ Join         { url, token, identity }                         LiveKit URL for br
 POST   /auth/login            { email, password }              200 User | 401 invalid_credentials | 429
 POST   /auth/logout                                            204
 GET    /me                                                     200 User | 401 unauthenticated
-PATCH  /me                    { theme?, language? }            200 User | 422 invalid_theme, invalid_language
+PATCH  /me                    { name?, theme?, language? }     200 User | 422 invalid_input, invalid_theme, invalid_language
 GET    /themes                                                 200 { themes: [Theme] }
 
 GET    /broadcasts                                             200 { broadcasts: [Broadcast] }  newest first

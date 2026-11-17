@@ -1,9 +1,10 @@
 <!-- Portions adapted from MeetHub (MIT): frontend/src/layouts/AppLayout.vue -->
 <script setup lang="ts">
-// The signed-in shell: a header with the navigation, the user's name, the theme and language modal and sign-out; the page below it in a centred column of limited width (web-shell "Pages on large screens": 60rem is
+// The signed-in shell: a header with the navigation, the user's name (it opens the profile), the settings and
+// sign-out as icons; the page below it in a centred column of limited width (web-shell "Pages on large screens": 60rem is
 // half of a Full HD window and, with the D13 root size, half of every larger one).
 import { ref } from 'vue'
-import { Palette } from '@lucide/vue'
+import { CircleUser, LogOut, Settings } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import PreferencesModal from '@/components/PreferencesModal.vue'
 import { useSession } from '@/stores/session'
@@ -12,7 +13,8 @@ import { t } from '@/i18n'
 
 const session = useSession()
 const router = useRouter()
-const prefsOpen = ref(false)
+// the settings modal and the tab it opens on: undefined is closed
+const prefs = ref<'theme' | 'profile' | undefined>(undefined)
 
 async function signOut() {
   try {
@@ -34,17 +36,34 @@ async function signOut() {
           {{ t('Destinations') }}
         </RouterLink>
       </nav>
-      <span class="text-fg-muted" data-user-name>{{ session.me?.name }}</span>
-      <button type="button" class="icon-btn" :aria-label="t('Theme and language')" @click="prefsOpen = true">
-        <Palette class="size-4" aria-hidden="true" />
+      <button
+        type="button"
+        class="btn-ghost"
+        :aria-label="t('Your profile: {name}', { name: session.me?.name ?? '' })"
+        :title="t('Your profile')"
+        @click="prefs = 'profile'"
+      >
+        <CircleUser class="size-4" aria-hidden="true" />
+        <span data-user-name>{{ session.me?.name }}</span>
       </button>
-      <button type="button" class="btn-ghost" @click="signOut">{{ t('Sign out') }}</button>
+      <button
+        type="button"
+        class="icon-btn"
+        :aria-label="t('Settings')"
+        :title="t('Settings')"
+        @click="prefs = 'theme'"
+      >
+        <Settings class="size-4" aria-hidden="true" />
+      </button>
+      <button type="button" class="icon-btn" :aria-label="t('Sign out')" :title="t('Sign out')" @click="signOut">
+        <LogOut class="size-4" aria-hidden="true" />
+      </button>
     </header>
     <main class="content-main">
       <div class="mx-auto w-full max-w-[60rem]" data-page-column>
         <RouterView />
       </div>
     </main>
-    <PreferencesModal v-if="prefsOpen" @close="prefsOpen = false" />
+    <PreferencesModal v-if="prefs" :initial="prefs" @close="prefs = undefined" />
   </div>
 </template>

@@ -18,7 +18,7 @@ export interface Me {
 }
 
 /** PATCH /me */
-export type MePatch = Partial<Pick<Me, 'theme' | 'language'>>
+export type MePatch = Partial<Pick<Me, 'name' | 'theme' | 'language'>>
 
 /** one entry of GET /themes */
 export interface ThemeInfo {

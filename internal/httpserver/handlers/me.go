@@ -44,6 +44,7 @@ func (d MeDeps) get(c *echo.Context) error {
 
 func (d MeDeps) patch(c *echo.Context) error {
 	var in struct {
+		Name     *string `json:"name"`
 		Theme    *string `json:"theme"`
 		Language *string `json:"language"`
 	}
@@ -58,6 +59,11 @@ func (d MeDeps) patch(c *echo.Context) error {
 		case "", "en", "pt-BR":
 		default:
 			return &httpserver.Error{Status: http.StatusUnprocessableEntity, Code: "invalid_language", Message: "This language is not available.", Field: "language"}
+		}
+	}
+	if in.Name != nil { // validated before anything is stored
+		if _, err := d.Accounts.Rename(c.Request().Context(), httpserver.UserID(c), *in.Name); err != nil {
+			return err
 		}
 	}
 	u, err := d.Accounts.SetPreferences(c.Request().Context(), httpserver.UserID(c), in.Theme, in.Language)

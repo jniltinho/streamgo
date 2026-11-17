@@ -94,6 +94,13 @@ const catalog: Catalog = {
   Remove: 'Remove',
   Backstage: 'Backstage',
   'Everyone in the studio': 'Everyone in the studio',
+  Settings: 'Settings',
+  'Your profile': 'Your profile',
+  'Your profile: {name}': 'Your profile: {name}',
+  Profile: 'Profile',
+  'Name saved.': 'Name saved.',
+  'Shown on your name tag in the studio. A studio that is open shows it once you open it again.':
+    'Shown on your name tag in the studio. A studio that is open shows it once you open it again.',
   Platform: 'Platform',
   'Other (type the address)': 'Other (type the address)',
   'Popular platforms': 'Popular platforms',

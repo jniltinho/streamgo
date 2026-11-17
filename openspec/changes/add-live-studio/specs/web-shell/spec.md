@@ -59,6 +59,16 @@ signed-in header, which carry no theme or language control of their own.
 - **THEN** the Theme tab shows the 22 themes without scrolling at 1280x720, and the Language tab the language
   choice
 
+### Requirement: Profile and header
+The signed-in header SHALL show the user's name as a button that opens the settings on a Profile tab, a settings
+button and a sign-out button, the last two as icons with accessible names. The Profile tab SHALL change the
+user's display name, which is the name on their name tag in the studio.
+
+#### Scenario: Change the display name
+- **WHEN** a signed-in user opens their profile from the header, types a new name and saves
+- **THEN** `PATCH /me` stores the trimmed name, the header shows it at once, and the studio shows it on the name
+  tag the next time the user opens it; an empty name is refused with 422 and changes nothing
+
 ### Requirement: No page scrollbar
 No page SHALL show a page scrollbar: the document never scrolls, and a list longer than its region scrolls inside
 that region.

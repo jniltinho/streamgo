@@ -65,6 +65,14 @@ test.describe('signed-in shell', () => {
     await fakeApi(page, ANA, true)
     await page.goto('/broadcasts')
     await expect(page.locator('[data-user-name]')).toHaveText(ANA.name)
+    // "Profile": the name in the header opens the settings on the Profile tab; the saved name shows at once
+    await page.getByRole('button', { name: `Your profile: ${ANA.name}` }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await settings.getByLabel('Your name').fill('Ana Maria Souza')
+    await settings.getByRole('button', { name: 'Save' }).click()
+    await expect(page.locator('.toast')).toContainText('Name saved.')
+    await settings.getByRole('button', { name: 'Close' }).click()
+    await expect(page.locator('[data-user-name]')).toHaveText('Ana Maria Souza')
     await page.getByRole('navigation').getByRole('link', { name: 'Destinations' }).click()
     await expect(page).toHaveURL('/destinations')
     await expect(page.getByRole('heading', { name: 'Destinations' })).toBeVisible()
@@ -78,7 +86,7 @@ test.describe('signed-in shell', () => {
   }) => {
     const api = await fakeApi(page, ANA, true)
     await page.goto('/broadcasts')
-    await page.getByRole('button', { name: 'Theme and language' }).click()
+    await page.getByRole('button', { name: 'Settings' }).click()
     await page.getByRole('tab', { name: 'Language' }).click()
     await page.getByRole('combobox', { name: 'Language' }).selectOption('pt-BR')
     await page.keyboard.press('Escape')

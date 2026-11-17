@@ -95,6 +95,13 @@ const catalog: Catalog = {
   Remove: 'Remover',
   Backstage: 'Bastidores',
   'Everyone in the studio': 'Todos no estúdio',
+  Settings: 'Configurações',
+  'Your profile': 'Seu perfil',
+  'Your profile: {name}': 'Seu perfil: {name}',
+  Profile: 'Perfil',
+  'Name saved.': 'Nome salvo.',
+  'Shown on your name tag in the studio. A studio that is open shows it once you open it again.':
+    'Aparece na sua etiqueta de nome no estúdio. Um estúdio aberto passa a mostrá-lo quando você o abrir de novo.',
   Platform: 'Plataforma',
   'Other (type the address)': 'Outra (digite o endereço)',
   'Popular platforms': 'Plataformas populares',

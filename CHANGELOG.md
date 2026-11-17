@@ -16,7 +16,7 @@ live to RTMP and RTMPS destinations.**
 ### Added
 
 - **Accounts** — users are created from the CLI (`streamgo user add`) and sign in with e-mail and password. There is
-  no public sign-up.
+  no public sign-up. Each user changes their display name, the one on the name tag in the studio, in Settings.
 - **Broadcasts** — each with a title, an invite link for guests and a set of destinations; a broadcast can go live
   many times.
 - **Studio** — the owner opens the studio and guests join backstage from the invite link with a name, no account.

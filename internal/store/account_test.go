@@ -51,12 +51,15 @@ func TestAccountsUsers(t *testing.T) {
 		if err := repo.SetPasswordHash(ctx, ana.ID, "h2"); err != nil {
 			t.Fatal(err)
 		}
+		if err := repo.SetName(ctx, ana.ID, "Ana Maria"); err != nil {
+			t.Fatal(err)
+		}
 		at := time.Date(2026, 11, 2, 10, 30, 0, 0, time.UTC)
 		if err := repo.SetDisabledAt(ctx, ana.ID, at); err != nil {
 			t.Fatal(err)
 		}
 		got, _ = repo.UserByID(ctx, ana.ID)
-		if got.Theme != "streamgo-light" || got.Language != "pt-BR" || got.PasswordHash != "h2" || !got.DisabledAt.Equal(at) {
+		if got.Name != "Ana Maria" || got.Theme != "streamgo-light" || got.Language != "pt-BR" || got.PasswordHash != "h2" || !got.DisabledAt.Equal(at) {
 			t.Fatalf("after updates: %+v", got)
 		}
 		if err := repo.SetDisabledAt(ctx, ana.ID, time.Time{}); err != nil {

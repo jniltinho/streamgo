@@ -120,6 +120,11 @@ func (a *Accounts) SetDisabledAt(ctx context.Context, id string, t time.Time) er
 	return a.updateUser(ctx, id, map[string]any{"disabled_at": at})
 }
 
+// SetName stores the user's display name.
+func (a *Accounts) SetName(ctx context.Context, id, name string) error {
+	return a.updateUser(ctx, id, map[string]any{"name": name})
+}
+
 // SetPreferences stores the user's theme and language.
 func (a *Accounts) SetPreferences(ctx context.Context, id, theme, language string) error {
 	return a.updateUser(ctx, id, map[string]any{"theme": theme, "language": language})

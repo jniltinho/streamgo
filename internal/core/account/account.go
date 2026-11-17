@@ -74,6 +74,7 @@ type Repository interface {
 	// SetDisabledAt disables the user at t, or enables them when t is zero.
 	SetDisabledAt(ctx context.Context, id string, t time.Time) error
 	SetPreferences(ctx context.Context, id, theme, language string) error
+	SetName(ctx context.Context, id, name string) error
 
 	CreateSession(ctx context.Context, s Session) error
 	// ActiveSession returns the session only while its user is enabled.
@@ -120,9 +121,9 @@ func (s *Service) Create(ctx context.Context, in NewUser) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	name := strings.TrimSpace(in.Name)
-	if name == "" || utf8.RuneCountInString(name) > MaxNameChars {
-		return nil, core.Invalid("name", fmt.Sprintf("must have 1 to %d characters", MaxNameChars))
+	name, err := cleanName(in.Name)
+	if err != nil {
+		return nil, err
 	}
 	if err := checkPassword(in.Password); err != nil {
 		return nil, err
@@ -138,6 +139,32 @@ func (s *Service) Create(ctx context.Context, in NewUser) (*User, error) {
 		}
 		return nil, err
 	}
+	return u, nil
+}
+
+// cleanName trims a display name and checks its length.
+func cleanName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || utf8.RuneCountInString(name) > MaxNameChars {
+		return "", core.Invalid("name", fmt.Sprintf("must have 1 to %d characters", MaxNameChars))
+	}
+	return name, nil
+}
+
+// Rename changes the user's display name (the name tag in the studio) and returns the user.
+func (s *Service) Rename(ctx context.Context, id, name string) (*User, error) {
+	name, err := cleanName(name)
+	if err != nil {
+		return nil, err
+	}
+	u, err := s.repo.UserByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.SetName(ctx, id, name); err != nil {
+		return nil, err
+	}
+	u.Name = name
 	return u, nil
 }
 

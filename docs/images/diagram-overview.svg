@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900"
+     version="1.1" role="img" aria-labelledby="title desc"
+     font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">StreamGo: the pieces</title>
+  <desc id="desc">Guests' current browsers and the owner's desktop Chromium browser share HTTPS
+    connections to StreamGo for the web app and API, and WebRTC connections to LiveKit for cameras,
+    microphones and screens. The owner sends the program to MediaMTX over WebRTC, with the offer
+    through StreamGo. The server's first row contains StreamGo and its database; the second row
+    contains LiveKit and ffmpeg; MediaMTX is in the third row. StreamGo is one Go binary containing
+    the API, web app, room reconciler and ffmpeg supervisor. Its SQLite, MariaDB or PostgreSQL
+    database stores accounts, broadcasts and stage state. LiveKit provides one studio room per
+    broadcast. StreamGo manages tokens, rooms and room metadata, starts and watches ffmpeg, and
+    sends WHIP offers and control API requests to MediaMTX. MediaMTX receives the program and
+    exchanges it with ffmpeg over RTSP. ffmpeg transcodes and runs one relay per destination,
+    sending RTMP or RTMPS to YouTube, Twitch or any RTMP destination outside the server. There is
+    no Redis, job queue or Egress: exactly one StreamGo process.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5"
+            markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#b3b8ff"/>
+    </marker>
+    <marker id="arrow-start" viewBox="0 0 10 10" refX="0" refY="5"
+            markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M 10 0 L 0 5 L 10 10 Z" fill="#b3b8ff"/>
+    </marker>
+  </defs>
+
+  <rect id="canvas" x="0" y="0" width="1200" height="900" rx="8" fill="#0c1020"/>
+  <text x="32" y="54" font-size="26" font-weight="600" fill="#f2f4fb">StreamGo: the pieces</text>
+
+  <g id="browsers-panel">
+    <rect x="32" y="100" width="268" height="720" rx="8"
+          fill="#151b31" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="48" y="138" font-size="22" font-weight="600" fill="#f2f4fb">Browsers</text>
+  </g>
+
+  <g id="server-panel">
+    <rect x="360" y="100" width="588" height="776" rx="8"
+          fill="#151b31" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="376" y="138" font-size="22" font-weight="600" fill="#f2f4fb">Your server</text>
+    <text x="376" y="832" font-size="18" fill="#b9c0d8">
+      <tspan x="376" y="832">No Redis, no job queue, no Egress:</tspan>
+      <tspan x="376" y="856">exactly one StreamGo process.</tspan>
+    </text>
+  </g>
+
+  <g id="connections" fill="none" stroke="#b3b8ff" stroke-width="2" stroke-linejoin="round">
+    <path id="browsers-streamgo" d="M 300 206 H 376" marker-end="url(#arrow)"/>
+    <path id="browsers-livekit" d="M 300 496 H 376" marker-end="url(#arrow)"/>
+    <path id="owner-mediamtx" d="M 284 696 H 376" marker-end="url(#arrow)"/>
+    <path id="streamgo-database" d="M 596 236 H 744" marker-end="url(#arrow)"/>
+    <path id="streamgo-livekit" d="M 416 360 V 480" marker-end="url(#arrow)"/>
+    <path id="streamgo-ffmpeg" d="M 596 344 H 828 V 480" marker-end="url(#arrow)"/>
+    <path id="streamgo-mediamtx" d="M 572 360 V 384 H 656 V 720 H 596"
+          marker-end="url(#arrow)"/>
+    <path id="ffmpeg-mediamtx" d="M 828 620 V 768 H 596"
+          marker-start="url(#arrow-start)" marker-end="url(#arrow)"/>
+    <path id="ffmpeg-destinations" d="M 932 496 H 980" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="guests" fill="#f2f4fb">
+    <rect x="48" y="226" width="236" height="130" rx="8"
+          fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="64" y="264" font-size="20" font-weight="600">Guests' browsers</text>
+    <text x="64" y="296" font-size="18" fill="#b9c0d8">
+      <tspan x="64" y="296">(any current</tspan>
+      <tspan x="64" y="320">browser)</tspan>
+    </text>
+  </g>
+
+  <g id="owner" fill="#f2f4fb">
+    <rect x="48" y="684" width="236" height="112" rx="8"
+          fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="64" y="722" font-size="20" font-weight="600">Owner's browser</text>
+    <text x="64" y="754" font-size="18" fill="#b9c0d8">(Chromium, desktop)</text>
+  </g>
+
+  <g id="streamgo" fill="#f2f4fb">
+    <rect x="376" y="190" width="220" height="170" rx="8"
+          fill="#3d41cf" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="392" y="228" font-size="22" font-weight="600">StreamGo</text>
+    <text x="392" y="258" font-size="18">
+      <tspan x="392" y="258">one Go binary:</tspan>
+      <tspan x="392" y="282">API, web app,</tspan>
+      <tspan x="392" y="306">room reconciler,</tspan>
+      <tspan x="392" y="330">ffmpeg supervisor</tspan>
+    </text>
+  </g>
+
+  <g id="database" fill="#f2f4fb">
+    <rect x="744" y="190" width="188" height="122" rx="8"
+          fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="760" y="228" font-size="22" font-weight="600">Database</text>
+    <text x="760" y="260" font-size="18" fill="#b9c0d8">
+      <tspan x="760" y="260">SQLite, MariaDB</tspan>
+      <tspan x="760" y="284">or PostgreSQL</tspan>
+    </text>
+  </g>
+
+  <g id="livekit" fill="#f2f4fb">
+    <rect x="376" y="480" width="220" height="140" rx="8"
+          fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="392" y="518" font-size="22" font-weight="600">LiveKit</text>
+    <text x="392" y="550" font-size="18" fill="#b9c0d8">
+      <tspan x="392" y="550">the studio: one</tspan>
+      <tspan x="392" y="574">room per broadcast</tspan>
+    </text>
+  </g>
+
+  <g id="ffmpeg" fill="#f2f4fb">
+    <rect x="744" y="480" width="188" height="140" rx="8"
+          fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="760" y="518" font-size="22" font-weight="600">ffmpeg</text>
+    <text x="760" y="550" font-size="18" fill="#b9c0d8">
+      <tspan x="760" y="550">transcoder +</tspan>
+      <tspan x="760" y="574">one relay per</tspan>
+      <tspan x="760" y="598">destination</tspan>
+    </text>
+  </g>
+
+  <g id="mediamtx" fill="#f2f4fb">
+    <rect x="376" y="684" width="220" height="112" rx="8"
+          fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="392" y="722" font-size="22" font-weight="600">MediaMTX</text>
+    <text x="392" y="750" font-size="18" fill="#b9c0d8">
+      <tspan x="392" y="750">receives the</tspan>
+      <tspan x="392" y="774">program</tspan>
+    </text>
+  </g>
+
+  <g id="destinations" fill="#f2f4fb">
+    <rect x="980" y="480" width="196" height="168" rx="8"
+          fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="996" y="518" font-size="20" font-weight="600">
+      <tspan x="996" y="518">RTMP</tspan>
+      <tspan x="996" y="544">destinations</tspan>
+    </text>
+    <text x="996" y="576" font-size="18" fill="#b9c0d8">
+      <tspan x="996" y="576">YouTube, Twitch,</tspan>
+      <tspan x="996" y="600">any rtmp://</tspan>
+      <tspan x="996" y="624">or rtmps://</tspan>
+    </text>
+  </g>
+
+  <g id="connection-labels" fill="#b3b8ff">
+    <text x="280" y="186" text-anchor="end" font-size="18">HTTPS: web app, API</text>
+    <text x="280" y="456" text-anchor="end" font-size="18">
+      <tspan x="280" y="456">WebRTC: cameras,</tspan>
+      <tspan x="280" y="480">mics, screens</tspan>
+    </text>
+    <text x="268" y="664" text-anchor="end" font-size="18">the program (WebRTC)</text>
+    <text x="614" y="264" font-size="18">
+      <tspan x="614" y="264">accounts,</tspan>
+      <tspan x="614" y="288">broadcasts,</tspan>
+      <tspan x="614" y="312">stage state</tspan>
+    </text>
+    <text x="432" y="418" font-size="18">
+      <tspan x="432" y="418">tokens, rooms,</tspan>
+      <tspan x="432" y="442">metadata</tspan>
+    </text>
+    <text x="812" y="390" text-anchor="end" font-size="18">
+      <tspan x="812" y="390">starts and</tspan>
+      <tspan x="812" y="414">watches</tspan>
+    </text>
+    <text x="672" y="652" font-size="18">
+      <tspan x="672" y="652">WHIP offers,</tspan>
+      <tspan x="672" y="676">control API</tspan>
+    </text>
+    <text x="844" y="696" font-size="18">RTSP</text>
+    <text x="916" y="440" text-anchor="end" font-size="18">
+      <tspan x="916" y="440">RTMP /</tspan>
+      <tspan x="916" y="464">RTMPS</tspan>
+    </text>
+  </g>
+</svg>

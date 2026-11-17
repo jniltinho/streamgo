@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1450" viewBox="0 0 1200 1450" version="1.1" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">Going live</title>
+  <desc id="desc">A numbered sequence across the owner's browser studio, StreamGo, MediaMTX, an ffmpeg transcoder, one ffmpeg relay per destination, and the destination. StreamGo checks destinations and capacity, accepts the studio's WHIP offer, and forwards the SDP exchange. The studio sends its program directly to MediaMTX over WebRTC. The transcoder reads the program and publishes air over RTSP; flowing progress makes the output live and sets on_air in the stage state shared through the room. StreamGo then starts the destination relays, which send RTMP or RTMPS without re-encoding and report flowing progress. The footer states the studio's polling interval and the no-program timeout.</desc>
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" viewBox="0 0 10 10" refX="10" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#b3b8ff"/>
+    </marker>
+    <marker id="arrow-start" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" viewBox="0 0 10 10" refX="0" refY="5" orient="auto">
+      <path d="M 10 0 L 0 5 L 10 10 Z" fill="#b3b8ff"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="1450" rx="8" fill="#0c1020"/>
+  <text x="32" y="50" font-size="26" font-weight="600" fill="#f2f4fb">Going live</text>
+
+  <!-- Lifelines are behind all message labels and notes. -->
+  <g fill="none" stroke="#2c3458" stroke-width="1.5" stroke-dasharray="6 8">
+    <path d="M 119 212 V 1314"/>
+    <path d="M 315 212 V 1314"/>
+    <path d="M 493 212 V 1314"/>
+    <path d="M 671 212 V 1314"/>
+    <path d="M 884 212 V 1314"/>
+    <path d="M 1098 212 V 1314"/>
+  </g>
+
+  <g id="studio-header">
+    <rect x="24" y="88" width="190" height="124" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="119" y="139" text-anchor="middle" font-size="20" fill="#f2f4fb">
+      <tspan x="119" y="139">Owner's studio</tspan>
+      <tspan x="119" y="169">(browser)</tspan>
+    </text>
+  </g>
+  <g id="streamgo-header">
+    <rect x="238" y="88" width="154" height="124" rx="8" fill="#3d41cf" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="315" y="158" text-anchor="middle" font-size="22" font-weight="600" fill="#f2f4fb">StreamGo</text>
+  </g>
+  <g id="mediamtx-header">
+    <rect x="416" y="88" width="154" height="124" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="493" y="158" text-anchor="middle" font-size="22" fill="#f2f4fb">MediaMTX</text>
+  </g>
+  <g id="transcoder-header">
+    <rect x="594" y="88" width="154" height="124" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="671" y="139" text-anchor="middle" font-size="20" fill="#f2f4fb">
+      <tspan x="671" y="139">ffmpeg</tspan>
+      <tspan x="671" y="169">transcoder</tspan>
+    </text>
+  </g>
+  <g id="relay-header">
+    <rect x="772" y="88" width="224" height="124" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="884" y="139" text-anchor="middle" font-size="20" fill="#f2f4fb">
+      <tspan x="884" y="139">ffmpeg relay (one</tspan>
+      <tspan x="884" y="169">per destination)</tspan>
+    </text>
+  </g>
+  <g id="destination-header">
+    <rect x="1020" y="88" width="156" height="124" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="1098" y="158" text-anchor="middle" font-size="20" fill="#f2f4fb">Destination</text>
+  </g>
+
+  <g id="message-1">
+    <rect x="110" y="220" width="360" height="56" fill="#0c1020"/>
+    <text x="126" y="254" font-size="18" fill="#f2f4fb">1. POST /broadcasts/:id/live</text>
+    <path d="M 119 276 H 315" fill="none" stroke="#b3b8ff" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-2">
+    <rect x="131" y="300" width="368" height="84" rx="8" fill="#1d2442" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="147" y="334" font-size="18" fill="#f2f4fb">
+      <tspan x="147" y="334">2. lock; check destinations and</tspan>
+      <tspan x="147" y="360">capacity; state = starting</tspan>
+    </text>
+  </g>
+
+  <g id="message-3">
+    <rect x="110" y="396" width="300" height="56" fill="#0c1020"/>
+    <text x="126" y="430" font-size="18" fill="#f2f4fb">3. 200 output: starting</text>
+    <path d="M 315 452 H 119" fill="none" stroke="#b3b8ff" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-4">
+    <rect x="110" y="460" width="432" height="56" fill="#0c1020"/>
+    <text x="126" y="494" font-size="18" fill="#f2f4fb">4. POST …/program/whip (SDP offer)</text>
+    <path d="M 119 516 H 315" fill="none" stroke="#b3b8ff" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-5">
+    <rect x="306" y="524" width="380" height="56" fill="#0c1020"/>
+    <text x="322" y="558" font-size="18" fill="#f2f4fb">5. forward to program/&lt;id&gt;/whip</text>
+    <path d="M 315 580 H 493" fill="none" stroke="#b3b8ff" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-6">
+    <rect x="306" y="588" width="230" height="56" fill="#0c1020"/>
+    <text x="322" y="622" font-size="18" fill="#f2f4fb">6. SDP answer</text>
+    <path d="M 493 644 H 315" fill="none" stroke="#b3b8ff" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-7">
+    <rect x="110" y="652" width="358" height="56" fill="#0c1020"/>
+    <text x="126" y="686" font-size="18" fill="#f2f4fb">7. 201 SDP answer, Location</text>
+    <path d="M 315 708 H 119" fill="none" stroke="#b3b8ff" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-8">
+    <rect x="110" y="716" width="382" height="56" fill="#0c1020"/>
+    <text x="126" y="750" font-size="18" fill="#b3b8ff">8. program over WebRTC, direct</text>
+    <path d="M 119 772 H 493" fill="none" stroke="#b3b8ff" stroke-width="4" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-9">
+    <rect x="306" y="780" width="540" height="56" fill="#0c1020"/>
+    <text x="322" y="814" font-size="18" fill="#f2f4fb">9. start (retried every second until it flows)</text>
+    <path d="M 315 836 H 671" fill="none" stroke="#b3b8ff" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-10">
+    <rect x="502" y="844" width="546" height="56" fill="#0c1020"/>
+    <text x="518" y="878" font-size="18" fill="#f2f4fb">10. read program/&lt;id&gt;, publish air/&lt;id&gt; (RTSP)</text>
+    <path d="M 671 900 H 493" fill="none" stroke="#b3b8ff" stroke-width="2" marker-start="url(#arrow-start)" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-11">
+    <rect x="306" y="908" width="300" height="56" fill="#0c1020"/>
+    <text x="322" y="942" font-size="18" fill="#f2f4fb">11. progress: flowing</text>
+    <path d="M 671 964 H 315" fill="none" stroke="#b3b8ff" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-12">
+    <rect x="131" y="988" width="368" height="110" rx="8" fill="#1d2442" stroke="#4ade80" stroke-width="1.5"/>
+    <text x="147" y="1022" font-size="18" fill="#f2f4fb">
+      <tspan x="147" y="1022">12. state = live; on_air = true</tspan>
+      <tspan x="147" y="1048">in the stage state, which reaches</tspan>
+      <tspan x="147" y="1074">everyone through the room</tspan>
+    </text>
+  </g>
+
+  <g id="message-13">
+    <rect x="306" y="1110" width="366" height="56" fill="#0c1020"/>
+    <text x="322" y="1144" font-size="18" fill="#f2f4fb">13. start one per destination</text>
+    <path d="M 315 1166 H 884" fill="none" stroke="#b3b8ff" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-14">
+    <rect x="866" y="1174" width="310" height="56" fill="#0c1020"/>
+    <text x="882" y="1208" font-size="18" fill="#f2f4fb">14. RTMP / RTMPS (-c copy)</text>
+    <path d="M 884 1230 H 1098" fill="none" stroke="#b3b8ff" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="message-15">
+    <rect x="306" y="1238" width="470" height="56" fill="#0c1020"/>
+    <text x="322" y="1272" font-size="18" fill="#f2f4fb">15. progress: flowing, destination live</text>
+    <path d="M 884 1294 H 315" fill="none" stroke="#b3b8ff" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="footer">
+    <rect x="24" y="1338" width="1152" height="88" rx="8" fill="#151b31" stroke="#2c3458" stroke-width="1.5"/>
+    <text x="48" y="1372" font-size="18" fill="#b9c0d8">
+      <tspan x="48" y="1372">The studio polls GET /broadcasts/:id every 3 s while not offline.</tspan>
+      <tspan x="48" y="1404">No program within output.start_timeout (30 s): back to offline, reason "no program received".</tspan>
+    </text>
+  </g>
+</svg>

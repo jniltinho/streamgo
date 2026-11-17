@@ -6,7 +6,8 @@ MariaDB or PostgreSQL in a container of the stack.
 
 What the stack does **not** provide, and you must:
 
-- a TLS reverse proxy (HTTPS for the app, secure WebSocket for LiveKit's signalling) with certificates;
+- HTTPS with a certificate, for the app and LiveKit's signalling: a TLS reverse proxy
+  ([Behind a reverse proxy](reverse-proxy.md)) or StreamGo's own HTTPS ([Standalone HTTPS](standalone-https.md));
 - a host whose firewall lets browsers reach LiveKit's and MediaMTX's media ports;
 - a TURN server (there is none in this version);
 - backups.
@@ -59,6 +60,11 @@ The same variables must be set for `make down` and `make logs` of that project.
 
 ## HTTPS and secure WebSocket
 
+StreamGo carries LiveKit's signalling under `/livekit/`, so a proxy in front of it needs a single upstream and
+LiveKit no name of its own: [Behind a reverse proxy](reverse-proxy.md) shows that arrangement with nginx and Caddy,
+and [Standalone HTTPS](standalone-https.md) serves HTTPS with no proxy at all. The arrangement below, with LiveKit
+behind a name of its own, still works.
+
 Browsers give camera and microphone only to a secure origin, so anything but `localhost` needs HTTPS. Put a TLS
 reverse proxy in front of the app's port and, behind the same proxy, terminate secure WebSocket (`wss://`) for
 LiveKit's signalling port. Then tell StreamGo the public addresses, in `.env`:
@@ -108,8 +114,10 @@ network that allows only HTTPS through a web proxy cannot take part.
 
 An invite link is `<public URL>/join/<token>`, and the token is the guest's credential. Configure the reverse proxy
 not to log request paths of `/join/` and `/api/v1/join/` (or not to log paths at all), and do not send those URLs
-to analytics. StreamGo itself never logs them. With Caddy, leave access logging off (its default) or filter the
-URI out of the log.
+to analytics. Leave the `Referer` header out of the log too: the requests the join page makes carry its address
+in it. StreamGo itself never logs them. With Caddy, leave access logging off (its default) or filter the URI and
+the `Referer` header out of the log; [Behind a reverse proxy](reverse-proxy.md#the-join-route-is-never-logged) has
+examples for nginx and Caddy.
 
 ## One StreamGo instance per deployment
 

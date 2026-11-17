@@ -1,0 +1,87 @@
+# StreamGo stack: one StreamGo, a single-node LiveKit (the studio) and MediaMTX (receives the program). No Redis and
+# no job queue (design D12). SQLite by default on the streamgo-data volume; MariaDB or PostgreSQL through
+# compose.mariadb.yml / compose.postgres.yml (make up DB=…). Guide: docs/deployment.md.
+# Settings: ../../config.toml (mounted read-only) and ../../.env (secrets); make init creates both when missing.
+#
+# Published ports, each changeable from the environment or .env (the defaults are the standard ones):
+#   HTTP_PORT             8080       the app (put HTTPS in front of it)
+#   LIVEKIT_PORT          7880       LiveKit's signalling (put secure WebSocket in front of it)
+#   LIVEKIT_TCP_PORT      7881/tcp   LiveKit's media over TCP
+#   LIVEKIT_UDP_PORT      7882/udp   LiveKit's media over UDP
+#   MEDIAMTX_WEBRTC_PORT  8189       MediaMTX's WebRTC media, UDP and TCP
+# The media ports are published on the same number inside and outside, because the servers advertise them.
+# NODE_IP is the address LiveKit and MediaMTX advertise to browsers: 127.0.0.1 serves a browser on this host.
+# MediaMTX's WHIP (8889), RTSP (8554) and API (9997) listeners stay on the Compose network.
+name: streamgo
+
+services:
+  streamgo:
+    image: ${STREAMGO_IMAGE:-streamgo:latest}
+    platform: linux/amd64 # the only target
+    build:
+      context: ../..
+      target: runtime
+      platforms: [linux/amd64]
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-none}
+        BUILDTIME: ${BUILDTIME:-unknown}
+    env_file: ../../.env
+    environment:
+      STREAMGO_SERVER_PUBLIC_URL: ${STREAMGO_SERVER_PUBLIC_URL:-http://localhost:${HTTP_PORT:-8080}}
+      STREAMGO_LIVEKIT_URL: ${STREAMGO_LIVEKIT_URL:-ws://localhost:${LIVEKIT_PORT:-7880}} # what the browsers reach
+      STREAMGO_LIVEKIT_API_URL: http://livekit:7880
+      STREAMGO_MEDIAMTX_WHIP_URL: http://mediamtx:8889
+      STREAMGO_MEDIAMTX_RTSP_URL: rtsp://mediamtx:8554
+    volumes:
+      - ../../config.toml:/etc/streamgo/config.toml:ro
+      - streamgo-data:/data
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    depends_on:
+      livekit:
+        condition: service_healthy
+      mediamtx:
+        condition: service_started
+    restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server:v1.13.10@sha256:89ca9ce0791e18d6e03bf6e2c49ceb27e1c754eae8bd50c989386c1a5963791a
+    command:
+      - --config=/etc/livekit.yaml
+      - --node-ip=${NODE_IP:-127.0.0.1}
+      - --rtc.tcp_port=${LIVEKIT_TCP_PORT:-7881}
+      - --udp-port=${LIVEKIT_UDP_PORT:-7882}
+    environment:
+      LIVEKIT_KEYS: "${STREAMGO_LIVEKIT_API_KEY:?run make init}: ${STREAMGO_LIVEKIT_API_SECRET:?run make init}"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "${LIVEKIT_PORT:-7880}:7880"
+      - "${LIVEKIT_TCP_PORT:-7881}:${LIVEKIT_TCP_PORT:-7881}/tcp"
+      - "${LIVEKIT_UDP_PORT:-7882}:${LIVEKIT_UDP_PORT:-7882}/udp"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:7880/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  # The image has no shell, so no health check: StreamGo's /readyz probes it.
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.4@sha256:c730bccdbc8739f8f0c13cefe9bea8b61926f599b88fa4d0d229baa91846c7bc
+    environment:
+      MTX_AUTHINTERNALUSERS_0_USER: ${STREAMGO_MEDIAMTX_USER:?run make init}
+      MTX_AUTHINTERNALUSERS_0_PASS: ${STREAMGO_MEDIAMTX_SECRET:?run make init}
+      MTX_WEBRTCADDITIONALHOSTS: ${NODE_IP:-127.0.0.1}
+      MTX_WEBRTCLOCALUDPADDRESS: :${MEDIAMTX_WEBRTC_PORT:-8189}
+      MTX_WEBRTCLOCALTCPADDRESS: :${MEDIAMTX_WEBRTC_PORT:-8189}
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "${MEDIAMTX_WEBRTC_PORT:-8189}:${MEDIAMTX_WEBRTC_PORT:-8189}/udp"
+      - "${MEDIAMTX_WEBRTC_PORT:-8189}:${MEDIAMTX_WEBRTC_PORT:-8189}/tcp"
+    restart: unless-stopped
+
+volumes:
+  streamgo-data:

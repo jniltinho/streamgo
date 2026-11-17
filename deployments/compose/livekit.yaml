@@ -1,0 +1,16 @@
+# LiveKit for the Compose stack: a single node without Redis that hosts the studio rooms. StreamGo creates every
+# room through the API, so automatic room creation is off (design D1).
+#
+# compose.yml sets from .env, never here: the API key and secret (LIVEKIT_KEYS), the advertised address
+# (--node-ip) and the media ports (--rtc.tcp_port and --udp-port, which override the defaults below and must be
+# published on the same numbers, because LiveKit advertises them to browsers).
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  # the address browsers reach is --node-ip, not one found by STUN
+  use_external_ip: false
+room:
+  auto_create: false
+logging:
+  level: info

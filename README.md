@@ -26,13 +26,19 @@ dist/streamgo server           # http://localhost:8080; GET /healthz and /readyz
 and can be overridden by `STREAMGO_<SECTION>_<KEY>`. The secret key, the database connection string and the
 LiveKit and MediaMTX credentials are read only from the environment.
 
+## Deployment
+
+`make up` starts StreamGo, LiveKit and MediaMTX with Docker Compose (`DB=sqlite|mariadb|postgres`); `make image`
+builds the runtime image alone. [`docs/deployment.md`](docs/deployment.md) covers ports, HTTPS, NAT, backups and what
+the stack does not provide.
+
 ## Development
 
 ```bash
 make check     # gofmt, go vet, golangci-lint (with the layering rule), govulncheck, frontend check and build
 make test      # Go tests with -race on SQLite, frontend unit tests
 make test-db   # Go tests on SQLite, MariaDB and PostgreSQL (throwaway containers)
-make dev       # Vite dev server on http://localhost:5173, API proxied to a server on :8080
+make dev       # the stack with the Vite dev server in front, on http://localhost:5173
 ```
 
 See `AGENTS.md` for the project's rules.

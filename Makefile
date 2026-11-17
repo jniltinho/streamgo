@@ -11,7 +11,7 @@ DIST      := dist
 BUILD_ARGS := --platform $(PLATFORM) \
 	--build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILDTIME=$(BUILDTIME)
 
-.PHONY: all help build init clean tools check check-go test test-go test-db up down dev
+.PHONY: all help build image init clean tools check check-go test test-go test-db check-db up down logs dev
 
 all: build
 
@@ -22,16 +22,21 @@ build: ## Build dist/streamgo (static linux/amd64, web app embedded) inside Dock
 	docker build $(BUILD_ARGS) --target export --output type=local,dest=$(DIST) .
 	@ls -l $(DIST)/streamgo
 
-# init never replaces an existing file: a new secret key makes every stored destination and invite link unreadable.
-init: ## Create config.toml and .env (secret key, LiveKit and MediaMTX credentials) when missing
+IMAGE ?= streamgo
+image: ## Build the runtime image $(IMAGE):$(VERSION) (non-root, with ffmpeg)
+	docker build $(BUILD_ARGS) --target runtime -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
+
+# init never replaces an existing file or value: a new secret key makes every stored destination and invite link
+# unreadable. A variable missing from an existing .env (added by a later version) is appended.
+init: ## Create config.toml and .env (secret key, LiveKit, MediaMTX and database credentials) when missing
 	@test -f config.toml || { cp config.toml.example config.toml && echo "created config.toml"; }
-	@test -f .env || { umask 077 && { \
-	  printf 'STREAMGO_SECRET_KEY=%s\n' "$$(head -c32 /dev/urandom | base64)"; \
-	  echo 'STREAMGO_LIVEKIT_API_KEY=streamgo'; \
-	  printf 'STREAMGO_LIVEKIT_API_SECRET=%s\n' "$$(od -An -tx1 -N32 /dev/urandom | tr -d ' \n')"; \
-	  echo 'STREAMGO_MEDIAMTX_USER=streamgo'; \
-	  printf 'STREAMGO_MEDIAMTX_SECRET=%s\n' "$$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n')"; \
-	} > .env && echo "created .env (back it up with the database: the secret key cannot be recreated)"; }
+	@test -f .env || { (umask 077 && touch .env) && echo "created .env (back it up with the database: the secret key cannot be recreated)"; }
+	@grep -q '^STREAMGO_SECRET_KEY=' .env || printf 'STREAMGO_SECRET_KEY=%s\n' "$$(head -c32 /dev/urandom | base64)" >> .env
+	@grep -q '^STREAMGO_LIVEKIT_API_KEY=' .env || echo 'STREAMGO_LIVEKIT_API_KEY=streamgo' >> .env
+	@grep -q '^STREAMGO_LIVEKIT_API_SECRET=' .env || printf 'STREAMGO_LIVEKIT_API_SECRET=%s\n' "$$(od -An -tx1 -N32 /dev/urandom | tr -d ' \n')" >> .env
+	@grep -q '^STREAMGO_MEDIAMTX_USER=' .env || echo 'STREAMGO_MEDIAMTX_USER=streamgo' >> .env
+	@grep -q '^STREAMGO_MEDIAMTX_SECRET=' .env || printf 'STREAMGO_MEDIAMTX_SECRET=%s\n' "$$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n')" >> .env
+	@grep -q '^STREAMGO_DATABASE_PASSWORD=' .env || printf 'STREAMGO_DATABASE_PASSWORD=%s\n' "$$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n')" >> .env
 
 clean: ## Remove build outputs
 	rm -rf $(DIST)
@@ -77,16 +82,27 @@ test-db: tools ## Go tests with -race against SQLite, MariaDB and PostgreSQL
 	$(call TOOLS_RUN,--network $(TEST_PROJECT)_default -e STREAMGO_TEST_MARIADB_ADDR=mariadb:3306 \
 	  -e STREAMGO_TEST_POSTGRES_ADDR=postgres:5432 -e STREAMGO_TEST_LIVEKIT_URL=http://livekit:7880,go test -race -count=1 ./...)
 
-# ── Compose stack (deployments/compose, task 3.H) ─────────────────────────────
+# ── Compose stack (deployments/compose; guide: docs/deployment.md) ───────────
+# Every published port comes from the environment or .env: HTTP_PORT, LIVEKIT_PORT, LIVEKIT_TCP_PORT,
+# LIVEKIT_UDP_PORT, MEDIAMTX_WEBRTC_PORT and, for make dev, DEV_PORT; NODE_IP is what the media servers advertise.
 DB          ?= sqlite
+DBS         := sqlite mariadb postgres
 COMPOSE_DIR := deployments/compose
 COMPOSE      = docker compose --env-file .env -f $(COMPOSE_DIR)/compose.yml $(if $(filter sqlite,$(DB)),,-f $(COMPOSE_DIR)/compose.$(DB).yml)
+STACK_ENV    = VERSION=$(VERSION) COMMIT=$(COMMIT) BUILDTIME=$(BUILDTIME)
 
-up: init ## Start StreamGo, LiveKit and MediaMTX (DB=sqlite|mariadb|postgres) on http://localhost:8080
-	VERSION=$(VERSION) COMMIT=$(COMMIT) BUILDTIME=$(BUILDTIME) $(COMPOSE) up -d --build --wait
+check-db:
+	@$(if $(filter $(DB),$(DBS)),true,{ echo "DB must be one of: $(DBS) (got '$(DB)')"; exit 1; })
 
-down: ## Stop the stack (volumes are kept; add V=1 to delete them)
+up: check-db init ## Start StreamGo, LiveKit and MediaMTX (DB=sqlite|mariadb|postgres) on http://localhost:8080
+	$(STACK_ENV) $(COMPOSE) up -d --build --wait
+	@echo "StreamGo is up: http://localhost:$$($(COMPOSE) port streamgo 8080 | sed 's/.*://')"
+
+down: check-db ## Stop the stack (volumes are kept; add V=1 to delete them)
 	$(COMPOSE) down $(if $(V),-v,)
 
-dev: tools ## Vite dev server with hot reload on http://localhost:5173 (API proxied to the server of make up)
-	$(call TOOLS_RUN,-it -p 5173:5173 --add-host=host.docker.internal:host-gateway -e STREAMGO_API_URL=http://host.docker.internal:8080,$(NPM_CI); npm run dev)
+logs: check-db ## Follow the server log
+	$(COMPOSE) logs -f streamgo
+
+dev: check-db init ## Vite dev server with hot reload on http://localhost:5173 (and the stack behind it)
+	$(STACK_ENV) DEV_UID=$(shell id -u) DEV_GID=$(shell id -g) $(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yml up --build

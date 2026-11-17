@@ -9,7 +9,7 @@
 ARG NODE_IMAGE=node:24.16-bookworm-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203
 ARG GO_IMAGE=golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf
 ARG RUNTIME_IMAGE=alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
-# the packages and the all-in-one image: Debian's dpkg-deb, rpm, ffmpeg and supervisor
+# the packages: Debian's dpkg-deb and rpm
 ARG DEBIAN_IMAGE=debian:13-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 # the media servers of the Compose stack; the SHA-256 of each binary is checked when it is copied out
 ARG LIVEKIT_IMAGE=livekit/livekit-server:v1.13.10@sha256:89ca9ce0791e18d6e03bf6e2c49ceb27e1c754eae8bd50c989386c1a5963791a
@@ -74,17 +74,18 @@ RUN sh packaging/build.sh "${VERSION}" /out
 FROM scratch AS packages
 COPY --from=package-build /out/ /
 
-# ── allinone: StreamGo, LiveKit, MediaMTX and Debian's ffmpeg under supervisord, as a non-root user ─────────────
+# ── allinone: StreamGo, LiveKit, MediaMTX and Alpine's ffmpeg under supervisord, as a non-root user ─────────────
 # Only with --target allinone (docker/allinone/); state in /data, secrets generated there on the first start.
-# Debian's ffmpeg is built with libx264 and so is GPL-licensed; its licence files ship in the package.
-FROM ${DEBIAN_IMAGE} AS allinone
+# The same Alpine base and ffmpeg package as the runtime image (libx264, aac; GPL-2.0-or-later, recorded in the
+# package's metadata); Debian's ffmpeg pulls in LLVM and Mesa and made the image 741 MB.
+FROM ${RUNTIME_IMAGE} AS allinone
 LABEL org.opencontainers.image.source="https://github.com/jniltinho/streamgo" \
       org.opencontainers.image.description="StreamGo all-in-one: the studio server, LiveKit, MediaMTX and ffmpeg in one container, SQLite on /data" \
       org.opencontainers.image.licenses="MIT"
 # the same uid as the runtime image, so a /data volume can move between the two
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg supervisor && rm -rf /var/lib/apt/lists/* \
- && groupadd --system --gid 65532 streamgo \
- && useradd --system --uid 65532 --gid streamgo --home-dir /data --no-create-home --shell /usr/sbin/nologin streamgo \
+RUN apk add --no-cache ffmpeg supervisor \
+ && addgroup -S -g 65532 streamgo \
+ && adduser -S -D -H -u 65532 -G streamgo -h /data -s /sbin/nologin streamgo \
  && mkdir -p /data && chown 65532:65532 /data
 COPY --from=build /out/streamgo /usr/local/libexec/streamgo
 COPY --chmod=755 docker/allinone/streamgo.sh /usr/local/bin/streamgo
@@ -92,7 +93,7 @@ COPY --chmod=755 packaging/init-env.sh /usr/local/bin/streamgo-init-env
 COPY --from=media /out/livekit-server /out/mediamtx /usr/local/bin/
 COPY packaging/livekit.yaml packaging/mediamtx.yml /etc/streamgo/
 COPY LICENSE NOTICE THIRD_PARTY /usr/share/doc/streamgo/
-COPY docker/allinone/supervisord.conf /etc/supervisor/supervisord.conf
+COPY docker/allinone/supervisord.conf /etc/supervisord.conf
 COPY --chmod=755 docker/allinone/entrypoint.sh /usr/local/bin/allinone-entrypoint
 # NODE_IP: the address browsers reach the media ports at (LiveKit's --node-ip, MediaMTX's advertised host)
 ENV STREAMGO_SERVER_ADDR=:8080 \

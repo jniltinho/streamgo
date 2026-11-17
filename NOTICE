@@ -12,4 +12,4 @@ carries their licence texts.
 
 The program is encoded with ffmpeg, which StreamGo never builds or ships in its packages: the .deb depends on the
 distribution's ffmpeg, the .rpm recommends it, and the container images install their base distribution's package
-(Alpine's or Debian's), under that distribution's own terms.
+(Alpine's), under that distribution's own terms.

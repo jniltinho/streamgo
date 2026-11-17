@@ -15,8 +15,9 @@ when the Dockerfile copies them out (the "media" stage; the checksums below are 
 
 ffmpeg is not part of StreamGo and is never built by it. The .deb depends on the distribution's ffmpeg package and
 the .rpm recommends one (ffmpeg or ffmpeg-free); the container images install their base distribution's package
-(Alpine's in the runtime image, Debian's in the all-in-one image), whose licence files ship in that package under
-/usr/share/doc. Those ffmpeg builds include libx264 and are therefore licensed under the GNU GPL.
+(Alpine's in the runtime and all-in-one images; its package records the licence, `apk info -a ffmpeg`:
+GPL-2.0-or-later AND LGPL-2.1-or-later). Those ffmpeg builds include libx264 and are therefore licensed under the
+GNU GPL; their sources are the distributions' own (Alpine's aports, Debian's and Ubuntu's source packages).
 
 
 ====================================================================================================

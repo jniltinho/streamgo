@@ -1,0 +1,65 @@
+# Portions adapted from MeetHub (MIT): .golangci.yml
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - depguard
+    - errorlint
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - revive
+    - sqlclosecheck
+    - unconvert
+    - usestdlibvars
+  settings:
+    depguard:
+      rules:
+        # The layering rule (design D9): the domain imports only the standard library, x/crypto and itself.
+        core:
+          list-mode: strict
+          files:
+            - "**/internal/core/**"
+          allow:
+            - $gostd
+            - golang.org/x/crypto
+            - github.com/jniltinho/streamgo/internal/core
+          deny:
+            - pkg: net/http
+              desc: the core does not speak HTTP; handlers in internal/httpserver call it
+            - pkg: os/exec
+              desc: the core does not run processes; internal/ffmpeg does, behind a port
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: var-naming
+        - name: error-strings
+        - name: error-return
+        - name: context-as-argument
+        - name: receiver-naming
+        - name: unused-parameter
+          disabled: true
+    gosec:
+      excludes:
+        - G104 # covered by errcheck
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/jniltinho/streamgo

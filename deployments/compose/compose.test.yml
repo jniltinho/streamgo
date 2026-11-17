@@ -1,0 +1,33 @@
+# Throwaway databases for make test-db (project "streamgo-test"). No published ports: the tools container joins
+# the project's network. Data lives in tmpfs: nothing persists. The credentials are test fixtures only.
+# Portions adapted from MeetHub (MIT): deployments/compose/compose.test.yml
+name: streamgo-test
+
+services:
+  mariadb:
+    image: mariadb:11.4@sha256:5e73baf8179b29f115101bb102763a47a017361f3e9792daccba6646c3ab1532
+    environment:
+      MARIADB_DATABASE: streamgo
+      MARIADB_USER: streamgo
+      MARIADB_PASSWORD: streamgo-test
+      MARIADB_ROOT_PASSWORD: streamgo-test-root
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    tmpfs: ["/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  postgres:
+    image: postgres:17-alpine@sha256:d3244e8ce3f165ee3c93d9c4a4b1d0fe48b3a89e2287b717fdcbbde92d405065
+    environment:
+      POSTGRES_DB: streamgo
+      POSTGRES_USER: streamgo
+      POSTGRES_PASSWORD: streamgo-test
+    tmpfs: ["/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streamgo -d streamgo"]
+      interval: 2s
+      timeout: 5s
+      retries: 60

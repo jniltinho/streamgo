@@ -1,0 +1,66 @@
+# StreamGo configuration. Copy to config.toml (or /etc/streamgo/config.toml, or pass --config).
+# Every setting below shows its default. Any setting can be overridden by an environment variable named
+# STREAMGO_<SECTION>_<KEY>, e.g. STREAMGO_SERVER_ADDR=":9090" (lists are comma-separated).
+#
+# Secrets are read ONLY from the environment and are refused in this file:
+#   STREAMGO_SECRET_KEY           32 random bytes in base64; seals destinations and invite links (required)
+#   STREAMGO_DATABASE_DSN         connection string for mariadb or postgres
+#   STREAMGO_LIVEKIT_API_KEY      LiveKit API key
+#   STREAMGO_LIVEKIT_API_SECRET   LiveKit API secret
+#   STREAMGO_MEDIAMTX_USER        user StreamGo authenticates to MediaMTX with
+#   STREAMGO_MEDIAMTX_SECRET      its password
+
+[server]
+# Address the HTTP server listens on.
+addr = ":8080"
+# Public URL browsers use. Must be https://, except on localhost and loopback addresses (development):
+# browsers allow camera and microphone only on secure origins. State-changing requests must carry this origin.
+public_url = "http://localhost:8080"
+# Data directory: the SQLite database, uploaded assets and the instance lock (streamgo.lock).
+data_dir = "./data"
+# IPs or CIDRs of reverse proxies whose X-Forwarded-For and X-Forwarded-Proto headers are trusted.
+trusted_proxies = []
+
+[database]
+# sqlite, mariadb or postgres. MariaDB and PostgreSQL take their connection string from STREAMGO_DATABASE_DSN.
+driver = "sqlite"
+# SQLite file; empty: <data_dir>/streamgo.db.
+path = ""
+
+[livekit]
+# WebSocket URL browsers use to reach LiveKit.
+url = "ws://localhost:7880"
+# HTTP URL the server uses for LiveKit's API.
+api_url = "http://localhost:7880"
+
+[mediamtx]
+# HTTP base URL of MediaMTX's WebRTC (WHIP) server, reached by the server only.
+whip_url = "http://localhost:8889"
+# RTSP base URL ffmpeg reads the program from and writes the transcoded stream to.
+rtsp_url = "rtsp://localhost:8554"
+
+[studio]
+# Participants in a studio room, the owner included (2 to 100).
+max_participants = 10
+# Sources on stage at once (1 to 6).
+max_on_stage = 6
+
+[output]
+# The ffmpeg binary; it must offer libx264, aac, the h264, vp8 and opus decoders, rtsp, flv, rtmp and rtmps.
+ffmpeg_path = "ffmpeg"
+# Program resolution sent to destinations: 720p or 1080p (30 fps).
+resolution = "720p"
+# Video bitrate in kbit/s (500 to 12000).
+video_bitrate_kbps = 4000
+# Audio bitrate in kbit/s (64 to 320).
+audio_bitrate_kbps = 128
+# Destinations per broadcast (1 to 10).
+max_destinations = 5
+# Broadcasts live at the same time (1 to 32): each one transcodes once.
+max_concurrent = 2
+# How long going live waits for the program to arrive (5s to 5m).
+start_timeout = "30s"
+# How long an interrupted broadcast waits for the program to come back before it ends (10s to 30m).
+reconnect_grace = "2m0s"
+# Allow destinations on loopback, private and link-local addresses (an operator's own RTMP server).
+allow_private_destinations = false

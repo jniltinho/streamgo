@@ -40,28 +40,28 @@ counter into its video and plays a distinct tone.
 
 ## 2. Foundation (one agent; everything later builds on it)
 
-- [ ] 2.1 Create the module, `main.go`, the Cobra tree with `version` and the `--config` / `--json` flags,
+- [x] 2.1 Create the module, `main.go`, the Cobra tree with `version` and the `--config` / `--json` flags,
   `internal/buildinfo`, the Makefile (`build`, `check`, `test`, `test-db`, `tools`, `init`, `up`, `down`, `dev`)
   and the tools image; verify the `server-cli` "Command tree" scenarios and `make check test build`
-- [ ] 2.2 Implement `internal/config` (file search, environment overrides, unknown keys, ranges, secrets only from
+- [x] 2.2 Implement `internal/config` (file search, environment overrides, unknown keys, ranges, secrets only from
   the environment, startup checks including HTTPS and the ffmpeg capabilities) and `config.toml.example`; verify
   every `configuration` scenario with table-driven tests
-- [ ] 2.3 Implement `internal/store` with the database opening for the three drivers (SQLite with WAL, foreign
+- [x] 2.3 Implement `internal/store` with the database opening for the three drivers (SQLite with WAL, foreign
   keys and busy timeout), every table of the data model as goose migrations per dialect with equal versions,
   `migrate up` / `status`, `make test-db` with throwaway MariaDB and PostgreSQL containers, and the instance lock
   file; verify every `database` scenario, the `server-cli` "Idempotent" and "Single instance" scenarios, and a
   test that the three migration directories list the same versions
-- [ ] 2.4 Declare only what more than one package depends on: the shared domain types and typed errors, the
+- [x] 2.4 Declare only what more than one package depends on: the shared domain types and typed errors, the
   broadcast repository interface, the per-broadcast lock, the `internal/theme` registry with its 22 entries, and
   the `depguard` rule (each package defines its own ports with its first slice); verify the "Forbidden import in the core" scenario and the `ui-themes`
   "Catalog" scenario
-- [ ] 2.5 Build `internal/httpserver`: Echo v5 with the error envelope, the route-pattern request log, the
+- [x] 2.5 Build `internal/httpserver`: Echo v5 with the error envelope, the route-pattern request log, the
   `Origin` check, body limits, `Cache-Control: no-store`, trusted proxies, the session middleware hook, a
   registration function per package (no placeholder handlers), `healthz` / `readyz`, the embedded web app with
   the client-route fallback, and `cmd/server.go` with graceful shutdown; verify the `web-shell` "Unknown API
   route" scenario and the `authentication` "Cross-origin post", "Missing or null origin", "Oversized body",
   "Spoofed forwarding header" and "Nothing sensitive in logs or caches" scenarios
-- [ ] 2.6 Scaffold `frontend/` with Vite+ (`vp dev`, `vp build` into `web/dist`, `vp check`, `vp test`; lint
+- [x] 2.6 Scaffold `frontend/` with Vite+ (`vp dev`, `vp build` into `web/dist`, `vp check`, `vp test`; lint
   rules in `vite.config.ts` banning native dialogs and framework imports in `frontend/src/core`), Vue 3,
   TypeScript, Pinia, Vue Router, Tailwind 4 and Playwright, in MeetHub's structure: the router with every client
   route as an empty view, the typed API client with the error envelope, the i18n module with `en` and `pt-BR`;
@@ -70,7 +70,7 @@ counter into its video and plays a distinct tone.
   themed toast, alert and dialog components with the feedback gallery page; verify the `web-shell` "Catalog
   parity" and "No native dialogs" scenarios, the "Forbidden import in the frontend core" scenario and
   `make check`
-- [ ] 2.7 Write `AGENTS.md` (rules of this project, the layering rule, how to validate) and the `README.md`
+- [x] 2.7 Write `AGENTS.md` (rules of this project, the layering rule, how to validate) and the `README.md`
   quick start; verify the commands in them run
 
 ## 3. Parallel packages

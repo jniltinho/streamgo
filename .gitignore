@@ -37,3 +37,6 @@ spike/**/*.mkv
 .idea/
 .vscode/
 *.log
+
+# stray browser profiles from test runs
+/out/

@@ -90,8 +90,11 @@ func TestPublishRefused(t *testing.T) {
 		"redirect": func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "http://elsewhere.example/whip", http.StatusTemporaryRedirect)
 		},
-		"no location":      func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusCreated) },
-		"foreign location": func(w http.ResponseWriter, _ *http.Request) { w.Header().Set("Location", "http://evil.example/x"); w.WriteHeader(http.StatusCreated) },
+		"no location": func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusCreated) },
+		"foreign location": func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Location", "http://evil.example/x")
+			w.WriteHeader(http.StatusCreated)
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

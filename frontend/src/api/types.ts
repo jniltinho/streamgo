@@ -15,10 +15,48 @@ export interface Me {
   theme: string
   /** 'en' or 'pt-BR'; '' when the user never chose one */
   language: string
+  /** an administrator manages the accounts on the Users page */
+  admin: boolean
 }
 
 /** PATCH /me */
 export type MePatch = Partial<Pick<Me, 'name' | 'theme' | 'language'>>
+
+/** PUT /me/password (204); a wrong current password is 422 with the field "current" */
+export interface PasswordChange {
+  current: string
+  password: string
+}
+
+/** an account in GET /users, POST /users and PATCH /users/:id (administrators only) */
+export interface AdminUser {
+  id: string
+  name: string
+  email: string
+  admin: boolean
+  disabled: boolean
+}
+
+/** GET /users */
+export interface UserList {
+  users: AdminUser[]
+}
+
+/** POST /users */
+export interface UserCreate {
+  email: string
+  name: string
+  password: string
+  admin?: boolean
+}
+
+/** PATCH /users/:id: only the given fields change; a new password or disabling ends the user's sessions */
+export interface UserPatch {
+  name?: string
+  admin?: boolean
+  disabled?: boolean
+  password?: string
+}
 
 /** one entry of GET /themes */
 export interface ThemeInfo {

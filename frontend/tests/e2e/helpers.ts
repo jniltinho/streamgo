@@ -2,7 +2,7 @@
 import type { Page } from '@playwright/test'
 import type { Me } from '../../src/api/types'
 
-export const ANA: Me = { id: 'u1', name: 'Ana Souza', email: 'ana@example.com', theme: '', language: '' }
+export const ANA: Me = { id: 'u1', name: 'Ana Souza', email: 'ana@example.com', theme: '', language: '', admin: true }
 
 export interface StubbedApi {
   /** the bodies of every PATCH /me */

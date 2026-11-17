@@ -53,7 +53,8 @@ func newAuthEnv(t *testing.T) *authEnv {
 	srv := httpserver.New(httpserver.Options{PublicOrigin: testOrigin, Authenticate: handlers.Authenticator(deps)})
 	handlers.RegisterAuth(srv.API(), deps)
 	handlers.RegisterThemes(srv.API())
-	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: env.accounts})
+	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: env.accounts, Limiter: deps.Limiter})
+	handlers.RegisterUsers(srv.UserAPI(), handlers.UsersDeps{Accounts: env.accounts})
 	// a signed-in route of another package, to check the session gate
 	srv.UserAPI().GET("/whoami", func(c *echo.Context) error { return c.String(http.StatusOK, httpserver.UserID(c)) })
 	env.handler = srv.Handler()
@@ -216,10 +217,15 @@ func TestDisabledWhileSignedIn(t *testing.T) {
 
 func TestNoPublicSignUp(t *testing.T) {
 	env := newAuthEnv(t)
-	for _, p := range []string{"/api/v1/users", "/api/v1/auth/register", "/api/v1/auth/signup", "/api/v1/signup"} {
-		if r := env.do(http.MethodPost, p, "", `{"email":"eve@example.com","name":"Eve","password":"0123456789"}`); r.status != http.StatusNotFound {
+	body := `{"email":"eve@example.com","name":"Eve","password":"0123456789"}`
+	for _, p := range []string{"/api/v1/auth/register", "/api/v1/auth/signup", "/api/v1/signup"} {
+		if r := env.do(http.MethodPost, p, "", body); r.status != http.StatusNotFound {
 			t.Errorf("POST %s: %d", p, r.status)
 		}
+	}
+	// creating users is for a signed-in administrator only
+	if r := env.do(http.MethodPost, "/api/v1/users", "", body); r.status != http.StatusUnauthorized {
+		t.Errorf("POST /api/v1/users without a session: %d", r.status)
 	}
 }
 

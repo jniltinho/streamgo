@@ -33,6 +33,7 @@ var (
 	ErrBadRequest      = NewError(http.StatusBadRequest, "bad_request", "The request is malformed.")
 	ErrUnauthenticated = NewError(http.StatusUnauthorized, "unauthenticated", "You must sign in.")
 	ErrCrossOrigin     = NewError(http.StatusForbidden, "cross_origin", "The request does not come from this site.")
+	ErrForbidden       = NewError(http.StatusForbidden, "forbidden", "You are not allowed to do this.")
 	ErrNotFound        = NewError(http.StatusNotFound, "not_found", "The requested resource does not exist.")
 	ErrConflict        = NewError(http.StatusConflict, "conflict", "The request conflicts with the current state.")
 	ErrTooLarge        = NewError(http.StatusRequestEntityTooLarge, "too_large", "The request body is too large.")
@@ -85,6 +86,8 @@ func toAPIError(err error) *Error {
 		}
 	case errors.Is(err, core.ErrNotFound):
 		return ErrNotFound
+	case errors.Is(err, core.ErrForbidden):
+		return ErrForbidden
 	case errors.Is(err, core.ErrConflict):
 		return ErrConflict
 	case errors.As(err, &sc):

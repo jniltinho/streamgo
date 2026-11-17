@@ -20,16 +20,17 @@ import (
 )
 
 func newUserCmd(c *cli) *cobra.Command {
-	cmd := &cobra.Command{Use: "user", Short: "Manage accounts: add, list, passwd, disable, enable", Args: cobra.NoArgs}
+	cmd := &cobra.Command{Use: "user", Short: "Manage accounts: add, list, passwd, disable, enable, admin", Args: cobra.NoArgs}
 	var passwordStdin bool
 	pwFlag := func(cc *cobra.Command) {
 		cc.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the password from standard input instead of a prompt")
 	}
 
 	var email, name string
+	var admin bool
 	add := &cobra.Command{
 		Use:   "add",
-		Short: "Create an account",
+		Short: "Create an account (the first account of an install is an administrator)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return c.withAccounts(cmd.Context(), func(ctx context.Context, s *account.Service) error {
@@ -37,20 +38,21 @@ func newUserCmd(c *cli) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				u, err := s.Create(ctx, account.NewUser{Email: email, Name: name, Password: pw})
+				u, err := s.Create(ctx, account.NewUser{Email: email, Name: name, Password: pw, Admin: admin})
 				if err != nil {
 					return err
 				}
 				if c.asJSON {
 					return c.printJSON(userView(*u))
 				}
-				_, err = fmt.Fprintf(c.out, "created %s <%s> (id %s)\n", u.Name, u.Email, u.ID)
+				_, err = fmt.Fprintf(c.out, "created %s <%s> (id %s, %s)\n", u.Name, u.Email, u.ID, userView(*u).Role)
 				return err
 			})
 		},
 	}
 	add.Flags().StringVar(&email, "email", "", "e-mail address (required)")
 	add.Flags().StringVar(&name, "name", "", "name (required)")
+	add.Flags().BoolVar(&admin, "admin", false, "make the account an administrator")
 	_ = add.MarkFlagRequired("email")
 	_ = add.MarkFlagRequired("name")
 	pwFlag(add)
@@ -73,9 +75,10 @@ func newUserCmd(c *cli) *cobra.Command {
 					return c.printJSON(views)
 				}
 				tw := tabwriter.NewWriter(c.out, 0, 4, 2, ' ', 0)
-				_, _ = fmt.Fprintln(tw, "ID\tE-MAIL\tNAME\tSTATUS")
+				_, _ = fmt.Fprintln(tw, "ID\tE-MAIL\tNAME\tROLE\tSTATUS")
 				for _, u := range users {
-					_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", u.ID, u.Email, u.Name, userView(u).Status)
+					v := userView(u)
+					_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", u.ID, u.Email, u.Name, v.Role, v.Status)
 				}
 				return tw.Flush()
 			})
@@ -118,7 +121,28 @@ func newUserCmd(c *cli) *cobra.Command {
 			},
 		}
 	}
-	cmd.AddCommand(add, list, passwd,
+	var revoke bool
+	adminCmd := &cobra.Command{
+		Use:   "admin EMAIL",
+		Short: "Make an account an administrator, or with --revoke a user again",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return c.withAccounts(cmd.Context(), func(ctx context.Context, s *account.Service) error {
+				if err := s.SetAdmin(ctx, args[0], !revoke); err != nil {
+					return err
+				}
+				done := "%s is an administrator\n"
+				if revoke {
+					done = "%s is no longer an administrator\n"
+				}
+				_, err := fmt.Fprintf(c.out, done, args[0])
+				return err
+			})
+		},
+	}
+	adminCmd.Flags().BoolVar(&revoke, "revoke", false, "remove the administrator role")
+
+	cmd.AddCommand(add, list, passwd, adminCmd,
 		setDisabled("disable", "Disable an account: it cannot sign in and its sessions end at once", "disabled", true),
 		setDisabled("enable", "Enable a disabled account", "enabled", false),
 	)
@@ -132,15 +156,19 @@ type userJSON struct {
 	Name     string `json:"name"`
 	Theme    string `json:"theme"`
 	Language string `json:"language"`
+	Role     string `json:"role"` // "administrator" or "user"
 	Status   string `json:"status"`
 }
 
 func userView(u account.User) userJSON {
-	status := "active"
+	status, role := "active", "user"
 	if u.Disabled() {
 		status = "disabled since " + u.DisabledAt.Format(time.RFC3339)
 	}
-	return userJSON{ID: u.ID, Email: u.Email, Name: u.Name, Theme: u.Theme, Language: u.Language, Status: status}
+	if u.Admin {
+		role = "administrator"
+	}
+	return userJSON{ID: u.ID, Email: u.Email, Name: u.Name, Theme: u.Theme, Language: u.Language, Role: role, Status: status}
 }
 
 // withAccounts opens the database (its migrations must be applied) and runs fn with the

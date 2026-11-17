@@ -11,6 +11,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** open without a session (web-shell spec: /login and /join/:token) */
     public?: boolean
+    /** administrators only: anyone else goes to the broadcasts (the server answers them 403 anyway) */
+    admin?: boolean
   }
 }
 
@@ -27,6 +29,7 @@ export const router = createRouter({
         { path: '', redirect: '/broadcasts' },
         { path: 'broadcasts', name: 'broadcasts', component: () => import('@/views/BroadcastsView.vue') },
         { path: 'destinations', name: 'destinations', component: () => import('@/views/DestinationsView.vue') },
+        { path: 'users', name: 'users', component: () => import('@/views/UsersView.vue'), meta: { admin: true } },
       ],
     },
     // the feedback gallery: development and tests only (the build fails if it reaches a production bundle)
@@ -59,6 +62,7 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   }
   if (to.meta.public) return session.loggedIn && to.name === 'login' ? { path: safeNext(to.query.next) } : true
   if (!session.loggedIn) return { name: 'login', query: to.fullPath !== '/' ? { next: to.fullPath } : {} }
+  if (to.meta.admin && !session.me?.admin) return { name: 'broadcasts' }
   return true
 })
 

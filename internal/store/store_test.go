@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pressly/goose/v3"
 	"gorm.io/gorm"
 
 	"github.com/jniltinho/streamgo/internal/store"
@@ -89,6 +90,72 @@ func TestMigrate(t *testing.T) {
 				t.Fatalf("pending %v, %v", pending, err)
 			}
 		})
+	}
+}
+
+// TestMigrationUserAdmin is "Existing install": migration 00002_user_admin makes the oldest enabled
+// account (the smallest ULID) an administrator, or the oldest account when none is enabled, and no other.
+func TestMigrationUserAdmin(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name                       string
+		anaDisabled, brunoDisabled bool
+		admin                      string
+	}{
+		{"oldest enabled", false, false, "ana@example.com"},
+		{"oldest is disabled", true, false, "bruno@example.com"},
+		{"none enabled", true, true, "ana@example.com"},
+	}
+	for _, d := range storetest.Drivers() {
+		for _, tt := range tests {
+			t.Run(d+"/"+tt.name, func(t *testing.T) {
+				t.Parallel()
+				ctx := context.Background()
+				db := storetest.OpenEmpty(t, storetest.NewSettings(t, d))
+				sources, err := store.Migrations(d)
+				if err != nil {
+					t.Fatal(err)
+				}
+				dialect := map[string]goose.Dialect{store.SQLite: goose.DialectSQLite3, store.MariaDB: goose.DialectMySQL, store.Postgres: goose.DialectPostgres}[d]
+				p, err := goose.NewProvider(dialect, db.SQL, sources, goose.WithDisableGlobalRegistry(true))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := p.UpTo(ctx, 1); err != nil {
+					t.Fatal(err)
+				}
+				// bruno is inserted first, but ana has the smaller (older) id
+				disabledAt := func(disabled bool) *time.Time {
+					if !disabled {
+						return nil
+					}
+					at := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+					return &at
+				}
+				for _, u := range []struct {
+					id, email string
+					disabled  bool
+				}{{"01JUSER2000000000000000000", "bruno@example.com", tt.brunoDisabled}, {"01JUSER1000000000000000000", "ana@example.com", tt.anaDisabled}} {
+					if err := store.Translate(db.Gorm.WithContext(ctx).Exec(
+						"INSERT INTO users (id, email, name, password_hash, disabled_at) VALUES (?, ?, ?, ?, ?)",
+						u.id, u.email, "N", "x", disabledAt(u.disabled)).Error); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if _, err := p.UpTo(ctx, 2); err != nil {
+					t.Fatal(err)
+				}
+				users, err := store.NewAccounts(db).ListUsers(ctx)
+				if err != nil || len(users) != 2 {
+					t.Fatalf("list: %+v %v", users, err)
+				}
+				for _, u := range users {
+					if u.Admin != (u.Email == tt.admin) {
+						t.Errorf("%s admin = %v, want only %s", u.Email, u.Admin, tt.admin)
+					}
+				}
+			})
+		}
 	}
 }
 

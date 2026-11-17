@@ -35,6 +35,9 @@ async function signOut() {
         <RouterLink to="/destinations" class="act" exact-active-class="font-semibold">
           {{ t('Destinations') }}
         </RouterLink>
+        <RouterLink v-if="session.me?.admin" to="/users" class="act" exact-active-class="font-semibold">
+          {{ t('Users') }}
+        </RouterLink>
       </nav>
       <button
         type="button"

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +18,8 @@ type fakeRepo struct {
 	mu       sync.Mutex
 	users    map[string]User
 	sessions map[string]Session
+	// beforeUpdate, when set, runs at the start of UpdateUser (another request landing first)
+	beforeUpdate func()
 }
 
 func newFakeRepo() *fakeRepo {
@@ -31,6 +35,7 @@ func (f *fakeRepo) CreateUser(_ context.Context, u *User) error {
 		}
 	}
 	u.ID = fmt.Sprintf("u%d", len(f.users)+1)
+	u.Admin = u.Admin || len(f.users) == 0
 	f.users[u.ID] = *u
 	return nil
 }
@@ -56,7 +61,31 @@ func (f *fakeRepo) UserByEmail(_ context.Context, email string) (*User, error) {
 	return nil, core.ErrNotFound
 }
 
-func (f *fakeRepo) ListUsers(context.Context) ([]User, error) { return nil, nil }
+func (f *fakeRepo) ListUsers(context.Context) ([]User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]User, 0, len(f.users))
+	for _, u := range f.users {
+		out = append(out, u)
+	}
+	slices.SortFunc(out, func(a, b User) int { return strings.Compare(a.Email, b.Email) })
+	return out, nil
+}
+
+func (f *fakeRepo) SetAdmin(_ context.Context, id string, admin bool) error {
+	return f.update(id, func(u *User) { u.Admin = admin })
+}
+
+func (f *fakeRepo) DeleteOtherSessions(_ context.Context, id, keep string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for h, s := range f.sessions {
+		if s.UserID == id && h != keep {
+			delete(f.sessions, h)
+		}
+	}
+	return nil
+}
 
 func (f *fakeRepo) update(id string, fn func(*User)) error {
 	f.mu.Lock()
@@ -75,12 +104,58 @@ func (f *fakeRepo) SetDisabledAt(_ context.Context, id string, t time.Time) erro
 	return f.update(id, func(u *User) { u.DisabledAt = t })
 }
 
-func (f *fakeRepo) SetName(_ context.Context, id, name string) error {
-	return f.update(id, func(u *User) { u.Name = name })
+func (f *fakeRepo) UpdateProfile(_ context.Context, id string, name, theme, language *string) error {
+	return f.update(id, func(u *User) {
+		for _, c := range []struct{ to, from *string }{{&u.Name, name}, {&u.Theme, theme}, {&u.Language, language}} {
+			if c.from != nil {
+				*c.to = *c.from
+			}
+		}
+	})
 }
 
-func (f *fakeRepo) SetPreferences(_ context.Context, id, theme, language string) error {
-	return f.update(id, func(u *User) { u.Theme, u.Language = theme, language })
+func (f *fakeRepo) UpdateUser(_ context.Context, id string, c UserChanges) (*User, error) {
+	if f.beforeUpdate != nil {
+		f.beforeUpdate()
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	u, ok := f.users[id]
+	if !ok {
+		return nil, core.ErrNotFound
+	}
+	if c.RemovesAdmin() && u.Admin && !u.Disabled() {
+		others := 0
+		for _, o := range f.users {
+			if o.ID != id && o.Admin && !o.Disabled() {
+				others++
+			}
+		}
+		if others == 0 {
+			return nil, core.ErrConflict
+		}
+	}
+	if c.Name != nil {
+		u.Name = *c.Name
+	}
+	if c.Admin != nil {
+		u.Admin = *c.Admin
+	}
+	if c.DisabledAt != nil {
+		u.DisabledAt = *c.DisabledAt
+	}
+	if c.PasswordHash != nil {
+		u.PasswordHash = *c.PasswordHash
+	}
+	f.users[id] = u
+	if c.EndsSessions() {
+		for h, s := range f.sessions {
+			if s.UserID == id {
+				delete(f.sessions, h)
+			}
+		}
+	}
+	return &u, nil
 }
 
 func (f *fakeRepo) CreateSession(_ context.Context, s Session) error {

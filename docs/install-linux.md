@@ -99,7 +99,10 @@ cd /opt/streamgo && set -a && . ./streamgo.env && set +a && setpriv --reuid stre
 exit
 ```
 
-The same way, `./bin/streamgo user list`, `user passwd`, `user disable` and `user enable` manage accounts.
+The first account of an install is its administrator. Once signed in, the administrator creates the other
+accounts, changes their role or password, and disables or enables them on the **Users** page of the web app; the
+command line is only needed for this first one. The same way as above, `./bin/streamgo user list`, `user passwd`,
+`user disable`, `user enable` and `user admin <email> [--revoke]` manage accounts from the server.
 
 Open `http://<server>:8080` and sign in. From any machine other than the server itself, the browser allows the
 camera and the microphone only over HTTPS: set it up first ([section 6](#6-https)).

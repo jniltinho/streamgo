@@ -26,6 +26,8 @@ export type CompositorMode = 'program' | 'preview'
 const BACKDROP = '#0e0f13'
 const TILE = '#1b1d24'
 const DEFAULT_ACCENT = '#3d41cf'
+/** the accent colours the studio's Brand tab offers (program colours, not the UI theme's) */
+export const ACCENTS = [DEFAULT_ACCENT, '#b3b8ff', '#4ade80', '#fbbf24', '#f0464f', '#f2f4fb'] as const
 const WHITE = '#ffffff'
 const INK = '#111318'
 const TAG = 'rgba(0, 0, 0, 0.62)'

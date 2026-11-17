@@ -117,3 +117,48 @@ export interface DestinationCreate {
 
 /** PATCH /destinations/:id: an absent address or key keeps the stored one */
 export type DestinationPatch = Partial<DestinationCreate>
+
+/** POST /broadcasts/:id/studio-token: the LiveKit URL for browsers, an access token and the identity */
+export interface Join {
+  url: string
+  token: string
+  identity: string
+}
+
+/** POST /join/:token: a Join and the broadcast's title */
+export interface GuestJoin extends Join {
+  title: string
+}
+
+/** GET /join/:token */
+export interface Invite {
+  title: string
+}
+
+/** PATCH /broadcasts/:id/stage: any of these */
+export interface StagePatch {
+  layout?: string
+  sources?: { p: string; k: string }[]
+  banner_id?: string | null
+  accent?: string
+}
+
+/** the answer of every route that changes the stage */
+export interface StageAnswer {
+  stage: Stage
+}
+
+/** GET /broadcasts/:id/banners */
+export interface BannerList {
+  banners: Banner[]
+}
+
+/** POST /broadcasts/:id/invite */
+export interface InviteLink {
+  invite_url: string
+}
+
+/** PUT /broadcasts/:id/destinations */
+export interface BroadcastDestinationList {
+  destinations: BroadcastDestination[]
+}

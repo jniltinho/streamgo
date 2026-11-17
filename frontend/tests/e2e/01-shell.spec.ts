@@ -24,7 +24,8 @@ test.describe('signed out', () => {
     await stubApi(page)
     await page.goto('/join/tok123')
     await expect(page).toHaveURL('/join/tok123')
-    await expect(page.getByRole('heading', { name: 'Join the studio' })).toBeVisible()
+    // the stub answers 404 for the invite: the join page says the link is not valid
+    await expect(page.getByRole('heading', { name: 'This invite link is not valid' })).toBeVisible()
   })
 })
 
@@ -34,8 +35,8 @@ test.describe('signed in', () => {
     for (const [path, heading] of [
       ['/broadcasts', 'Broadcasts'],
       ['/destinations', 'Destinations'],
-      ['/studio/01JABC', 'Studio'],
-      ['/join/tok123', 'Join the studio'],
+      ['/studio/01JABC', 'The studio is not connected'], // the stub answers 404 for the broadcast
+      ['/join/tok123', 'This invite link is not valid'],
     ]) {
       await page.goto(path!)
       await expect(page).toHaveURL(path!)

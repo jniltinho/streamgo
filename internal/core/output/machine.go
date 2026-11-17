@@ -7,6 +7,7 @@ package output
 
 import (
 	"maps"
+	"slices"
 	"time"
 
 	"github.com/jniltinho/streamgo/internal/core/broadcast"
@@ -138,7 +139,7 @@ func (h *handler) handle(e Event) {
 		o.State, o.Reason, o.Deadline, o.StartedAt = broadcast.Starting, "", time.Time{}, time.Time{}
 		o.IngestID, o.IngestURL = "", ""
 		h.s.StartBy = h.now.Add(h.m.StartTimeout)
-		h.s.Transcoder = Process{}
+		h.s.Transcoder, h.s.NextSeq = Process{}, 0
 		h.setDests(e.Dests)
 		h.startTranscoder()
 		return
@@ -173,7 +174,7 @@ func (h *handler) handle(e Event) {
 			o.StartedAt = h.now
 		}
 		h.emit(Command{Kind: SetOnAir, On: true})
-		for id := range h.s.Dests {
+		for _, id := range h.ids() {
 			h.startRelay(id, destination.Connecting)
 		}
 	case ProgramLost:
@@ -184,7 +185,8 @@ func (h *handler) handle(e Event) {
 		if o.State == broadcast.Live {
 			o.State, o.Deadline = broadcast.Interrupted, h.now.Add(h.m.Grace)
 			h.emit(Command{Kind: SetOnAir, On: false})
-			for id, d := range h.s.Dests {
+			for _, id := range h.ids() {
+				d := h.s.Dests[id]
 				if d.Running {
 					h.emit(Command{Kind: StopRelay, Dest: id})
 				}
@@ -244,8 +246,8 @@ func (h *handler) tick() {
 	if o.State != broadcast.Live {
 		return
 	}
-	for id, d := range h.s.Dests {
-		if !d.Running && !d.RetryAt.IsZero() && !h.now.Before(d.RetryAt) {
+	for _, id := range h.ids() {
+		if d := h.s.Dests[id]; !d.Running && !d.RetryAt.IsZero() && !h.now.Before(d.RetryAt) {
 			h.startRelay(id, d.Status)
 		}
 	}
@@ -261,6 +263,9 @@ func (h *handler) offline(reason string) {
 	h.emit(Command{Kind: CloseIngest, IngestURL: url})
 	h.emit(Command{Kind: SetOnAir, On: false})
 }
+
+// ids lists the chosen destinations in order, so the commands come in a stable order.
+func (h *handler) ids() []string { return slices.Sorted(maps.Keys(h.s.Dests)) }
 
 func (h *handler) setDests(ids []string) {
 	h.s.Dests = make(map[string]Dest, len(ids))

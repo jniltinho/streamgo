@@ -251,7 +251,7 @@ func (s *Service) Run(ctx context.Context) {
 			s.Processes.StopAll()
 			return
 		case <-t.C:
-			s.tickAll(ctx)
+			s.Tick(ctx)
 		}
 	}
 }
@@ -272,7 +272,9 @@ func (s *Service) CloseOrphans(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-func (s *Service) tickAll(ctx context.Context) {
+// Tick checks the timers of every broadcast that is not offline once; Run calls it every
+// TickEvery.
+func (s *Service) Tick(ctx context.Context) {
 	s.mu.Lock()
 	ids := slices.Sorted(maps.Keys(s.states))
 	s.mu.Unlock()

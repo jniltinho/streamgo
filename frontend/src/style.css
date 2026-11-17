@@ -1265,6 +1265,9 @@ dialog.pnl.closing::backdrop {
     min-width: 0;
     padding: 0.5rem;
   }
+  .studio-right {
+    display: contents;
+  }
   .studio-back {
     grid-area: back;
     min-width: 0;
@@ -1422,30 +1425,35 @@ dialog.pnl.closing::backdrop {
     padding: calc(var(--view-h) * var(--dialog-top)) 1rem 1rem;
   }
   /* A window much wider than 16:9 leaves the stage short, with empty space at its sides. From 19:10 up the
-     backstage moves to the top of the right-hand column: the stage takes the whole height, its column is exactly as
-     wide as the 16:9 program needs (--stage-w, measured by StudioLayout) and the right-hand column takes the rest. */
+     backstage and the side panel share the right-hand column: the stage takes the whole height, its column is
+     exactly as wide as the 16:9 program needs (--stage-w, measured by StudioLayout) and the right-hand column takes
+     the rest. */
   @media (min-aspect-ratio: 19 / 10) {
-    .studio-body {
-      grid-template:
-        'stage back' auto
-        'stage side' minmax(0, 1fr)
-        'row side' auto
-        / minmax(0, var(--stage-w, 1fr)) minmax(20.5rem, 1fr);
-    }
+    .studio-body,
     .studio-body.no-side {
       grid-template:
-        'stage back' minmax(0, 1fr)
-        'row back' auto
-        / minmax(0, var(--stage-w, 1fr)) minmax(15.25rem, 1fr);
+        'stage right' minmax(0, 1fr)
+        'row right' auto
+        / minmax(0, var(--stage-w, 1fr)) minmax(20.5rem, 1fr);
+    }
+    /* the right-hand column: the backstage takes the height the side panel does not need, so its list scrolls
+       only in a crowded studio; the side panel is as tall as its content, at the bottom, up to half the column */
+    .studio-right {
+      display: flex;
+      flex-direction: column;
+      grid-area: right;
+      gap: 1rem;
+      min-height: 0;
     }
     .studio-back {
       display: flex;
+      flex: 1;
       flex-direction: column;
       min-height: 0;
-      max-height: calc(var(--view-h) * 0.4);
     }
-    .studio-body.no-side > .studio-back {
-      max-height: none;
+    .studio-side {
+      flex: none;
+      max-height: 50%;
     }
     .studio-cards {
       flex: 1;

@@ -72,8 +72,13 @@ bigger empty area.
 
 #### Scenario: Wide window
 - **WHEN** the window is 19:10 or wider, such as 2340x1170, 2560x1314 or 3440x1440
-- **THEN** the backstage stands above the side panel in the right-hand column and scrolls inside itself, the stage
-  takes the whole height above the controls, and the program fills the stage with no empty band beside it
+- **THEN** the backstage and the side panel share the right-hand column, the stage takes the whole height above
+  the controls, and the program fills the stage with no empty band beside it
+
+#### Scenario: Crowded studio in a wide window
+- **GIVEN** a wide window and the owner with eight guests in the studio
+- **THEN** each backstage card is one line, the side panel is as tall as its content at the bottom of the column
+  (at most half of it), and the backstage list takes the rest and scrolls inside itself only when it does not fit
 
 #### Scenario: Window too small
 - **WHEN** the window is narrower than 1280 px or shorter than 720 px

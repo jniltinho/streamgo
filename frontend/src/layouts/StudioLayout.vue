@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // The studio's regions (design/variant-d-square, D13): the header; the stage, which takes the space the others
 // leave; one row with the layout picker at the left and the controls at the right; the backstage row; and the side
-// panel. In a window of 19:10 or wider the backstage stands above the side panel instead. The page never scrolls. `host`: under 1280x720 the regions give way to a request for a larger window.
+// panel. In a window of 19:10 or wider the backstage and the side panel share the right-hand column (.studio-right)
+// instead. The page never scrolls. `host`: under 1280x720 the regions give way to a request for a larger window.
 import { onBeforeUnmount, onMounted, ref, useSlots } from 'vue'
 import { t } from '@/i18n'
 
@@ -35,8 +36,10 @@ onBeforeUnmount(() => observer?.disconnect())
         <slot name="picker"><span /></slot>
         <slot name="dock" />
       </div>
-      <section class="studio-back" :aria-label="t('Backstage')"><slot name="backstage" /></section>
-      <slot name="side" />
+      <div class="studio-right">
+        <section class="studio-back" :aria-label="t('Backstage')"><slot name="backstage" /></section>
+        <slot name="side" />
+      </div>
     </main>
     <div v-if="host" class="studio-small" role="alert">
       <p class="hint">{{ t('Hosting needs a window of at least 1280 by 720 pixels. Make the window larger.') }}</p>

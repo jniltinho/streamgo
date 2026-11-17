@@ -492,6 +492,9 @@ test.describe('Screen sizes', () => {
       if (wide) {
         expect(Math.abs(g.back[1]! - g.stage[1]!)).toBeLessThan(0.3)
         expect(g.back[1]! + g.back[3]!).toBeLessThan(g.side[1]!)
+        // the side panel is as tall as its content, at the bottom of the column; the backstage has the rest
+        expect(Math.abs(g.side[1]! + g.side[3]! - (g.row[1]! + g.row[3]!))).toBeLessThan(0.3)
+        expect(g.back[3]!).toBeGreaterThan(g.side[3]!)
         expect(sw! - pw!).toBeLessThan(2.4)
         expect(sh! - ph!).toBeLessThan(2.4)
         if (rem(width, height) > 16.5) expect(ph!).toBeGreaterThan(fhd.program![3]! * 1.15)

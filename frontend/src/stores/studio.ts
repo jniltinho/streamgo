@@ -30,19 +30,24 @@ import type {
   GuestJoin,
   InviteLink,
   Join,
+  LiveAnswer,
+  Output,
   StageAnswer,
   StagePatch,
+  StudioSettings,
 } from '@/api/types'
 import { AudioMix, stageAudio } from '@/core/audioMix'
+import { AudioSuspendedError, WhipPublisher, type WhipState } from '@/core/whip'
 import { Compositor, type Source } from '@/core/compositor'
 import { type Layout, StageFeed, type StageSource, type StageState } from '@/core/stageState'
 
-// shortcut: the API does not expose studio.max_on_stage, so the studio assumes its largest value (6); a lower
-// setting is still enforced by the server (422, shown as an error). Upgrade when GET /broadcasts/:id carries it.
-export const MAX_ON_STAGE = 6
-// shortcut: the program size is output.resolution, which the API does not expose; 720p is its default. Upgrade
-// with the live-output step, which needs it for the WHIP sender too.
-export const PROGRAM_SIZE = { width: 1280, height: 720 }
+// the server's defaults (studio.max_on_stage, output.resolution), until GET /broadcasts/:id answers with its own
+const DEFAULT_SETTINGS: StudioSettings = {
+  max_on_stage: 6,
+  program_width: 1280,
+  program_height: 720,
+  video_bitrate_kbps: 4000,
+}
 const PREVIEW_SIZE = { width: 960, height: 540 }
 const POLL_MS = 3000
 const OWNER_ATTEMPTS = 3
@@ -113,6 +118,48 @@ export const destinationDot = (d: BroadcastDestination) =>
 export const studioError = (e: unknown) =>
   e instanceof ApiError ? errorMessage(e.code, e.message) : t('Unexpected error.')
 
+// the live output's refusals say why (design, "API shapes"); each known reason is translated, another one is shown
+// as the server wrote it, which is safe to show
+const REFUSALS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^Choose at least one destination/, () => t('Choose at least one destination before going live.')],
+  [/limit of (\d+) live broadcasts/, (m) => t('The server is at its limit of {n} live broadcasts.', { n: m[1]! })],
+  [
+    /^The destination "(.*)" is in use/,
+    (m) => t('The destination “{name}” is in use by another broadcast.', { name: m[1]! }),
+  ],
+  [/^A destination is in use/, () => t('A destination is in use by another broadcast.')],
+  [
+    /^A live broadcast needs at least one destination/,
+    () => t('A live broadcast needs at least one destination; end the broadcast to remove the last one.'),
+  ],
+  [/^The broadcast is already/, () => t('The broadcast is already on air.')],
+  [/^The server is stopping/, () => t('The server is stopping. Try again in a moment.')],
+]
+
+/** liveError is the message for a refused go live, end or destination change: the server's reason when it gives one */
+export function liveError(e: unknown): string {
+  if (!(e instanceof ApiError) || e.code !== 'conflict') return studioError(e)
+  for (const [re, say] of REFUSALS) {
+    const m = e.message.match(re)
+    if (m) return say(m)
+  }
+  return e.message
+}
+
+type UserAgentData = { brands: { brand: string }[]; mobile: boolean }
+
+/** canHost: hosting needs a Chromium-based desktop browser, whose track processor and generator compose the program */
+export function canHost(): boolean {
+  const ua = (navigator as Navigator & { userAgentData?: UserAgentData }).userAgentData
+  return (
+    !!ua &&
+    !ua.mobile &&
+    ua.brands.some((b) => b.brand === 'Chromium') &&
+    typeof MediaStreamTrackProcessor !== 'undefined' &&
+    typeof MediaStreamTrackGenerator !== 'undefined'
+  )
+}
+
 export const useStudio = defineStore('studio', () => {
   const role = ref<'owner' | 'guest'>('owner')
   const broadcastId = ref('')
@@ -132,8 +179,15 @@ export const useStudio = defineStore('studio', () => {
   const devices = shallowRef<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] })
   const preview = shallowRef<LocalTrack[]>([])
   const micLevel = ref(0)
+  /** whether this browser can host (go live); computed once per page */
+  const hostable = canHost()
+  /** the program's WHIP connection: 'idle' when this studio is not publishing */
+  const whip = ref<WhipState | 'idle'>('idle')
+  /** why publishing the program failed, shown with "Resume broadcast" */
+  const publishError = ref('')
 
   let room: Room | null = null
+  let publisher: WhipPublisher | null = null
   let leaving = false
   let compositor: Compositor | null = null
   let mix: AudioMix | null = null
@@ -143,7 +197,17 @@ export const useStudio = defineStore('studio', () => {
 
   const onStage = computed(() => stage.value?.sources ?? [])
   const isOnStage = (s: StageSource) => onStage.value.some((x) => x.p === s.p && x.k === s.k)
-  const stageFull = computed(() => onStage.value.length >= MAX_ON_STAGE)
+  const settings = computed(() => detail.value?.studio ?? DEFAULT_SETTINGS)
+  const maxOnStage = computed(() => settings.value.max_on_stage)
+  const stageFull = computed(() => onStage.value.length >= maxOnStage.value)
+  /** the broadcast is on (starting, live or interrupted): this studio should be publishing its program */
+  const onAir = computed(() => !!detail.value && detail.value.output.state !== 'offline')
+  /** on, but this studio does not publish: after a reload, until the audio runs, or after a failure */
+  const needsResume = computed(() => role.value === 'owner' && hostable && onAir.value && whip.value === 'idle')
+  /** a screen of the owner is on stage but no longer shared (after a reload): it must be shared again */
+  const reshare = computed(
+    () => !sharing.value && onStage.value.some((s) => s.p === identity.value && s.k === 'screen'),
+  )
   /** a guest's own place: on stage when any of their sources is */
   const meOnStage = computed(() => onStage.value.some((s) => s.p === identity.value))
 
@@ -210,10 +274,11 @@ export const useStudio = defineStore('studio', () => {
   /** attachCanvas draws the stage on this canvas: the program for the owner, a preview for a guest */
   function attachCanvas(canvas: HTMLCanvasElement) {
     compositor?.stop()
-    const size = role.value === 'owner' ? PROGRAM_SIZE : PREVIEW_SIZE
-    canvas.width = size.width
-    canvas.height = size.height
-    compositor = markRaw(new Compositor(canvas, role.value === 'owner' ? 'program' : 'preview'))
+    const owner = role.value === 'owner'
+    canvas.width = owner ? settings.value.program_width : PREVIEW_SIZE.width
+    canvas.height = owner ? settings.value.program_height : PREVIEW_SIZE.height
+    // a browser that cannot host still shows the stage, drawn as a guest's preview is
+    compositor = markRaw(new Compositor(canvas, owner && hostable ? 'program' : 'preview'))
     if (feed.current) compositor.setStage(feed.current)
     refresh()
   }
@@ -232,7 +297,13 @@ export const useStudio = defineStore('studio', () => {
     detail.value = null
     banners.value = []
     phase.value = 'connecting'
-    mix = markRaw(new AudioMix(as === 'owner'))
+    publishError.value = ''
+    const m = markRaw(new AudioMix(as === 'owner'))
+    mix = m
+    // the program goes out only while the audio runs: once it starts (any click), an on broadcast is published
+    m.onStateChange = () => {
+      if (mix === m && m.running) void ensurePublishing()
+    }
     document.addEventListener('pointerdown', resumeAudio, true)
     document.addEventListener('keydown', resumeAudio, true)
   }
@@ -301,6 +372,9 @@ export const useStudio = defineStore('studio', () => {
       const d = await api<BroadcastDetail>('GET', `/broadcasts/${id}`)
       detail.value = d
       title.value = d.title
+      // the canvas was attached before the server's program size was known
+      const c = compositor?.canvas
+      if (c && (c.width !== d.studio.program_width || c.height !== d.studio.program_height)) attachCanvas(c)
       applyStage(d.stage)
       void loadBanners().catch(() => {})
       schedulePoll()
@@ -309,6 +383,8 @@ export const useStudio = defineStore('studio', () => {
         const j = await api<Join>('POST', `/broadcasts/${id}/studio-token`)
         try {
           await connect(j, { mic: true, cam: true })
+          // "Recovery after a reload": a broadcast that is on is published again, at once when the audio runs
+          void ensurePublishing()
           return
         } catch (e) {
           last = e
@@ -326,15 +402,85 @@ export const useStudio = defineStore('studio', () => {
     clearTimeout(poll)
     if (!detail.value || detail.value.output.state === 'offline') return
     poll = setTimeout(async () => {
-      try {
-        const d = await api<BroadcastDetail>('GET', `/broadcasts/${broadcastId.value}`)
-        detail.value = d
-        applyStage(d.stage)
-      } catch {
-        /* the next poll tries again */
-      }
+      await refreshDetail().catch(() => {}) // the next poll tries again
       schedulePoll()
     }, POLL_MS)
+  }
+
+  async function refreshDetail() {
+    const d = await api<BroadcastDetail>('GET', `/broadcasts/${broadcastId.value}`)
+    detail.value = d
+    applyStage(d.stage)
+    // ended elsewhere or past its deadline: stop sending; still on: make sure the program goes out
+    if (d.output.state === 'offline') await stopPublishing()
+    else void ensurePublishing()
+  }
+
+  function setOutput(o: Output) {
+    if (detail.value) detail.value.output = o
+    schedulePoll()
+  }
+
+  // ── the live output (design D3, D5) ──────────────────────────────────────────────────────────────────────────
+  /** ensurePublishing publishes the program while the broadcast is on, the audio runs and nothing is published */
+  async function ensurePublishing() {
+    const video = compositor?.stream?.getVideoTracks()[0]
+    const audio = mix?.programStream?.getAudioTracks()[0]
+    if (role.value !== 'owner' || !onAir.value || publisher || !video || !audio || !mix?.running) return
+    const p = markRaw(
+      new WhipPublisher({
+        broadcastId: broadcastId.value,
+        video,
+        audio,
+        maxBitrate: settings.value.video_bitrate_kbps * 2000, // twice the transcoder's target (D2)
+        audioRunning: () => !!mix?.running,
+        onState: (s, err) => {
+          if (publisher !== p) return
+          whip.value = s
+          if (s !== 'stopped') return
+          publisher = null
+          whip.value = 'idle'
+          if (err) publishError.value = liveError(err)
+        },
+      }),
+    )
+    publisher = p
+    publishError.value = ''
+    try {
+      await p.start()
+    } catch (e) {
+      if (publisher !== p) return
+      publisher = null
+      whip.value = 'idle'
+      if (!(e instanceof AudioSuspendedError)) publishError.value = liveError(e)
+    }
+  }
+
+  async function stopPublishing() {
+    const p = publisher
+    publisher = null
+    whip.value = 'idle'
+    await p?.stop()
+  }
+
+  /** goLive starts the output and publishes the program; the click that calls it also starts the audio */
+  async function goLive() {
+    await mix?.resume().catch(() => {})
+    setOutput((await api<LiveAnswer>('POST', `${base()}/live`)).output)
+    await ensurePublishing()
+  }
+
+  /** resumeBroadcast publishes again after a reload: the click starts the audio */
+  async function resumeBroadcast() {
+    await mix?.resume()
+    await ensurePublishing()
+  }
+
+  /** endBroadcast ends the output, then stops publishing */
+  async function endBroadcast() {
+    setOutput((await api<LiveAnswer>('DELETE', `${base()}/live`)).output)
+    await stopPublishing()
+    await refreshDetail().catch(() => {}) // the destinations' statuses go off
   }
 
   /** joinGuest joins with an invite link; the guest cookie keeps the same identity on a reload */
@@ -356,6 +502,7 @@ export const useStudio = defineStore('studio', () => {
 
   function cleanup() {
     clearTimeout(poll)
+    void stopPublishing() // the studio closes: another tab, or this one once reconnected, publishes
     room = null
     mix?.setStage([])
     people.value = []
@@ -371,6 +518,7 @@ export const useStudio = defineStore('studio', () => {
 
   function disconnect() {
     clearTimeout(poll)
+    void stopPublishing()
     stopPreview()
     const r = room
     room = null
@@ -557,6 +705,16 @@ export const useStudio = defineStore('studio', () => {
   }
 
   return {
+    hostable,
+    whip,
+    publishError,
+    maxOnStage,
+    onAir,
+    needsResume,
+    reshare,
+    goLive,
+    resumeBroadcast,
+    endBroadcast,
     role,
     broadcastId,
     detail,

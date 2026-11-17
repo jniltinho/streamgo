@@ -6,7 +6,7 @@ import { Mic, MicOff, MonitorUp, UserMinus, UserPlus, Video, VideoOff } from '@l
 import InviteModal from '@/components/studio/InviteModal.vue'
 import { initials } from '@/core/compositor'
 import type { StageSource } from '@/core/stageState'
-import { MAX_ON_STAGE, type Person, studioError, useStudio } from '@/stores/studio'
+import { type Person, studioError, useStudio } from '@/stores/studio'
 import { askConfirm } from '@/feedback/dialogs'
 import { toast } from '@/feedback/toasts'
 import { t } from '@/i18n'
@@ -106,7 +106,9 @@ async function removeGuest(p: Person) {
             type="button"
             class="btn whitespace-nowrap"
             :disabled="busy || studio.stageFull"
-            :title="studio.stageFull ? t('The stage is full: {n} sources at most.', { n: MAX_ON_STAGE }) : undefined"
+            :title="
+              studio.stageFull ? t('The stage is full: {n} sources at most.', { n: studio.maxOnStage }) : undefined
+            "
             :aria-label="t('Add to stage: {name}', { name: label(c) })"
             :aria-describedby="studio.stageFull ? 'stage-full' : undefined"
             @click="act(() => studio.addToStage(c.source))"
@@ -152,7 +154,7 @@ async function removeGuest(p: Person) {
     </li>
   </ul>
   <p v-if="owner && studio.stageFull" id="stage-full" class="sr-only">
-    {{ t('The stage is full: {n} sources at most.', { n: MAX_ON_STAGE }) }}
+    {{ t('The stage is full: {n} sources at most.', { n: studio.maxOnStage }) }}
   </p>
   <InviteModal v-if="inviteOpen" @close="inviteOpen = false" />
 </template>

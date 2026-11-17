@@ -2,7 +2,7 @@
 // The owner's studio (studio-ui "Studio screen for the owner"): the regions of the approved design over one
 // LiveKit connection. Another tab opening the same studio takes over: this one stops and says so, without
 // reconnecting.
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StudioLayout from '@/layouts/StudioLayout.vue'
 import BackstageRow from '@/components/studio/BackstageRow.vue'
@@ -41,8 +41,24 @@ async function leave() {
 
 const reload = () => location.reload()
 
-onMounted(open)
-onBeforeUnmount(() => studio.close())
+// "Publishing while hidden": while a broadcast is on and this tab is hidden, its title in the tab strip warns the
+// owner that this tab sends it
+const title = document.title
+function warnHidden() {
+  document.title =
+    document.visibilityState === 'hidden' && studio.onAir ? t('● On air from this tab: keep it open') : title
+}
+
+watch(() => studio.onAir, warnHidden)
+onMounted(() => {
+  void open()
+  document.addEventListener('visibilitychange', warnHidden)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', warnHidden)
+  document.title = title
+  studio.close()
+})
 </script>
 
 <template>

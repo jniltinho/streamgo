@@ -3,7 +3,7 @@
 // last error as the API gives them.
 import { computed, onMounted, ref } from 'vue'
 import { useDestinations } from '@/stores/destinations'
-import { destinationDot as statusDot, destinationLabel as statusLabel, studioError, useStudio } from '@/stores/studio'
+import { destinationDot as statusDot, destinationLabel as statusLabel, liveError, useStudio } from '@/stores/studio'
 import { toast } from '@/feedback/toasts'
 import { t } from '@/i18n'
 
@@ -13,17 +13,19 @@ const busy = ref(false)
 const chosen = computed(() => new Map((studio.detail?.destinations ?? []).map((d) => [d.id, d])))
 
 onMounted(() => {
-  if (!mine.loaded) mine.load().catch((e) => toast.error(studioError(e)))
+  if (!mine.loaded) mine.load().catch((e) => toast.error(liveError(e)))
 })
 
-async function toggle(id: string, on: boolean) {
+async function toggle(id: string, box: HTMLInputElement) {
+  const on = box.checked
   const ids = [...chosen.value.keys()].filter((x) => x !== id)
   if (on) ids.push(id)
   busy.value = true
   try {
     await studio.setDestinations(ids)
   } catch (e) {
-    toast.error(studioError(e))
+    box.checked = !on // refused (the last destination of a live broadcast, one in use): the choice stays as it was
+    toast.error(liveError(e))
   } finally {
     busy.value = false
   }
@@ -41,7 +43,7 @@ async function toggle(id: string, on: boolean) {
           :checked="chosen.has(d.id)"
           :disabled="busy"
           :data-destination="d.name"
-          @change="toggle(d.id, ($event.target as HTMLInputElement).checked)"
+          @change="toggle(d.id, $event.target as HTMLInputElement)"
         />
         <span class="min-w-0 flex-1">
           <span class="block truncate text-sm">{{ d.name }}</span>

@@ -119,7 +119,8 @@ func newEnv(t *testing.T, mutate ...func(*destination.Service)) *env {
 			return "", httpserver.ErrUnauthenticated
 		},
 	})
-	handlers.RegisterBroadcasts(e.srv.UserAPI(), handlers.BroadcastsDeps{Broadcasts: e.bs, Destinations: e.ds})
+	handlers.RegisterBroadcasts(e.srv.UserAPI(), handlers.BroadcastsDeps{Broadcasts: e.bs, Destinations: e.ds,
+		Studio: handlers.StudioSettings{MaxOnStage: 4, ProgramWidth: 1920, ProgramHeight: 1080, VideoBitrateKbps: 6000}})
 	handlers.RegisterDestinations(e.srv.UserAPI(), handlers.DestinationsDeps{Destinations: e.ds})
 	return e
 }
@@ -174,6 +175,7 @@ type detail struct {
 		Status string `json:"status"`
 		Error  string `json:"error"`
 	} `json:"destinations"`
+	Studio handlers.StudioSettings `json:"studio"`
 }
 
 func (e *env) createBroadcast(user, title string) detail {
@@ -303,6 +305,10 @@ func TestInviteLink(t *testing.T) {
 	e.call(ana, http.MethodGet, "/broadcasts/"+d.ID, nil, http.StatusOK, &again)
 	if again.InviteURL != d.InviteURL {
 		t.Fatalf("link changed: %q then %q", d.InviteURL, again.InviteURL)
+	}
+	// the studio's read-only settings come with every detail
+	if want := (handlers.StudioSettings{MaxOnStage: 4, ProgramWidth: 1920, ProgramHeight: 1080, VideoBitrateKbps: 6000}); again.Studio != want || d.Studio != want {
+		t.Fatalf("studio settings: %+v and %+v, want %+v", d.Studio, again.Studio, want)
 	}
 	oldToken := strings.TrimPrefix(d.InviteURL, publicURL+"/join/")
 	if len(oldToken) != 43 { // 32 bytes, base64url without padding

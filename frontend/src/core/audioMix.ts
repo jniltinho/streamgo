@@ -69,6 +69,11 @@ export class AudioMix {
       const takeBack = new GainNode(ctx, { gain: 10 ** (-MAKEUP_DB / 20) })
       const out = ctx.createMediaStreamDestination()
       this.limiter.connect(takeBack).connect(out)
+      // Chrome stops delivering the destination's audio (no RTP at all) once the last input leaves the limiter, and
+      // the transcoder then stalls; a constant zero keeps the bus running, silent, with an empty stage.
+      const zero = new ConstantSourceNode(ctx, { offset: 0 })
+      zero.connect(this.limiter)
+      zero.start()
       this.programStream = out.stream
     }
   }

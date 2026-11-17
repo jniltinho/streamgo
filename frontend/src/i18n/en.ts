@@ -171,7 +171,30 @@ const catalog: Catalog = {
   'Picture in picture': 'Picture in picture',
   Layout: 'Layout',
   'Studio settings': 'Studio settings',
-  'Live output arrives in the next step.': 'Live output arrives in the next step.',
+  'Choose at least one destination before going live.': 'Choose at least one destination before going live.',
+  'The server is at its limit of {n} live broadcasts.': 'The server is at its limit of {n} live broadcasts.',
+  'The destination “{name}” is in use by another broadcast.':
+    'The destination “{name}” is in use by another broadcast.',
+  'A destination is in use by another broadcast.': 'A destination is in use by another broadcast.',
+  'A live broadcast needs at least one destination; end the broadcast to remove the last one.':
+    'A live broadcast needs at least one destination; end the broadcast to remove the last one.',
+  'The broadcast is already on air.': 'The broadcast is already on air.',
+  'The server is stopping. Try again in a moment.': 'The server is stopping. Try again in a moment.',
+  'Hosting needs a Chromium-based desktop browser, such as Chrome or Edge.':
+    'Hosting needs a Chromium-based desktop browser, such as Chrome or Edge.',
+  'Hosting needs a Chromium-based desktop browser, such as Chrome or Edge. You can prepare the stage here, but not go live.':
+    'Hosting needs a Chromium-based desktop browser, such as Chrome or Edge. You can prepare the stage here, but not go live.',
+  'The broadcast ended.': 'The broadcast ended.',
+  'End the broadcast now? Every destination stops receiving it.':
+    'End the broadcast now? Every destination stops receiving it.',
+  'Keep broadcasting': 'Keep broadcasting',
+  'The broadcast is on, but this studio is not sending it.': 'The broadcast is on, but this studio is not sending it.',
+  'After a reload the browser needs one click before the studio can send sound.':
+    'After a reload the browser needs one click before the studio can send sound.',
+  'Resume broadcast': 'Resume broadcast',
+  'Your screen is on stage but no longer shared: a reload stops it. Share it again with “Share screen”.':
+    'Your screen is on stage but no longer shared: a reload stops it. Share it again with “Share screen”.',
+  '● On air from this tab: keep it open': '● On air from this tab: keep it open',
   'Time on air': 'Time on air',
   'Go live': 'Go live',
   'End broadcast': 'End broadcast',

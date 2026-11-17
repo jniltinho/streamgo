@@ -1407,11 +1407,12 @@ dialog.pnl.closing::backdrop {
     object-fit: cover;
     background: var(--color-stage-frame);
   }
+  /* full-screen notices (not connected, opened elsewhere): 5% below the top, like every modal and dialog */
   .studio-message {
     display: grid;
-    place-items: center;
+    place-items: start center;
     height: var(--view-h);
-    padding: 1rem;
+    padding: calc(var(--view-h) * var(--dialog-top)) 1rem 1rem;
   }
   /* under 1280x720 the owner's studio asks for a larger window (studio-ui "Window too small"); a guest's still works */
   @media (max-width: 1279.98px), (max-height: 719.98px) {
@@ -1421,8 +1422,8 @@ dialog.pnl.closing::backdrop {
     .studio.host > .studio-small {
       display: grid;
       flex: 1;
-      place-items: center;
-      padding: 1rem;
+      place-items: start center;
+      padding: calc(var(--view-h) * var(--dialog-top)) 1rem 1rem;
       text-align: center;
     }
   }

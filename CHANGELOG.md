@@ -17,6 +17,10 @@ are the section of that version.
   while the broadcast is offline; the program canvas, a shared screen and the transcoder follow. The operator sets
   the highest one with `output.max_resolution` (default `1080p`); `output.resolution` stays the default of new
   broadcasts. 4K was measured and left out: the host's browser could not compose and send it at 30 fps.
+- **Server settings** — administrators change the output's default resolution, its highest resolution and the
+  video bitrate in Settings → Server (`GET` and `PUT /api/v1/settings`); they are stored in the database and apply
+  without a restart. An environment variable still wins and locks its setting in the app; the stored value wins
+  over `config.toml`.
 
 ### Changed
 

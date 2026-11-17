@@ -18,13 +18,17 @@ repository updates and, when no row changed, inserts, inside one transaction.
 `internal/core/settings.Service` holds the effective `broadcast.Quality` in memory (an atomic value), loaded at
 start and replaced after a successful update. `broadcast.Service` and `output.Service` take
 `Quality func() broadcast.Quality` instead of a value. A run of the output keeps the profile it started with; a
-lower ceiling applies from the next go-live (as when the ceiling is lowered in the file today).
+lower ceiling applies from the next go-live (as when the ceiling is lowered in the file today). The output fixes
+the profile in the run's state at its first transcoder, so a transcoder retried later in the run keeps it.
 
 ### S4. Rules, in the core
 An update is refused unless the actor is an enabled administrator (`core.ErrForbidden`, through a small port that
 `account.Service` implements). The values follow the loader's rules: known resolutions, the default not above the
 ceiling, the bitrate 0 or 500 to 40000. A patch gives any of the three; the stored and the locked values complete
-it before the rules are checked, and the update writes all given values or none.
+it before the rules are checked, and the update writes all given values or none. A locked field given with its
+current value is not a change (the form can send it back); with another value the update is a conflict. At start,
+a stored combination that breaks the rules with the configuration (an environment variable set later can cause it)
+is ignored with a warning and the configuration's values apply.
 
 ### S5. API
 ```

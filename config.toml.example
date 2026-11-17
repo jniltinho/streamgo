@@ -59,6 +59,8 @@ max_on_stage = 6
 # The ffmpeg binary; it must offer the libx264 and aac encoders, the h264, vp8 and opus decoders, the rtsp
 # demuxer, the rtsp, rtp and flv muxers, the tcp, tls, rtmp and rtmps protocols and the scale, pad and format filters.
 ffmpeg_path = "ffmpeg"
+# An administrator can change resolution, max_resolution and video_bitrate_kbps in the app (Settings, Server); a
+# value saved there wins over this file, and an environment variable wins over both.
 # Output resolution of new broadcasts (30 fps): 720p, 1080p or 1440p; at most max_resolution. The owner can
 # change it per broadcast in the studio, up to max_resolution.
 resolution = "720p"

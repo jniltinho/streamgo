@@ -300,6 +300,22 @@ const catalog: Catalog = {
   'The passwords do not match.': 'The passwords do not match.',
   'This is not your current password.': 'This is not your current password.',
   'Password changed. Your other sessions ended.': 'Password changed. Your other sessions ended.',
+  Server: 'Server',
+  'Highest resolution': 'Highest resolution',
+  'Default resolution of new broadcasts': 'Default resolution of new broadcasts',
+  'Video bitrate': 'Video bitrate',
+  'By resolution': 'By resolution',
+  Fixed: 'Fixed',
+  'kbit/s (500 to 40000)': 'kbit/s (500 to 40000)',
+  'Set by the server environment ({name}): change it there.':
+    'Set by the server environment ({name}): change it there.',
+  'A lower ceiling applies to a live broadcast from its next go-live.':
+    'A lower ceiling applies to a live broadcast from its next go-live.',
+  'Server settings saved.': 'Server settings saved.',
+  'This setting is set by the server environment.': 'This setting is set by the server environment.',
+  'The default resolution cannot be above the highest resolution.':
+    'The default resolution cannot be above the highest resolution.',
+  'The bitrate is 500 to 40000 kbit/s.': 'The bitrate is 500 to 40000 kbit/s.',
   'error.cross_origin': 'The request came from another origin and was refused.',
   'error.method_not_allowed': 'This operation is not allowed.',
   'error.unsupported_media_type': 'Unsupported content type.',

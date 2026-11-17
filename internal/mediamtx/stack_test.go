@@ -100,7 +100,7 @@ func assemble(t *testing.T, mtxHost, sink string, settings store.Settings, db *s
 	}
 	s := &stack{t: t, mtxHost: mtxHost, sink: sink, settings: settings, db: db, locks: &broadcast.Locks{},
 		broadcasts: store.NewBroadcasts(db), destRepo: store.NewDestinations(db), log: &syncBuffer{}}
-	s.broadcastSvc = &broadcast.Service{Repo: s.broadcasts, Locks: s.locks, Sealer: box, PublicURL: origin, Quality: quality}
+	s.broadcastSvc = &broadcast.Service{Repo: s.broadcasts, Locks: s.locks, Sealer: box, PublicURL: origin, Quality: func() broadcast.Quality { return quality }}
 	s.destSvc = &destination.Service{Repo: s.destRepo, Broadcasts: s.broadcasts, Locks: s.locks, Sealer: box,
 		AllowPrivate: true, MaxPerBroadcast: 5}
 	s.mtx, err = mediamtx.New("http://"+mtxHost+":8889", "http://"+mtxHost+":9997", mtxUser, mtxSecret)
@@ -136,7 +136,7 @@ func (s *stack) startOutput() {
 	s.out = &output.Service{
 		Broadcasts: s.broadcasts, Locks: s.locks, Destinations: s.destRepo, Targets: s.destSvc,
 		Stage:  &stage.Writer{Broadcasts: s.broadcasts, Locks: s.locks, Rooms: nopPusher{}, MaxOnStage: 6, Logger: logger},
-		Ingest: s.mtx, Processes: sup, MaxConcurrent: 4, StartTimeout: 30 * time.Second, Grace: grace, Quality: quality,
+		Ingest: s.mtx, Processes: sup, MaxConcurrent: 4, StartTimeout: 30 * time.Second, Grace: grace, Quality: func() broadcast.Quality { return quality },
 		Logger: logger,
 	}
 	s.destSvc.Statuses, s.destSvc.Notifier = s.out, s.out

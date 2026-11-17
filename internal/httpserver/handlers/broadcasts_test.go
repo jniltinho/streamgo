@@ -108,7 +108,7 @@ func newEnv(t *testing.T, mutate ...func(*destination.Service)) *env {
 	locks := &broadcast.Locks{}
 	e := &env{t: t, db: db, repo: store.NewBroadcasts(db), remover: &remover{dir: t.TempDir()}}
 	e.bs = &broadcast.Service{Repo: e.repo, Locks: locks, Sealer: box, PublicURL: publicURL, Remover: e.remover,
-		Quality: broadcast.Quality{Default: "720p", Max: "1440p"}}
+		Quality: func() broadcast.Quality { return broadcast.Quality{Default: "720p", Max: "1440p"} }}
 	e.ds = &destination.Service{Repo: store.NewDestinations(db), Broadcasts: e.repo, Locks: locks, Sealer: box,
 		Resolver: publicResolver{}, MaxPerBroadcast: 2}
 	for _, m := range mutate {
@@ -455,7 +455,7 @@ func TestOutputQuality(t *testing.T) {
 
 	// Above the ceiling, and a ceiling lowered later: the stored 1440p goes out, and shows, 1080p
 	e.call(ana, http.MethodPatch, "/broadcasts/"+d.ID, map[string]string{"resolution": "1440p"}, http.StatusOK, nil)
-	e.bs.Quality.Max = "1080p"
+	e.bs.Quality = func() broadcast.Quality { return broadcast.Quality{Default: "720p", Max: "1080p"} }
 	code, raw := e.patch(d.ID, `{"resolution":"1440p"}`)
 	assertInvalid(t, code, raw, "resolution")
 	if x := get(); quality(x) != "1080p 1920x1080 6000" || !slices.Equal(x.Studio.Resolutions, []string{"720p", "1080p"}) {

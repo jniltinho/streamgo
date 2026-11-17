@@ -1,7 +1,7 @@
 // A fake of the routes the sign-in, broadcasts and destinations pages call, built to "API shapes" in design.md:
 // every /api/v1 request is answered here with an in-memory state the tests read and change.
 import type { Page, Route } from '@playwright/test'
-import type { AdminUser, Broadcast, BroadcastDetail, Destination, Me } from '../../src/api/types'
+import type { AdminUser, Broadcast, BroadcastDetail, Destination, Me, OutputSettings } from '../../src/api/types'
 
 export const PASSWORD = 'correct horse battery staple'
 
@@ -14,6 +14,8 @@ export interface FakeApi {
   inUse: Set<string>
   /** the accounts of GET /users (the signed-in user is added when missing); 403 unless me.admin */
   users: AdminUser[]
+  /** the output settings of GET and PUT /settings; 403 unless me.admin; the broadcasts' choices follow them */
+  settings: OutputSettings
   /** answer POST /auth/login with 429 */
   rateLimited: boolean
   /** every request body, keyed "METHOD /path" */
@@ -28,7 +30,7 @@ export function broadcast(title: string, state: Broadcast['output']['state'] = '
   return { id: ulid(), title, output: { ...offline, state } }
 }
 
-function detail(b: Broadcast): BroadcastDetail {
+function detail(b: Broadcast, s: OutputSettings): BroadcastDetail {
   return {
     ...b,
     invite_url: `http://127.0.0.1/join/tok-${b.id}`,
@@ -40,7 +42,7 @@ function detail(b: Broadcast): BroadcastDetail {
       program_height: 720,
       video_bitrate_kbps: 4000,
       resolution: '720p',
-      resolutions: ['720p', '1080p'],
+      resolutions: s.resolutions.slice(0, s.resolutions.indexOf(s.max_resolution) + 1),
     },
   }
 }
@@ -53,6 +55,13 @@ export async function fakeApi(page: Page, user: Me, signedIn: boolean, seed: Par
     destinations: [],
     inUse: new Set(),
     users: [],
+    settings: {
+      resolution: '720p',
+      max_resolution: '1080p',
+      video_bitrate_kbps: 0,
+      resolutions: ['720p', '1080p', '1440p'],
+      locked: [],
+    },
     rateLimited: false,
     bodies: [],
     ...seed,
@@ -119,19 +128,32 @@ export async function fakeApi(page: Page, user: Me, signedIn: boolean, seed: Par
       return json(route, 200, u)
     }
 
+    if (path === '/settings' && !api.me.admin) return error(route, 403, 'forbidden')
+    if (path === '/settings' && m === 'GET') return json(route, 200, { output: api.settings })
+    if (path === '/settings' && m === 'PUT') {
+      const s = api.settings
+      const next = { ...s, ...body.output }
+      if (s.locked.some((k) => next[k as keyof OutputSettings] !== s[k as keyof OutputSettings]))
+        return error(route, 409, 'conflict', 'Set by the environment.')
+      if (s.resolutions.indexOf(next.resolution) > s.resolutions.indexOf(next.max_resolution))
+        return json(route, 422, { error: { code: 'invalid_input', message: 'above', field: 'resolution' } })
+      api.settings = next
+      return json(route, 200, { output: next })
+    }
+
     if (path === '/broadcasts' && m === 'GET') return json(route, 200, { broadcasts: api.broadcasts })
     if (path === '/broadcasts' && m === 'POST') {
       const b = broadcast(body.title)
       api.broadcasts.unshift(b)
-      return json(route, 201, detail(b))
+      return json(route, 201, detail(b, api.settings))
     }
     const bm = path.match(/^\/broadcasts\/([^/]+)$/)
     const b = bm && api.broadcasts.find((x) => x.id === bm[1])
     if (bm && !b) return error(route, 404, 'not_found')
-    if (b && m === 'GET') return json(route, 200, detail(b))
+    if (b && m === 'GET') return json(route, 200, detail(b, api.settings))
     if (b && m === 'PATCH') {
       b.title = body.title
-      return json(route, 200, detail(b))
+      return json(route, 200, detail(b, api.settings))
     }
     if (b && m === 'DELETE') {
       if (b.output.state !== 'offline') return error(route, 409, 'conflict', 'The broadcast is live.')

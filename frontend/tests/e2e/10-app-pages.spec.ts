@@ -424,6 +424,76 @@ test.describe('users (add-user-management)', () => {
   })
 })
 
+test.describe('server settings (add-server-settings)', () => {
+  async function openServerTab(page: Page) {
+    await page.getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await settings.getByRole('tab', { name: 'Server' }).click()
+    return settings
+  }
+
+  test('Change and save: a toast confirms and the studio of an offline broadcast offers the new choices', async ({
+    page,
+  }) => {
+    const api = await fakeApi(page, ANA, true, { broadcasts: [broadcast('Show')] })
+    await page.goto('/broadcasts')
+    const settings = await openServerTab(page)
+    await expect(settings.getByLabel('Highest resolution')).toHaveValue('1080p')
+    await settings.getByLabel('Highest resolution').selectOption('1440p')
+    await settings.getByLabel('Video bitrate').selectOption({ label: 'Fixed' })
+    await settings.getByLabel('kbit/s (500 to 40000)').fill('8000')
+    await settings.getByRole('button', { name: 'Save' }).click()
+    await expect(page.locator('.toast')).toContainText('Server settings saved.')
+    expect(api.bodies.at(-1)).toEqual({
+      route: 'PUT /settings',
+      body: { output: { resolution: '720p', max_resolution: '1440p', video_bitrate_kbps: 8000 } },
+    })
+
+    // a default above the ceiling is refused with the reason, and nothing changes
+    await settings.getByLabel('Default resolution of new broadcasts').selectOption('1440p')
+    await settings.getByLabel('Highest resolution').selectOption('1080p')
+    await settings.getByRole('button', { name: 'Save' }).click()
+    await expect(settings.locator('.alert-error')).toHaveText(
+      'The default resolution cannot be above the highest resolution.',
+    )
+    expect(api.settings.max_resolution).toBe('1440p')
+
+    await settings.getByRole('button', { name: 'Close' }).click()
+    await page.route('**/studio-token', () => {}) // no LiveKit here: the studio stays connecting, its panel shown
+    await page.locator('tbody tr').first().getByRole('link', { name: 'Open studio' }).click()
+    await page.getByRole('tab', { name: 'Destinations' }).click()
+    await expect(page.locator('#output-quality option')).toHaveText([/^720p/, /^1080p/, /^1440p/])
+  })
+
+  test('Locked field: its control is disabled and says the environment sets it', async ({ page }) => {
+    const api = await fakeApi(page, ANA, true)
+    api.settings.locked = ['max_resolution']
+    await page.goto('/broadcasts')
+    const settings = await openServerTab(page)
+    const ceiling = settings.getByLabel('Highest resolution')
+    await expect(ceiling).toBeDisabled()
+    await expect(ceiling).toHaveAccessibleDescription(
+      'Set by the server environment (STREAMGO_OUTPUT_MAX_RESOLUTION): change it there.',
+    )
+    await expect(settings.getByLabel('Video bitrate')).toBeEnabled()
+    await settings.getByRole('button', { name: 'Save' }).click()
+    await expect(page.locator('.toast')).toContainText('Server settings saved.')
+    expect(api.bodies.at(-1)).toEqual({
+      route: 'PUT /settings',
+      body: { output: { resolution: '720p', video_bitrate_kbps: 0 } },
+    })
+  })
+
+  test('Hidden from others: no Server tab', async ({ page }) => {
+    await fakeApi(page, { ...ANA, admin: false }, true)
+    await page.goto('/broadcasts')
+    await page.getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings.getByRole('tab', { name: 'Profile' })).toBeVisible()
+    await expect(settings.getByRole('tab', { name: 'Server' })).toHaveCount(0)
+  })
+})
+
 test.describe('no page scrollbar, modals below the top', () => {
   for (const size of [
     { width: 1280, height: 720 },

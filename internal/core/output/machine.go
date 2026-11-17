@@ -101,6 +101,9 @@ type State struct {
 	Transcoder Process
 	Dests      map[string]Dest
 	NextSeq    int64 // the last process number given
+	// Profile is what the run's transcoder goes out at, fixed by the service at its first start so a retry
+	// keeps it when the server's quality changes (add-server-settings, S3); the machine leaves it alone.
+	Profile broadcast.Profile
 }
 
 // Machine is the output's state machine; Handle is a pure function of its arguments.

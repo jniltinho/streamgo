@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jniltinho/streamgo/internal/core"
 	"github.com/jniltinho/streamgo/internal/core/broadcast"
@@ -28,7 +29,7 @@ func TestTranscoderProfile(t *testing.T) {
 		t.Run(fmt.Sprintf("%s under %s at %d", tc.stored, tc.max, tc.kbps), func(t *testing.T) {
 			t.Parallel()
 			e := outputtest.New(t)
-			e.Service.Quality = broadcast.Quality{Default: "720p", Max: tc.max, VideoKbps: tc.kbps}
+			e.Service.Quality = func() broadcast.Quality { return broadcast.Quality{Default: "720p", Max: tc.max, VideoKbps: tc.kbps} }
 			e.AddDestination(t, "dA", "u1", "YouTube", "")
 			e.AddBroadcast(t, "b1", "u1", "dA")
 			b, _ := e.Broadcasts.Get(ctx, "b1")
@@ -51,8 +52,8 @@ func TestResolutionRacesGoLive(t *testing.T) {
 	t.Parallel()
 	e := outputtest.New(t)
 	q := broadcast.Quality{Default: "720p", Max: "1440p"}
-	e.Service.Quality = q
-	svc := &broadcast.Service{Repo: e.Broadcasts, Locks: e.Locks, Quality: q}
+	e.Service.Quality = func() broadcast.Quality { return q }
+	svc := &broadcast.Service{Repo: e.Broadcasts, Locks: e.Locks, Quality: e.Service.Quality}
 	e.AddDestination(t, "dA", "u1", "YouTube", "")
 	res := "1440p"
 	seen := map[bool]int{}
@@ -81,4 +82,41 @@ func TestResolutionRacesGoLive(t *testing.T) {
 		}
 	}
 	t.Logf("patch first %d times, go-live first %d times", seen[true], seen[false])
+}
+
+// TestRunKeepsItsProfile is design S3 of add-server-settings: a run keeps the profile it started with when the
+// server's quality changes; the next go-live takes the new one.
+func TestRunKeepsItsProfile(t *testing.T) {
+	t.Parallel()
+	e := outputtest.New(t)
+	var mu sync.Mutex
+	q := broadcast.Quality{Default: "720p", Max: "1440p"}
+	e.Service.Quality = func() broadcast.Quality { mu.Lock(); defer mu.Unlock(); return q }
+	e.AddDestination(t, "dA", "u1", "YouTube", "")
+	e.AddBroadcast(t, "b1", "u1", "dA")
+	b, _ := e.Broadcasts.Get(ctx, "b1")
+	b.Resolution = "1440p"
+	e.Broadcasts.Put(*b)
+	if _, err := e.Service.GoLive(ctx, "u1", "b1"); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	q.Max = "1080p"
+	mu.Unlock()
+	first := e.Processes.Last(t, "b1", "")
+	first.Flow()
+	first.Exit("lost")
+	e.Tick(time.Second)
+	if retry := e.Processes.Last(t, "b1", ""); retry == first || retry.Profile.Resolution != "1440p" {
+		t.Fatalf("the retry of the run went out at %+v", retry.Profile)
+	}
+	if _, err := e.Service.End(ctx, "u1", "b1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Service.GoLive(ctx, "u1", "b1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.Processes.Last(t, "b1", "").Profile.Resolution; got != "1080p" {
+		t.Fatalf("the next run went out at %s", got)
+	}
 }

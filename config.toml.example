@@ -20,6 +20,13 @@ public_url = "http://localhost:8080"
 data_dir = "./data"
 # IPs or CIDRs of reverse proxies whose X-Forwarded-For and X-Forwarded-Proto headers are trusted.
 trusted_proxies = []
+# HTTPS from the binary, with no reverse proxy: a PEM certificate chain and its PEM key. Both or neither.
+# They win over self_signed. With HTTPS on, public_url must be https://.
+cert_file = ""
+key_file = ""
+# HTTPS with a certificate StreamGo generates under <data_dir>/tls for the host of public_url, localhost and the
+# loopback addresses (one year, renewed 30 days before it ends). Browsers warn once per device.
+self_signed = false
 
 [database]
 # sqlite, mariadb or postgres. MariaDB and PostgreSQL take their connection string from STREAMGO_DATABASE_DSN.
@@ -28,7 +35,8 @@ driver = "sqlite"
 path = ""
 
 [livekit]
-# WebSocket URL browsers use to reach LiveKit.
+# WebSocket URL browsers use to reach LiveKit. Empty: the server's own origin with /livekit (wss:// under HTTPS),
+# which StreamGo proxies to api_url, so LiveKit's signalling can stay on the loopback address.
 url = "ws://localhost:7880"
 # HTTP URL the server uses for LiveKit's API.
 api_url = "http://localhost:7880"

@@ -10,17 +10,21 @@ package httpserver
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
+
+	"github.com/jniltinho/streamgo/internal/tlsutil"
 )
 
 // DefaultBodyLimit bounds every request body (JSON and SDP) unless Options.BodyLimits says otherwise.
@@ -54,6 +58,10 @@ type Options struct {
 	Dist         fs.FS // the built web app (web.Dist())
 	ReadyChecks  []Check
 	Authenticate Authenticator // nil: every UserAPI route answers 401
+	// TLS, when set, makes the server speak HTTPS with its first certificate.
+	TLS *tls.Config
+	// LiveKitAPIURL, when set, is where /livekit/ proxies LiveKit's signalling (livekit.api_url).
+	LiveKitAPIURL *url.URL
 }
 
 // Server is the configured Echo instance.
@@ -99,6 +107,9 @@ func New(o Options) *Server {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 	e.GET("/readyz", s.ready)
+	if o.LiveKitAPIURL != nil {
+		e.Any("/livekit/*", liveKitProxy(o.LiveKitAPIURL, o.Logger))
+	}
 	s.api = e.Group("/api/v1")
 	s.user = s.api.Group("", s.requireUser)
 	return s
@@ -146,13 +157,19 @@ func (s *Server) Run(ctx context.Context, onListen func(net.Addr)) error {
 		HidePort:         true,
 		GracefulTimeout:  ShutdownTimeout,
 		ListenerAddrFunc: onListen,
+		TLSConfig:        s.opts.TLS,
 		BeforeServeFunc: func(srv *http.Server) error {
 			srv.ReadHeaderTimeout = 10 * time.Second
 			srv.IdleTimeout = 120 * time.Second
 			return nil
 		},
 	}
-	s.opts.Logger.Info("http server listening", "addr", s.opts.Addr)
+	if s.opts.TLS != nil {
+		leaf := s.opts.TLS.Certificates[0].Leaf // never the key
+		s.opts.Logger.Info("https certificate", "subject", leaf.Subject.String(), "sha256", tlsutil.Fingerprint(leaf),
+			"not_after", leaf.NotAfter)
+	}
+	s.opts.Logger.Info("http server listening", "addr", s.opts.Addr, "tls", s.opts.TLS != nil)
 	if err := sc.Start(ctx, s.echo); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

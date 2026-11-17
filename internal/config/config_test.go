@@ -60,7 +60,8 @@ func TestDefaults(t *testing.T) {
 		name string
 		ok   bool
 	}{
-		{"server", s.Addr == ":8080" && s.PublicURL == "http://localhost:8080" && s.DataDir == "./data" && len(s.TrustedProxies) == 0},
+		{"server", s.Addr == ":8080" && s.PublicURL == "http://localhost:8080" && s.DataDir == "./data" && len(s.TrustedProxies) == 0 &&
+			s.CertFile == "" && s.KeyFile == "" && !s.SelfSigned},
 		{"database", d.Driver == "sqlite" && cfg.SQLitePath() == filepath.Join("data", "streamgo.db")},
 		{"livekit", cfg.LiveKit.URL != "" && cfg.LiveKit.APIURL != ""},
 		{"mediamtx", cfg.MediaMTX.WHIPURL != "" && cfg.MediaMTX.RTSPURL != "" && cfg.MediaMTX.APIURL != ""},
@@ -109,6 +110,12 @@ func TestInvalid(t *testing.T) {
 		{name: "dsn in the file", file: "[database]\ndsn = \"" + dsn + "\"\n", want: []string{"STREAMGO_DATABASE_DSN"}, never: "hunter2"},
 		{name: "trusted proxy", env: map[string]string{"STREAMGO_SERVER_TRUSTED_PROXIES": "10.0.0.0/8, nope"}, want: []string{"server.trusted_proxies", "nope"}},
 		{name: "livekit url", env: map[string]string{"STREAMGO_LIVEKIT_URL": "http://lk"}, want: []string{"livekit.url"}},
+		{name: "self-signed on http", env: map[string]string{"STREAMGO_SERVER_SELF_SIGNED": "true"},
+			want: []string{"server.public_url", "must be https://"}},
+		{name: "certificate on http", env: map[string]string{"STREAMGO_SERVER_CERT_FILE": "/c.pem", "STREAMGO_SERVER_KEY_FILE": "/k.pem"},
+			want: []string{"server.public_url", "must be https://"}},
+		{name: "certificate without key", env: map[string]string{"STREAMGO_SERVER_CERT_FILE": "/c.pem", "STREAMGO_SERVER_PUBLIC_URL": "https://s.example.com"},
+			want: []string{"server.cert_file", "server.key_file"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -142,6 +149,8 @@ func TestValid(t *testing.T) {
 		{"mariadb with dsn", map[string]string{"STREAMGO_DATABASE_DRIVER": "mariadb", "STREAMGO_DATABASE_DSN": "u:p@tcp(db)/s"}},
 		{"bounds", map[string]string{"STREAMGO_STUDIO_MAX_ON_STAGE": "1", "STREAMGO_OUTPUT_RESOLUTION": "1080p"}},
 		{"proxies", map[string]string{"STREAMGO_SERVER_TRUSTED_PROXIES": "10.0.0.0/8,::1"}},
+		{"self-signed", map[string]string{"STREAMGO_SERVER_SELF_SIGNED": "true", "STREAMGO_SERVER_PUBLIC_URL": "https://localhost:8443"}},
+		{"livekit through the server", map[string]string{"STREAMGO_LIVEKIT_URL": ""}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -275,5 +284,42 @@ func TestStockFFmpeg(t *testing.T) {
 	}
 	if err := config.CheckFFmpeg(context.Background(), path); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestTLSFilesAndLiveKitURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name              string
+		env               map[string]string
+		wantCert, wantKey string
+		wantLiveKit       string
+	}{
+		{name: "plain http", env: map[string]string{"STREAMGO_LIVEKIT_URL": ""}, wantLiveKit: "ws://localhost:8080/livekit"},
+		{name: "self-signed", env: map[string]string{
+			"STREAMGO_SERVER_SELF_SIGNED": "true", "STREAMGO_SERVER_PUBLIC_URL": "https://studio.example.com:8443",
+			"STREAMGO_SERVER_DATA_DIR": "/var/lib/streamgo", "STREAMGO_LIVEKIT_URL": "",
+		}, wantCert: "/var/lib/streamgo/tls/selfsigned.crt", wantKey: "/var/lib/streamgo/tls/selfsigned.key",
+			wantLiveKit: "wss://studio.example.com:8443/livekit"},
+		{name: "files win over self-signed", env: map[string]string{
+			"STREAMGO_SERVER_SELF_SIGNED": "true", "STREAMGO_SERVER_PUBLIC_URL": "https://studio.example.com",
+			"STREAMGO_SERVER_CERT_FILE": "/etc/streamgo/fullchain.pem", "STREAMGO_SERVER_KEY_FILE": "/etc/streamgo/privkey.pem",
+			"STREAMGO_LIVEKIT_URL": "wss://lk.example.com",
+		}, wantCert: "/etc/streamgo/fullchain.pem", wantKey: "/etc/streamgo/privkey.pem", wantLiveKit: "wss://lk.example.com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg, err := load(t, "", tt.env)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cert, key := cfg.TLSFiles(); cert != tt.wantCert || key != tt.wantKey {
+				t.Errorf("TLSFiles() = %q, %q; want %q, %q", cert, key, tt.wantCert, tt.wantKey)
+			}
+			if got := cfg.BrowserLiveKitURL(); got != tt.wantLiveKit {
+				t.Errorf("BrowserLiveKitURL() = %q, want %q", got, tt.wantLiveKit)
+			}
+		})
 	}
 }

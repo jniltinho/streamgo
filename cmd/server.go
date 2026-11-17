@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/url"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -65,6 +66,10 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		return err
 	}
 	defer func() { _ = instance.Close() }()
+	tlsConfig, err := serverTLS(cfg, logger)
+	if err != nil {
+		return err
+	}
 	if err := config.CheckFFmpeg(ctx, cfg.Output.FFmpegPath); err != nil {
 		return err
 	}
@@ -103,8 +108,14 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	if err != nil {
 		return err
 	}
+	liveKitAPI, err := url.Parse(cfg.LiveKit.APIURL) // validated by config
+	if err != nil {
+		return err
+	}
 	srv := httpserver.New(httpserver.Options{ //nolint:contextcheck // handlers use each request's own context
 		Addr:           cfg.Server.Addr,
+		TLS:            tlsConfig,
+		LiveKitAPIURL:  liveKitAPI,
 		PublicOrigin:   cfg.PublicOrigin(),
 		TrustedProxies: cfg.TrustedProxyPrefixes(),
 		Logger:         logger,
@@ -156,7 +167,7 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 			}
 			return u.Name, nil
 		},
-		URL: cfg.LiveKit.URL, MaxParticipants: cfg.Studio.MaxParticipants,
+		URL: cfg.BrowserLiveKitURL(), MaxParticipants: cfg.Studio.MaxParticipants,
 		AssetsDir: filepath.Join(cfg.Server.DataDir, "assets"), Logger: logger,
 	}
 	broadcastSvc.Remover = roomRemover{studioSvc}

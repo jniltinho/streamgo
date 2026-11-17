@@ -29,6 +29,12 @@ api_url = "http://127.0.0.1:7880"  # LiveKit's own port, on the loopback address
 `Origin` header differs is refused. StreamGo reads `X-Forwarded-For` and `X-Forwarded-Proto` only from the
 addresses in `trusted_proxies`, and ignores them from anyone else.
 
+**On a package install** these are lines of `/opt/streamgo/config.toml`, which already leaves `livekit.url` empty
+and points `api_url` at 127.0.0.1:7880: change `addr`, `public_url` and `trusted_proxies`, run
+`sudo systemctl restart streamgo`, and close port 8080 in the firewall. The all-in-one image takes them as
+`-e STREAMGO_SERVER_PUBLIC_URL=…` and `-e STREAMGO_SERVER_TRUSTED_PROXIES=172.16.0.0/12` (the Docker network the proxy's requests arrive from), with its port published on the loopback
+address only (`-p 127.0.0.1:8080:8080`).
+
 **With the Compose stack**, the same settings go in `.env`. The stack sets the LiveKit URL to LiveKit's own port
 by default, so set it to the `/livekit` path explicitly; publish the app's port and LiveKit's signalling port on
 the loopback address only; and trust the Docker network the proxy's requests arrive from:
@@ -60,7 +66,7 @@ map $http_upgrade $connection_upgrade {
 }
 
 # Invite links carry the guest's credential in the path: never log /join/ and /api/v1/join/,
-# and never log the Referer header (requests made from the join page carry its address).
+# and leave the Referer header out (StreamGo sends Referrer-Policy: no-referrer; this covers older clients).
 map $uri $streamgo_loggable {
     ~^/(api/v1/)?join/  0;
     default             1;
@@ -174,7 +180,8 @@ join the studio until the owner rotates it. StreamGo logs every request by its r
 (`/api/v1/join/:token`), never the raw path or query. The proxy must do the same:
 
 - do not log the paths of `/join/` and `/api/v1/join/`, or do not log paths at all;
-- do not log the `Referer` header, which carries the join page's address on the requests that page makes;
+- leave the `Referer` header out of the log: StreamGo answers every request with `Referrer-Policy: no-referrer`,
+  so browsers do not send the join page's address in it, but a client that ignores the policy would;
 - do not send those addresses to analytics or monitoring tools.
 
 ## The media ports do not go through the proxy

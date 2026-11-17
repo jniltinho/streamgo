@@ -11,26 +11,29 @@ it out.
 
 | I want to… | Read |
 |---|---|
-| **Try it, or run it on a server with Docker** | [Install with Docker](install-docker.md) |
-| Install it on Debian or Ubuntu, or on the RHEL family (a package, systemd services) | [Install from the Linux packages](install-linux.md) |
-| Install the binary by hand | [Install the binary](install-binary.md) |
+| **Install it on Ubuntu or Debian, or on the RHEL family (a package, systemd services)** | [Install from the Linux packages](install-linux.md) |
+| Try it in one container | [Install with Docker: the all-in-one image](install-docker.md#the-all-in-one-image) |
+| Run it with Docker Compose, on SQLite, MariaDB or PostgreSQL | [Install with Docker](install-docker.md) |
+| Install the binary by hand, on any distribution | [Install the binary](install-binary.md) |
 | Serve HTTPS from StreamGo itself, self-signed or with my certificate, and know which ports to open | [Standalone HTTPS](standalone-https.md) |
 | Put it behind nginx or Caddy | [Behind a reverse proxy](reverse-proxy.md) |
 | Configure the Compose stack: ports, addresses behind NAT, backups | [Deployment](deployment.md) |
 | Understand how it works inside | [Architecture](architecture.md) |
 | Know how it is secured, and what it does not protect | [Security](security.md) |
+| See what each release brings | [Changelog](../CHANGELOG.md) |
 
 ## Run it your way
 
 | | For | What runs |
 |---|---|---|
-| **Compose stack** | A first look, or a server with Docker | StreamGo, LiveKit and MediaMTX in containers; SQLite, MariaDB or PostgreSQL |
 | **Linux package** | A server without Docker | A `.deb` or `.rpm`: StreamGo, LiveKit and MediaMTX in `/opt/streamgo` as three systemd services, the distribution's ffmpeg |
-| **Binary** | Any other distribution | The same binaries, laid out by hand |
-| **All-in-one image** | One container on one host | StreamGo, LiveKit, MediaMTX and ffmpeg under one supervisor, state in `/data` |
+| **All-in-one image** | One container on one host, a first look | StreamGo, LiveKit, MediaMTX and ffmpeg under supervisord, state in `/data` |
+| **Compose stack** | A server with Docker, a checkout of the repository | StreamGo, LiveKit and MediaMTX in containers; SQLite, MariaDB or PostgreSQL |
+| **Binary** | Any other distribution with systemd | The files of the packages, laid out by hand |
 
-The packages, the binary archive and the all-in-one image arrive with the packaging step; until then the
-Compose stack is the way to run StreamGo.
+Every release publishes the `.deb`, the `.rpm`, the `.tar.gz` and their `SHA256SUMS` on
+[GitHub](https://github.com/jniltinho/streamgo/releases), and the image as
+`ghcr.io/jniltinho/streamgo:<version>-allinone`. All are linux/amd64 only.
 
 ![The pieces of StreamGo: browsers reach StreamGo over HTTPS and LiveKit over WebRTC; the owner's browser sends the program to MediaMTX; ffmpeg reads it and sends it to the RTMP destinations](images/diagram-overview.svg)
 

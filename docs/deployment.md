@@ -114,9 +114,10 @@ network that allows only HTTPS through a web proxy cannot take part.
 
 An invite link is `<public URL>/join/<token>`, and the token is the guest's credential. Configure the reverse proxy
 not to log request paths of `/join/` and `/api/v1/join/` (or not to log paths at all), and do not send those URLs
-to analytics. Leave the `Referer` header out of the log too: the requests the join page makes carry its address
-in it. StreamGo itself never logs them. With Caddy, leave access logging off (its default) or filter the URI and
-the `Referer` header out of the log; [Behind a reverse proxy](reverse-proxy.md#the-join-route-is-never-logged) has
+to analytics. StreamGo itself never logs them. It also answers with `Referrer-Policy: no-referrer`, so browsers
+do not send the join page's address in the `Referer` header; leaving that header out of the log covers clients
+that ignore the policy. With Caddy, leave access logging off (its default) or filter the URI and the `Referer`
+header out of the log; [Behind a reverse proxy](reverse-proxy.md#the-join-route-is-never-logged) has
 examples for nginx and Caddy.
 
 ## One StreamGo instance per deployment

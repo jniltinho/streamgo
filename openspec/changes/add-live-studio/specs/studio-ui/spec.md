@@ -25,6 +25,12 @@ and carry an accessible name.
 - **THEN** the stage says it is empty and how to fill it, and each backstage card shows the live picture of its
   camera or shared screen (the initials when the camera is off)
 
+#### Scenario: Speaking
+- **GIVEN** Bruno's microphone is on, whether he is on stage or backstage
+- **WHEN** the media server hears him
+- **THEN** the microphone mark of his card changes shape and colour and is named "Speaking", and goes back when
+  he is silent
+
 #### Scenario: Add to stage
 - **GIVEN** Bruno is backstage
 - **WHEN** the owner activates "Add to stage" on his card

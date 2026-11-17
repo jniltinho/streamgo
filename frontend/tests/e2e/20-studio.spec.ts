@@ -174,6 +174,18 @@ test.describe('owner studio', () => {
             .evaluate((v: HTMLVideoElement) => v.videoWidth),
         )
         .toBeGreaterThan(0)
+    // "Speaking": the microphone mark of a card changes while the media server hears that person (the fake
+    // microphone beeps)
+    for (const n of ['Ana Souza', 'Bruno Reis'])
+      await expect
+        .poll(
+          () =>
+            card(studio, n)
+              .getByRole('img')
+              .evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))),
+          { timeout: 20_000, intervals: [130] }, // the fake microphone beeps once a second: do not poll in step
+        )
+        .toContain('Speaking')
     // the invite link with copy and rotate, and the device settings, each in its own modal
     await studio.getByRole('toolbar').getByRole('button', { name: 'Invite', exact: true }).click()
     await expect(studio.locator('[data-invite-url]')).toHaveValue(b.invite_url)

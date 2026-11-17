@@ -106,6 +106,7 @@ const catalog: Catalog = {
   'Add to stage: {name}': 'Add to stage: {name}',
   'Add to stage': 'Add to stage',
   'Microphone on': 'Microphone on',
+  Speaking: 'Speaking',
   'Microphone off': 'Microphone off',
   'Camera on': 'Camera on',
   'Camera off': 'Camera off',

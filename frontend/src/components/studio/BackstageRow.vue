@@ -2,7 +2,7 @@
 // The backstage: every participant and shared screen in the studio with whether each is on stage. The owner adds
 // and takes sources off the stage and removes guests; a guest sees the names only.
 import { computed, ref } from 'vue'
-import { Mic, MicOff, MonitorUp, UserMinus, UserPlus, Video, VideoOff } from '@lucide/vue'
+import { MicAudioLines, Mic, MicOff, MonitorUp, UserMinus, UserPlus, Video, VideoOff } from '@lucide/vue'
 import InviteModal from '@/components/studio/InviteModal.vue'
 import SourcePreview from '@/components/studio/SourcePreview.vue'
 import { initials } from '@/core/compositor'
@@ -135,10 +135,12 @@ async function removeGuest(p: Person) {
         <span class="ml-auto flex items-center gap-1.5 text-fg-muted">
           <template v-if="c.source.k === 'camera'">
             <component
-              :is="c.person.mic ? Mic : MicOff"
+              :is="!c.person.mic ? MicOff : c.person.speaking ? MicAudioLines : Mic"
               class="size-4"
+              :class="{ 'text-ok': c.person.mic && c.person.speaking }"
               role="img"
-              :aria-label="c.person.mic ? t('Microphone on') : t('Microphone off')"
+              :aria-label="!c.person.mic ? t('Microphone off') : c.person.speaking ? t('Speaking') : t('Microphone on')"
+              :data-speaking="c.person.mic && c.person.speaking"
             />
             <component
               :is="c.person.cam ? Video : VideoOff"

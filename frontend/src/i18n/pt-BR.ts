@@ -107,6 +107,7 @@ const catalog: Catalog = {
   'Add to stage: {name}': 'Pôr no palco: {name}',
   'Add to stage': 'Pôr no palco',
   'Microphone on': 'Microfone ligado',
+  Speaking: 'Falando',
   'Microphone off': 'Microfone desligado',
   'Camera on': 'Câmera ligada',
   'Camera off': 'Câmera desligada',

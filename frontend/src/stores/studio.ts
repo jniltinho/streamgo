@@ -58,6 +58,8 @@ export interface Person {
   mic: boolean
   cam: boolean
   screen: boolean
+  /** the media server hears them right now: the proof that a microphone works */
+  speaking: boolean
 }
 
 /** why the studio closed: left on purpose, removed by the owner, opened in another tab, connection lost */
@@ -219,6 +221,7 @@ export const useStudio = defineStore('studio', () => {
         mic: !!m?.track && !m.isMuted,
         cam: !!videoOf(p, Track.Source.Camera),
         screen: !!p.getTrackPublication(Track.Source.ScreenShare)?.track,
+        speaking: p.isSpeaking,
       }
     })
     compositor?.setSources(
@@ -303,6 +306,11 @@ export const useStudio = defineStore('studio', () => {
       RoomEvent.Reconnected,
     ])
       r.on(ev, refresh)
+    // who speaks changes several times a second: only the mark is updated, not the sources or the mix
+    r.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+      const ids = new Set(speakers.map((p) => p.identity))
+      people.value = people.value.map((p) => ({ ...p, speaking: ids.has(p.identity) }))
+    })
     r.on(RoomEvent.LocalTrackUnpublished, (pub) => {
       if (pub.source === Track.Source.ScreenShare) sharing.value = false
       refresh()

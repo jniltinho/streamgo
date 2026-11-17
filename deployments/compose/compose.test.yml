@@ -19,6 +19,29 @@ services:
       timeout: 5s
       retries: 60
 
+  # The studio's integration test (internal/livekit): single node, rooms only through the API
+  # (auto_create off, as in production), a throwaway key.
+  livekit:
+    image: livekit/livekit-server:v1.13.10
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: false
+        room:
+          auto_create: false
+        keys:
+          streamgo-test: streamgo-test-livekit-secret-0123456789abcdef
+        logging:
+          level: warn
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:7880/"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
   postgres:
     image: postgres:17-alpine@sha256:d3244e8ce3f165ee3c93d9c4a4b1d0fe48b3a89e2287b717fdcbbde92d405065
     environment:

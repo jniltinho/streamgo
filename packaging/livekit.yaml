@@ -1,0 +1,20 @@
+# LiveKit of the StreamGo package (/opt/streamgo/livekit.yaml, run by streamgo-livekit.service): a single node
+# without Redis that hosts the studio rooms. StreamGo creates every room through the API, so automatic room
+# creation is off. No secret here: the unit hands LiveKit the API key and secret of /opt/streamgo/streamgo.env.
+#
+# The signalling port listens on the loopback address only: browsers reach it through StreamGo, which proxies it
+# at /livekit/ on its own origin (livekit.url empty in config.toml). Only the media ports below must be reachable
+# by browsers (open them in the firewall). On a host behind NAT, add the public address:
+#   rtc:
+#     node_ip: 203.0.113.10
+# After a change: systemctl restart streamgo-livekit
+port: 7880
+bind_addresses: [127.0.0.1]
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: false
+room:
+  auto_create: false
+logging:
+  level: info

@@ -107,3 +107,24 @@ logs: check-db ## Follow the server log
 
 dev: check-db init ## Vite dev server with hot reload on http://localhost:5173 (and the stack behind it)
 	$(STACK_ENV) DEV_UID=$(shell id -u) DEV_GID=$(shell id -g) $(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yml up --build
+
+# ── Linux packages: StreamGo, LiveKit and MediaMTX under /opt/streamgo with three systemd units (packaging/) ──
+.PHONY: package test-package test-package-systemd image-allinone test-allinone
+
+package: ## Build dist/packages: the .deb, the .rpm and the .tar.gz of this version, and SHA256SUMS
+	rm -rf $(DIST)/packages
+	docker build $(BUILD_ARGS) --target packages --output type=local,dest=$(DIST)/packages .
+	@ls -l $(DIST)/packages
+
+test-package: package ## Install the packages on Debian, Ubuntu, AlmaLinux (and Rocky Linux with RPM Fusion): files, user, units, a real start, removal
+	packaging/smoke.sh $(DIST)/packages
+
+test-package-systemd: package ## The .deb under a real systemd (privileged Debian 13 and Ubuntu 26.04 containers)
+	packaging/systemd.sh $(DIST)/packages
+
+# ── all-in-one image: StreamGo, LiveKit, MediaMTX and Debian's ffmpeg under supervisord (docker/allinone/) ──
+image-allinone: ## Build the all-in-one image $(IMAGE):$(VERSION)-allinone
+	docker build $(BUILD_ARGS) --target allinone -t $(IMAGE):$(VERSION)-allinone -t $(IMAGE):allinone .
+
+test-allinone: image-allinone ## Smoke test the all-in-one image: healthy, ready, sign-in, data and key kept across a new container
+	docker/allinone/smoke.sh $(IMAGE):$(VERSION)-allinone

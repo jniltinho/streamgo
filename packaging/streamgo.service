@@ -1,0 +1,53 @@
+# StreamGo under systemd. Everything it reads and writes is in /opt/streamgo:
+#   bin/streamgo   the server           config.toml   the settings
+#   streamgo.env   the secrets          data/         the SQLite database and the uploaded assets
+# LiveKit and MediaMTX run beside it as streamgo-livekit.service and streamgo-mediamtx.service, started first.
+# Change settings in config.toml and streamgo.env, not here; `systemctl edit streamgo` adds local overrides.
+# Portions adapted from MeetHub (MIT): packaging/meethub.service
+[Unit]
+Description=StreamGo: self-hosted live-streaming studio
+Documentation=https://github.com/jniltinho/streamgo/blob/main/docs/install-linux.md
+Wants=network-online.target streamgo-livekit.service streamgo-mediamtx.service
+# ordering only: MariaDB or PostgreSQL may also live on another host
+After=network-online.target streamgo-livekit.service streamgo-mediamtx.service postgresql.service mariadb.service
+
+[Service]
+Type=simple
+User=streamgo
+Group=streamgo
+# config.toml is looked up in the working directory first
+WorkingDirectory=/opt/streamgo
+EnvironmentFile=/opt/streamgo/streamgo.env
+ExecStart=/opt/streamgo/bin/streamgo server
+Restart=on-failure
+RestartSec=5
+# the server drains its connections and stops every ffmpeg before it exits
+TimeoutStopSec=45
+LimitNOFILE=65536
+UMask=0027
+
+# the service may write only its data directory; with server.data_dir elsewhere, add that path in a drop-in
+# (systemctl edit streamgo): [Service] ReadWritePaths=/srv/streamgo
+ProtectSystem=strict
+ReadWritePaths=/opt/streamgo/data
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

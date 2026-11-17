@@ -1,0 +1,48 @@
+# LiveKit for StreamGo (the studio rooms): /opt/streamgo/bin/livekit-server with /opt/streamgo/livekit.yaml, as the
+# streamgo user. The API key and secret are StreamGo's own, from /opt/streamgo/streamgo.env: one place to change
+# them, never on a command line. Signalling on 127.0.0.1:7880 (StreamGo proxies it at /livekit/); media on
+# 7881/tcp and 7882/udp, which browsers must reach.
+[Unit]
+Description=StreamGo: LiveKit server (studio rooms)
+Documentation=https://github.com/jniltinho/streamgo/blob/main/docs/install-linux.md
+Wants=network-online.target
+After=network-online.target
+Before=streamgo.service
+
+[Service]
+Type=simple
+User=streamgo
+Group=streamgo
+WorkingDirectory=/opt/streamgo
+EnvironmentFile=/opt/streamgo/streamgo.env
+ExecStart=/bin/sh -c 'export LIVEKIT_KEYS="$${STREAMGO_LIVEKIT_API_KEY}: $${STREAMGO_LIVEKIT_API_SECRET}"; exec /opt/streamgo/bin/livekit-server --config /opt/streamgo/livekit.yaml'
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+LimitNOFILE=65536
+UMask=0027
+
+# nothing to write: no ReadWritePaths
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+# AF_NETLINK: LiveKit lists the host's interfaces for the addresses it advertises
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

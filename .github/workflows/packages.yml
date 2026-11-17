@@ -1,0 +1,74 @@
+# Portions adapted from MeetHub (MIT): .github/workflows/packages.yml
+name: Packages
+
+# The Linux packages (packaging/: streamgo_<version>_amd64.deb, streamgo-<version>-1.x86_64.rpm,
+# streamgo_<version>_linux_amd64.tar.gz, SHA256SUMS) are built for linux/amd64 and tested on every pull request,
+# push to main and v* tag:
+#   - packaging/smoke.sh installs them in clean Debian, Ubuntu, AlmaLinux and Rocky Linux (RPM Fusion) containers
+#   - the .deb is installed on the runner itself, where systemd really starts the three services
+# A v* tag then publishes the four files as the assets of that tag's GitHub release, with the workflow's own token
+# and that version's section of CHANGELOG.md as the notes. Lint and the test suites run in ci.yml; tag a commit of
+# main that passed it.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: packages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  packages:
+    name: deb, rpm and tar.gz
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: write # only the last step uses it: the release of a v* tag
+    env:
+      VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and install in clean containers
+        run: make test-package VERSION="$VERSION" COMMIT="$GITHUB_SHA"
+      - name: Install on the runner, under systemd
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ./dist/packages/streamgo_*_amd64.deb
+          for _ in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8080/readyz && break
+            sleep 1
+          done
+          systemctl is-active streamgo-livekit.service streamgo-mediamtx.service streamgo.service
+          curl -fsS http://127.0.0.1:8080/readyz
+          sudo systemctl restart streamgo-livekit.service streamgo-mediamtx.service streamgo.service
+          for _ in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8080/readyz && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/readyz
+          sudo systemctl stop streamgo.service
+          test "$(systemctl show -p Result --value streamgo.service)" = success
+      - name: Service log
+        if: failure()
+        run: sudo journalctl -u streamgo -u streamgo-livekit -u streamgo-mediamtx --no-pager | tail -n 120
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        # the notes are the tag's section of CHANGELOG.md. create uploads the files to a draft and publishes it
+        # only when all are there. A release that already exists (made by hand, or a re-run) only gets the files it
+        # lacks: a complete one is left alone.
+        run: |
+          awk -v v="${TAG#v}" '/^## \[/ { p = index($0, "## [" v "]") == 1; next } p' CHANGELOG.md >"$RUNNER_TEMP/notes.md"
+          test -s "$RUNNER_TEMP/notes.md" || { echo "CHANGELOG.md has no section for ${TAG#v}" >&2; exit 1; }
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" dist/packages/* --verify-tag --title "StreamGo $TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          elif [ "$(gh release view "$TAG" --json assets --jq '.assets | length')" -lt 4 ]; then
+            gh release upload "$TAG" dist/packages/* --clobber
+          fi

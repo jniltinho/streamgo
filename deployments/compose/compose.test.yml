@@ -1,4 +1,4 @@
-# Throwaway databases for make test-db (project "streamgo-test"). No published ports: the tools container joins
+# Throwaway databases and LiveKit for make test-db (project "streamgo-test"). No published ports: the tools container joins
 # the project's network. Data lives in tmpfs: nothing persists. The credentials are test fixtures only.
 # Portions adapted from MeetHub (MIT): deployments/compose/compose.test.yml
 name: streamgo-test
@@ -15,6 +15,29 @@ services:
     tmpfs: ["/var/lib/mysql"]
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  # The studio's integration test (internal/livekit): single node, rooms only through the API
+  # (auto_create off, as in production), a throwaway key.
+  livekit:
+    image: livekit/livekit-server:v1.13.10
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: false
+        room:
+          auto_create: false
+        keys:
+          streamgo-test: streamgo-test-livekit-secret-0123456789abcdef
+        logging:
+          level: warn
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:7880/"]
       interval: 2s
       timeout: 5s
       retries: 60

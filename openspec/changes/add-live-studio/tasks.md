@@ -127,6 +127,11 @@ counter into its video and plays a distinct tone.
   three databases against the Compose stack, and fix what does not meet between packages; verify
   `make check test test-db build` and a route test listing every route of the REST contract with its owner check
 
+- [ ] 3.T Standalone HTTPS: copy MeetHub's `internal/tlsutil`, add `server.cert_file`, `key_file` and
+  `self_signed`, serve HTTPS, proxy LiveKit's signalling at `/livekit/` with WebSocket upgrades, and derive the
+  browsers' LiveKit URL from the public URL when `livekit.url` is empty; verify every `standalone-https` scenario,
+  the studio one with two real browsers against a server on a self-signed certificate
+
 ## 4. Studio (after 3.C, 3.D and 3.E; design: `design/variant-d-square`)
 
 - [ ] 4.1 Build the studio's region arrangement of `design/variant-d-square` as layout components
@@ -163,8 +168,15 @@ counter into its video and plays a distinct tone.
 - [ ] 5.P4 Add the three workflows (`ci.yml`, `packages.yml`, `docker-image-publish.yml`) with actions pinned by
   commit, and `CHANGELOG.md`; verify the `build-and-deploy` "Continuous integration" scenario on a pull request,
   and "Published images" for `main` after the push
-- [ ] 5.P5 Write `docs/install-linux.md` and `docs/install-binary.md` and link them from the README; verify the
-  `linux-packages` "Installation documents" scenario by following the guide on a clean Ubuntu 26.04 container
+- [ ] 5.W1 Write `docs/README.md`, `architecture.md`, `install-docker.md`, `standalone-https.md`,
+  `reverse-proxy.md` and `security.md`, and generate the diagrams with Codex as SVG with a PNG each under
+  `docs/images/`; add the documentation test; verify the `documentation` "Index is complete", "No dead links",
+  "Every diagram has both formats" and "Diagrams match the design" scenarios and the Docker half of "Commands in
+  the guides run"
+- [ ] 5.W2 Write `docs/install-linux.md` and `docs/install-binary.md` once the packages exist, with the RPM
+  Fusion steps for the RHEL family; verify the `linux-packages` "Installation documents" and "Start on the RHEL
+  family with RPM Fusion" scenarios and the packages half of "Commands in the guides run" by following the guide
+  on a clean Ubuntu 26.04 container
 
 ## 6. Validation and first release
 

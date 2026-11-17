@@ -519,7 +519,10 @@ configure and wire two media servers by hand, so both artifacts carry them:
   all-in-one). It is not shipped in the packages: the `.deb` depends on the distribution's, which has libx264 on
   Debian and Ubuntu; the `.rpm` only recommends it, because the RHEL family has none with libx264 in its own
   repositories. On AlmaLinux the package installs and the service refuses to start until one is added, which
-  the guide explains; the smoke test checks the layout there and a real start on Debian 13 and Ubuntu 26.04.
+  the guide explains; the smoke test checks the layout there and a real start on Debian 13 and Ubuntu 26.04. Checked on Rocky
+  Linux 9: the base repositories have no ffmpeg, EPEL has `ffmpeg-free`, and RPM Fusion's `ffmpeg` has libx264
+  and aac; the `.rpm` recommends `(ffmpeg or ffmpeg-free)` as MeetHub's does and the guide gives the RPM Fusion
+  steps.
 - **All-in-one image** (`make image-allinone`): StreamGo, LiveKit, MediaMTX and Debian's ffmpeg under
   supervisord, non-root, state in `/data`, published to `ghcr.io/<owner>/streamgo` with the `-allinone` tags.
   The plain runtime image (`make image`) is what the Compose stack uses and is built locally.
@@ -531,6 +534,38 @@ configure and wire two media servers by hand, so both artifacts carry them:
 
 - *Alternative: package only StreamGo and document the media servers.* Smaller package, but the install is not
   usable or testable end to end, and every administrator repeats the same wiring.
+
+### D15. HTTPS from the binary, and LiveKit's signalling through it
+
+As in MeetHub (`internal/tlsutil`, copied): `server.cert_file` and `server.key_file` for a certificate the
+operator brings, or `server.self_signed = true` for one StreamGo generates under `<data_dir>/tls` (the public
+host, `localhost` and the loopback addresses; one year; regenerated when missing, close to expiry or no longer
+covering the host). The fingerprint is logged at every start.
+
+MeetHub stops there and asks for a proxy in front of LiveKit, because a browser on an HTTPS page only talks to
+LiveKit over `wss://` and LiveKit does not end TLS itself. In MeetHub that costs the meetings; in StreamGo it
+would cost the whole product. So StreamGo also proxies LiveKit's signalling at `/livekit/` (a reverse proxy to
+`livekit.api_url` that passes WebSocket upgrades), and when `livekit.url` is empty it hands browsers its own
+origin with `/livekit`. One HTTPS port is then a complete install: LiveKit's signalling can stay on the loopback
+address, which is what the packages do, and a reverse proxy in front needs a single upstream. The WebRTC media
+ports (LiveKit's and MediaMTX's) are unaffected: they are not HTTP. Setting `livekit.url` explicitly keeps the
+other arrangement (LiveKit behind its own name or proxy).
+
+A self-signed certificate makes browsers warn once per device; camera and microphone work after the warning is
+accepted. Guests reach the same warning through the invite link, which the guide says plainly.
+
+### D16. Documentation, as in MeetHub, with diagrams drawn by Codex
+
+`docs/README.md` indexes the set: `architecture.md`, `install-linux.md` (the `.deb` and the `.rpm`),
+`install-binary.md`, `install-docker.md` (Compose and the all-in-one image), `standalone-https.md`,
+`reverse-proxy.md` (nginx and Caddy), `deployment.md` and `security.md`, all in English. The diagrams are SVG
+files under `docs/images/` generated with Codex (`codex exec`) from the design, in the project's dark palette,
+each with a PNG rendered from it for places that do not show SVG. A documentation test checks the index, the
+links and that every diagram has both formats.
+
+Configuration stays as in MeetHub: settings in `config.toml`, secrets in the environment, kept in an `.env`
+file that Compose, the systemd unit (`streamgo.env`) and `make` load. The binary itself reads the environment,
+not the file.
 
 ## REST contract (all under `/api/v1`, JSON; errors are `{ "error": { "code", "message" } }`)
 
@@ -644,7 +679,9 @@ separate agents against the contract above. Each shared piece has one owner:
 | F app pages | `frontend/src/views/{Login,Broadcasts,Destinations}*`, their stores and API modules |
 | G themes | `frontend/src/themes/**`, the theme picker, theme tests, `handlers/themes.go`, `NOTICE` |
 | H deployment | `docker/`, `deployments/`, `Makefile` targets beyond the foundation's, docs |
-| P packaging (group 6) | `packaging/`, `docker/allinone/`, the `packages` and `allinone` stages of the `Dockerfile`, `.github/workflows/`, `THIRD_PARTY`, `CHANGELOG.md`, `docs/install-*.md` |
+| P packaging (group 5) | `packaging/`, `docker/allinone/`, the `packages` and `allinone` stages of the `Dockerfile`, `.github/workflows/`, `THIRD_PARTY`, `CHANGELOG.md` |
+| T standalone HTTPS | `internal/tlsutil`, the TLS and `/livekit/` proxy parts of `internal/httpserver`, the `server` TLS settings in `internal/config` |
+| W documentation | `docs/**` except `spike-media-path.md`, `docs/images/**`, the documentation test |
 
 The foundation declares the tables, the contracts more than one package depends on (the broadcast repository,
 the per-broadcast lock, the theme registry) and nothing else: no placeholder handlers, and each package defines

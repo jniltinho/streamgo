@@ -23,7 +23,8 @@ validate every value against its allowed range at startup, and document every se
 
 #### Scenario: Sections and defaults
 - **WHEN** the server starts with no configuration file
-- **THEN** `server` has `addr`, `public_url`, `data_dir` and `trusted_proxies`; `database` has `driver` `sqlite` and
+- **THEN** `server` has `addr`, `public_url`, `data_dir`, `trusted_proxies`, `cert_file`, `key_file` (both empty) and
+  `self_signed` false; `database` has `driver` `sqlite` and
   `path`; `livekit` has
   `url` (for browsers) and `api_url` (for the server); `mediamtx` has `whip_url` and `rtsp_url`; `studio` has
   `max_participants` 10 and `max_on_stage` 6; and `output` has `ffmpeg_path` `ffmpeg`, `resolution` `720p`,

@@ -35,8 +35,8 @@ by `streamgo`), and SHALL install three units, the only files outside `/opt/stre
 
 #### Scenario: Install on the RHEL family
 - **WHEN** `dnf install ./streamgo-1.2.3-1.x86_64.rpm` runs on a clean AlmaLinux 9 or 10
-- **THEN** the same files, user and data directory exist, without an ffmpeg, which those distributions do not
-  carry with libx264
+- **THEN** the same files, user and data directory exist; the package only recommends `ffmpeg` or `ffmpeg-free`,
+  as MeetHub's does, because the base repositories of the RHEL family have none
 
 #### Scenario: Manual install
 - **WHEN** `streamgo_1.2.3_linux_amd64.tar.gz` is extracted in `/opt`
@@ -85,7 +85,12 @@ and disable them.
 - **GIVEN** an AlmaLinux host without an ffmpeg that has libx264
 - **WHEN** the package is installed
 - **THEN** `streamgo.service` fails with the message naming the missing encoder, and the install guide says how
-  to add one
+  to add one: RPM Fusion's `ffmpeg` (EPEL, CRB and `rpmfusion-free-release`), which has libx264
+
+#### Scenario: Start on the RHEL family with RPM Fusion
+- **GIVEN** an AlmaLinux or Rocky Linux 9 host where the guide's RPM Fusion steps were followed
+- **WHEN** the package is installed
+- **THEN** the three units are active and `GET /readyz` answers 200
 
 ### Requirement: Data survives upgrades and removal
 An upgrade SHALL keep `config.toml`, `streamgo.env`, the media servers' configuration and `/opt/streamgo/data`.
@@ -124,7 +129,7 @@ sign in, and that the units restart and stop cleanly.
 The repository SHALL document, in English, installing from the package on Ubuntu 26.04 and Debian 13
 (`docs/install-linux.md`: layout, first start, creating the first user, HTTPS in front of the app and of
 LiveKit's signalling, the ports to open, configuration, upgrade, backup, removal, the `.rpm` and its ffmpeg) and
-installing the binary by hand (`docs/install-binary.md`), both linked from the README.
+installing the binary by hand (`docs/install-binary.md`), both linked from the README and from `docs/README.md`.
 
 #### Scenario: Following the package document
 - **WHEN** an administrator follows `docs/install-linux.md` on a clean Ubuntu 26.04

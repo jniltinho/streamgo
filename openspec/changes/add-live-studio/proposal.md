@@ -41,6 +41,11 @@ First version of the application; everything is new.
   test suite on the three.
 - **Deployment**: a Docker-only build and a Compose stack of StreamGo (with ffmpeg), LiveKit and MediaMTX, run as
   a single StreamGo instance without Redis or a job queue.
+- **HTTPS from the binary**: a certificate the operator brings, or a self-signed one StreamGo generates, with
+  LiveKit's signalling proxied through the same origin, so one HTTPS port is a complete install with no reverse
+  proxy.
+- **Documentation** in English with diagrams (SVG and PNG, drawn with Codex): architecture, installing from the
+  packages, from the binary and with Docker, standalone HTTPS, reverse proxy, deployment and security.
 - **Packages and releases** (linux/amd64 only, as in MeetHub): a `.deb`, an `.rpm` and a `.tar.gz` that install
   StreamGo with pinned LiveKit and MediaMTX under `/opt/streamgo` as systemd services, validated on Debian 13 and
   Ubuntu 26.04; an all-in-one Docker image published to GHCR; GitHub Actions for checks, packages and images; a
@@ -71,6 +76,9 @@ architectures other than amd64; package repositories (apt or dnf).
 - `ui-themes`: the theme catalog, contract, contrast, picker and persistence.
 - `build-and-deploy`: the build, the runtime and all-in-one images, the Compose stack, the layering rule,
   continuous integration and release assets.
+- `standalone-https`: HTTPS from the binary, the self-signed certificate, LiveKit's signalling through the
+  server.
+- `documentation`: the documentation set and its diagrams.
 - `linux-packages`: the `.deb`, `.rpm` and `.tar.gz`, their layout, units, first-install secrets, upgrades,
   smoke tests and installation documents.
 

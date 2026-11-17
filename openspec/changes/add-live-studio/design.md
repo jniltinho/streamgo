@@ -515,15 +515,17 @@ configure and wire two media servers by hand, so both artifacts carry them:
   ports are reachable. HTTPS stays the administrator's reverse proxy, in front of the app and of LiveKit's
   signalling, with a worked example in `docs/install-linux.md`.
 - **ffmpeg is never built from source, anywhere** (the owner's rule): the packages use the distribution's and
-  the images install their base distribution's package (Alpine's in the runtime image, Debian's in the
-  all-in-one). It is not shipped in the packages: the `.deb` depends on the distribution's, which has libx264 on
+  the images install their base distribution's package: Alpine's, in the runtime image and in the
+  all-in-one alike. Debian's ffmpeg pulls 207 packages and 467 MB even without recommended ones; Alpine's adds
+  129 MB, which took the all-in-one image from 741 MB to 367 MB. Prebuilt static binaries from third parties
+  were weighed and left out: no smaller, not the distribution's, and a GPL binary we would then redistribute. It is not shipped in the packages: the `.deb` depends on the distribution's, which has libx264 on
   Debian and Ubuntu; the `.rpm` only recommends it, because the RHEL family has none with libx264 in its own
   repositories. On AlmaLinux the package installs and the service refuses to start until one is added, which
   the guide explains; the smoke test checks the layout there and a real start on Debian 13 and Ubuntu 26.04. Checked on Rocky
   Linux 9: the base repositories have no ffmpeg, EPEL has `ffmpeg-free`, and RPM Fusion's `ffmpeg` has libx264
   and aac; the `.rpm` recommends `(ffmpeg or ffmpeg-free)` as MeetHub's does and the guide gives the RPM Fusion
   steps.
-- **All-in-one image** (`make image-allinone`): StreamGo, LiveKit, MediaMTX and Debian's ffmpeg under
+- **All-in-one image** (`make image-allinone`): StreamGo, LiveKit, MediaMTX and Alpine's ffmpeg under
   supervisord, non-root, state in `/data`, published to `ghcr.io/<owner>/streamgo` with the `-allinone` tags.
   The plain runtime image (`make image`) is what the Compose stack uses and is built locally.
 - **Workflows**: `ci.yml` (checks, tests, database matrix, browser tests, build), `packages.yml` (smoke test in

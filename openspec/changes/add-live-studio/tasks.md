@@ -154,16 +154,16 @@ counter into its video and plays a distinct tone.
 
 ## 5. Packages, images and release (after group 4; package P, files in design.md)
 
-- [ ] 5.P1 Build the packages as MeetHub does (`packaging/build.sh`, the units, the maintainer scripts, the
+- [x] 5.P1 Build the packages as MeetHub does (`packaging/build.sh`, the units, the maintainer scripts, the
   `packages` stage, `make package`), with the pinned LiveKit and MediaMTX binaries verified by checksum, their
   configuration with loopback listeners, the first-install secrets, and `THIRD_PARTY`; verify the
   `linux-packages` "Package build", "Install layout", "First-install secrets" and "Data survives upgrades and
   removal" scenarios
-- [ ] 5.P2 Write `packaging/smoke.sh` and `make test-package` (Debian 13 and Ubuntu 26.04 with a real start;
+- [x] 5.P2 Write `packaging/smoke.sh` and `make test-package` (Debian 13 and Ubuntu 26.04 with a real start;
   AlmaLinux 9 and 10 layout only) and `make test-package-systemd` (Debian 13 and Ubuntu 26.04 containers running
   systemd); verify the `linux-packages` "systemd services", "Package smoke test" and "Start under a real
   systemd" scenarios
-- [ ] 5.P3 Build the all-in-one image (`docker/allinone/`, the `allinone` stage, `make image-allinone`,
+- [x] 5.P3 Build the all-in-one image (`docker/allinone/`, the `allinone` stage, `make image-allinone`,
   `make test-allinone`); verify the `build-and-deploy` "All-in-one image" scenarios
 - [ ] 5.P4 Add the three workflows (`ci.yml`, `packages.yml`, `docker-image-publish.yml`) with actions pinned by
   commit, and `CHANGELOG.md`; verify the `build-and-deploy` "Continuous integration" scenario on a pull request,

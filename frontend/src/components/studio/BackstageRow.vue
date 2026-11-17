@@ -71,6 +71,14 @@ async function removeGuest(p: Person) {
   </div>
   <ul class="studio-cards" :aria-label="t('People in the studio')">
     <li
+      v-if="studio.phase === 'connecting'"
+      class="card studio-card justify-center text-sm"
+      role="status"
+      data-connecting
+    >
+      {{ t('Connecting to the studio…') }}
+    </li>
+    <li
       v-for="c in cards"
       :key="c.key"
       class="card studio-card"

@@ -260,7 +260,7 @@ Then sign in at `http://<server>:8080`.
 | | |
 |---|---|
 | Ports | 8080/tcp (the app, the API and `/livekit/`), 7881/tcp and 7882/udp (LiveKit's media), 8189/udp and 8189/tcp (MediaMTX's media). Publish the media ports on the **same numbers**: LiveKit and MediaMTX give browsers those numbers. The app's port may differ, but then set `STREAMGO_SERVER_PUBLIC_URL` to match (for example `-p 38080:8080 -e STREAMGO_SERVER_PUBLIC_URL=http://localhost:38080`), or every sign-in is refused by the origin check. |
-| `NODE_IP` | The address LiveKit and MediaMTX advertise for media; `127.0.0.1` by default, which only serves a browser on the same machine. |
+| `NODE_IP` | The address LiveKit and MediaMTX advertise for media; `127.0.0.1` by default, which only serves a browser on the same machine; Firefox on that machine needs the host's network address instead (it reaches `127.0.0.1` only after the site was allowed to use the camera). |
 | Settings | Any `STREAMGO_<SECTION>_<KEY>` given with `-e` (a value given to the container wins over `/data/streamgo.env`). |
 | HTTPS | `-e STREAMGO_SERVER_SELF_SIGNED=true -e STREAMGO_SERVER_PUBLIC_URL=https://studio.example.com:8080`, see [Standalone HTTPS](standalone-https.md), or a reverse proxy in front of 8080 ([Behind a reverse proxy](reverse-proxy.md)). |
 | Logs | `docker logs -f streamgo` (the three services) |

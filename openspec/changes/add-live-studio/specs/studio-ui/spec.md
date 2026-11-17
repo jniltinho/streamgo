@@ -14,6 +14,11 @@ and carry an accessible name.
   each is on stage; the side panel has the Banners, Brand and Destinations tabs; and the controls cover the
   owner's microphone, camera, screen share, invite link, settings and leaving
 
+#### Scenario: Connecting
+- **WHEN** the studio is connecting to the media server
+- **THEN** the backstage says it is connecting, and after three failed attempts the page says the studio is not
+  connected and offers to try again
+
 #### Scenario: Preview before the stage
 - **GIVEN** nothing is on stage and the owner's camera is on
 - **WHEN** the owner looks at the studio

@@ -59,7 +59,7 @@ func (c *Client) Publish(ctx context.Context, broadcastID string, offer []byte) 
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 	endpoint := c.whip.JoinPath("program", broadcastID, "whip")
-	res, body, err := c.do(ctx, http.MethodPost, endpoint.String(), "application/sdp", offer)
+	res, err := c.do(ctx, http.MethodPost, endpoint.String(), "application/sdp", offer)
 	if err != nil {
 		return output.Answer{}, fmt.Errorf("%w: %w", output.ErrUpstream, err)
 	}
@@ -70,7 +70,7 @@ func (c *Client) Publish(ctx context.Context, broadcastID string, offer []byte) 
 	if err != nil || res.Header.Get("Location") == "" || !c.isWHIP(loc) {
 		return output.Answer{}, fmt.Errorf("%w: WHIP answered without a usable Location", output.ErrUpstream)
 	}
-	return output.Answer{SDP: body, Resource: loc.String(), ETag: res.Header.Get("ETag"), Links: res.Header.Values("Link")}, nil
+	return output.Answer{SDP: res.body, Resource: loc.String(), ETag: res.Header.Get("ETag"), Links: res.Header.Values("Link")}, nil
 }
 
 // Close deletes a WHIP session resource; one already gone is not an error.
@@ -79,7 +79,7 @@ func (c *Client) Close(ctx context.Context, resource string) error {
 	if err != nil || !c.isWHIP(u) {
 		return errors.New("the stored ingest session is not a resource of the media server")
 	}
-	res, _, err := c.do(ctx, http.MethodDelete, u.String(), "", nil)
+	res, err := c.do(ctx, http.MethodDelete, u.String(), "", nil)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ type path struct {
 
 // Publisher is the WebRTC session publishing on program/<id>, "" when none.
 func (c *Client) Publisher(ctx context.Context, broadcastID string) (string, error) {
-	res, body, err := c.do(ctx, http.MethodGet, c.api.JoinPath("v3/paths/get/program", broadcastID).String(), "", nil)
+	res, err := c.do(ctx, http.MethodGet, c.api.JoinPath("v3/paths/get/program", broadcastID).String(), "", nil)
 	if err != nil {
 		return "", err
 	}
@@ -112,7 +112,7 @@ func (c *Client) Publisher(ctx context.Context, broadcastID string) (string, err
 		return "", fmt.Errorf("paths/get answered %s", res.Status)
 	}
 	var p path
-	if err := json.Unmarshal(body, &p); err != nil {
+	if err := json.Unmarshal(res.body, &p); err != nil {
 		return "", fmt.Errorf("paths/get: %w", err)
 	}
 	if p.Source == nil || p.Source.Type != webRTCSession {
@@ -125,7 +125,7 @@ func (c *Client) Publisher(ctx context.Context, broadcastID string) (string, err
 func (c *Client) Publishing(ctx context.Context) (map[string]string, error) {
 	u := c.api.JoinPath("v3/paths/list")
 	u.RawQuery = "itemsPerPage=10000"
-	res, body, err := c.do(ctx, http.MethodGet, u.String(), "", nil)
+	res, err := c.do(ctx, http.MethodGet, u.String(), "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (c *Client) Publishing(ctx context.Context) (map[string]string, error) {
 	var list struct {
 		Items []path `json:"items"`
 	}
-	if err := json.Unmarshal(body, &list); err != nil {
+	if err := json.Unmarshal(res.body, &list); err != nil {
 		return nil, fmt.Errorf("paths/list: %w", err)
 	}
 	out := map[string]string{}
@@ -149,7 +149,7 @@ func (c *Client) Publishing(ctx context.Context) (map[string]string, error) {
 
 // Kick closes a WebRTC session; one already gone is not an error.
 func (c *Client) Kick(ctx context.Context, session string) error {
-	res, _, err := c.do(ctx, http.MethodPost, c.api.JoinPath("v3/webrtcsessions/kick", session).String(), "", nil)
+	res, err := c.do(ctx, http.MethodPost, c.api.JoinPath("v3/webrtcsessions/kick", session).String(), "", nil)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (c *Client) Kick(ctx context.Context, session string) error {
 func (c *Client) Ready(ctx context.Context) error {
 	u := c.api.JoinPath("v3/paths/list")
 	u.RawQuery = "itemsPerPage=1"
-	res, _, err := c.do(ctx, http.MethodGet, u.String(), "", nil)
+	res, err := c.do(ctx, http.MethodGet, u.String(), "", nil)
 	if err != nil {
 		return errors.New("MediaMTX does not answer")
 	}
@@ -178,14 +178,22 @@ func (c *Client) isWHIP(u *url.URL) bool {
 	return u.Scheme == c.whip.Scheme && u.Host == c.whip.Host && strings.HasPrefix(u.Path, c.whip.Path+"/program/")
 }
 
-func (c *Client) do(ctx context.Context, method, target, contentType string, body []byte) (*http.Response, []byte, error) {
+// reply is an answer of MediaMTX, read whole.
+type reply struct {
+	StatusCode int
+	Status     string
+	Header     http.Header
+	body       []byte
+}
+
+func (c *Client) do(ctx context.Context, method, target, contentType string, body []byte) (*reply, error) {
 	var r io.Reader
 	if body != nil {
 		r = bytes.NewReader(body)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, target, r)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
@@ -195,14 +203,14 @@ func (c *Client) do(ctx context.Context, method, target, contentType string, bod
 	}
 	res, err := c.http.Do(req)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%s %s: %w", method, req.URL.Path, unwrapURLError(err))
+		return nil, fmt.Errorf("%s %s: %w", method, req.URL.Path, unwrapURLError(err))
 	}
 	defer func() { _ = res.Body.Close() }()
 	data, err := io.ReadAll(io.LimitReader(res.Body, maxBody))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return res, data, nil
+	return &reply{StatusCode: res.StatusCode, Status: res.Status, Header: res.Header, body: data}, nil
 }
 
 // unwrapURLError drops the *url.Error wrapper, whose text repeats the full URL.

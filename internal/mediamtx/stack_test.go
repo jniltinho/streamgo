@@ -191,7 +191,13 @@ func (s *stack) destination(owner, name, address, key string) string {
 	return d.ID
 }
 
-func (s *stack) do(method, path, user, contentType, body string) (*http.Response, string) {
+// response is an answer of the HTTP routes, read whole.
+type response struct {
+	StatusCode int
+	Header     http.Header
+}
+
+func (s *stack) do(method, path, user, contentType, body string) (response, string) {
 	s.t.Helper()
 	req, err := http.NewRequestWithContext(context.Background(), method, s.http.URL+path, strings.NewReader(body))
 	if err != nil {
@@ -208,7 +214,7 @@ func (s *stack) do(method, path, user, contentType, body string) (*http.Response
 	}
 	defer func() { _ = res.Body.Close() }()
 	b, _ := io.ReadAll(res.Body)
-	return res, string(b)
+	return response{res.StatusCode, res.Header}, string(b)
 }
 
 func (s *stack) expect(status int, method, path, user, contentType, body string) string {

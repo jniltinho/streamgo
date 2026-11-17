@@ -134,7 +134,7 @@ func (p *whipPublisher) close() {
 }
 
 // offer posts a publisher's offer through StreamGo's WHIP route.
-func (s *stack) offer(owner, b, sdp string) (*http.Response, string) {
+func (s *stack) offer(owner, b, sdp string) (response, string) {
 	s.t.Helper()
 	return s.do(http.MethodPost, "/api/v1/broadcasts/"+b+"/program/whip", owner, "application/sdp", sdp)
 }

@@ -376,14 +376,14 @@ func (s *Service) apply(ctx context.Context, b *broadcast.Broadcast, events ...E
 		for _, c := range cmds {
 			switch c.Kind {
 			case StartTranscoder:
-				s.setProc(id, "", s.Processes.StartTranscoder(id, s.notifier(id, c, TranscoderFlowing, ProgramLost)))
+				s.setProc(id, "", s.Processes.StartTranscoder(id, s.notifier(id, c, TranscoderFlowing, ProgramLost))) //nolint:contextcheck // process events outlive the request
 			case StartRelay:
 				t, err := s.Targets.Target(ctx, c.Dest)
 				if err != nil {
 					events = append(events, Event{Kind: RelayStopped, Run: c.Run, Seq: c.Seq, Dest: c.Dest, Err: s.targetError(id, c.Dest, err)})
 					continue
 				}
-				s.setProc(id, c.Dest, s.Processes.StartRelay(id, t, s.notifier(id, c, RelayFlowing, RelayStopped)))
+				s.setProc(id, c.Dest, s.Processes.StartRelay(id, t, s.notifier(id, c, RelayFlowing, RelayStopped))) //nolint:contextcheck // as above
 			case StopRelay:
 				s.stopProcs(id, c.Dest)
 			case StopAll:

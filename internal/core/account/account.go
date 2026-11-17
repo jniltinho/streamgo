@@ -170,7 +170,7 @@ func (s *Service) CreateBy(ctx context.Context, actorID string, in NewUser) (*Us
 // nothing and costs no password hash, and again after the slow hashing, right before the write.
 func (s *Service) create(ctx context.Context, actorID string, in NewUser) (*User, error) {
 	if actorID != "" {
-		if err := s.requireAdmin(ctx, actorID); err != nil {
+		if err := s.RequireAdmin(ctx, actorID); err != nil {
 			return nil, err
 		}
 	}
@@ -190,7 +190,7 @@ func (s *Service) create(ctx context.Context, actorID string, in NewUser) (*User
 		return nil, err
 	}
 	if actorID != "" {
-		if err := s.requireAdmin(ctx, actorID); err != nil {
+		if err := s.RequireAdmin(ctx, actorID); err != nil {
 			return nil, err
 		}
 	}
@@ -242,18 +242,18 @@ func (s *Service) UpdateProfile(ctx context.Context, id string, name, theme, lan
 	return s.repo.UserByID(ctx, id)
 }
 
-// requireAdmin answers core.ErrForbidden unless actorID is an enabled administrator.
-func (s *Service) requireAdmin(ctx context.Context, actorID string) error {
+// RequireAdmin answers core.ErrForbidden unless actorID is an enabled administrator.
+func (s *Service) RequireAdmin(ctx context.Context, actorID string) error {
 	a, err := s.repo.UserByID(ctx, actorID)
 	if errors.Is(err, core.ErrNotFound) || (err == nil && (!a.Admin || a.Disabled())) {
-		return fmt.Errorf("user management needs an administrator: %w", core.ErrForbidden)
+		return fmt.Errorf("this needs an administrator: %w", core.ErrForbidden)
 	}
 	return err
 }
 
 // ListFor returns every account to the administrator actorID (core.ErrForbidden otherwise).
 func (s *Service) ListFor(ctx context.Context, actorID string) ([]User, error) {
-	if err := s.requireAdmin(ctx, actorID); err != nil {
+	if err := s.RequireAdmin(ctx, actorID); err != nil {
 		return nil, err
 	}
 	return s.repo.ListUsers(ctx)
@@ -274,7 +274,7 @@ type Changes struct {
 // password or a disabled state ends the account's sessions in the same update.
 func (s *Service) UpdateBy(ctx context.Context, actorID, id string, c Changes) (*User, error) {
 	// authorization first: someone who is not an administrator learns nothing and costs no password hash
-	if err := s.requireAdmin(ctx, actorID); err != nil {
+	if err := s.RequireAdmin(ctx, actorID); err != nil {
 		return nil, err
 	}
 	var ch UserChanges

@@ -8,8 +8,10 @@ import (
 	"log/slog"
 	"net"
 	"net/url"
+	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"syscall"
 	"time"
 
@@ -22,6 +24,7 @@ import (
 	"github.com/jniltinho/streamgo/internal/core/broadcast"
 	"github.com/jniltinho/streamgo/internal/core/destination"
 	"github.com/jniltinho/streamgo/internal/core/output"
+	"github.com/jniltinho/streamgo/internal/core/settings"
 	"github.com/jniltinho/streamgo/internal/core/stage"
 	"github.com/jniltinho/streamgo/internal/core/studio"
 	"github.com/jniltinho/streamgo/internal/ffmpeg"
@@ -96,8 +99,6 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	} else if pending {
 		return errors.New("the database has pending migrations: run streamgo migrate up (or start without --no-migrate)")
 	}
-	warnFixedBitrate(logger, cfg)
-
 	// Integration (task 3.I) registers each package's routes here and appends the LiveKit and MediaMTX checks.
 	accounts := account.New(store.NewAccounts(db), account.Options{})
 	authDeps := handlers.AuthDeps{
@@ -134,6 +135,12 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	handlers.RegisterThemes(srv.API())
 	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: accounts, Limiter: authDeps.Limiter})
 	handlers.RegisterUsers(srv.UserAPI(), handlers.UsersDeps{Accounts: accounts})
+	serverSettings, err := settings.New(ctx, store.NewServerSettings(db), accounts, quality(cfg), lockedSettings(), logger)
+	if err != nil {
+		return err
+	}
+	handlers.RegisterSettings(srv.UserAPI(), handlers.SettingsDeps{Settings: serverSettings})
+	warnFixedBitrate(logger, serverSettings.Quality())
 
 	// Broadcasts and destinations. The live output below gives the destinations their statuses and hears
 	// about selection changes of a broadcast that is not offline.
@@ -145,7 +152,7 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	broadcasts := store.NewBroadcasts(db)
 	broadcastSvc := &broadcast.Service{
 		Repo: broadcasts, Locks: locks, Sealer: box, PublicURL: cfg.Server.PublicURL, Logger: logger,
-		Quality: quality(cfg),
+		Quality: serverSettings.Quality,
 	}
 	destinations := store.NewDestinations(db)
 	destinationSvc := &destination.Service{
@@ -194,7 +201,7 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		Broadcasts: broadcasts, Locks: locks, Destinations: destinations, Targets: destinationSvc,
 		Stage: writer, Ingest: mtx, Processes: supervisor,
 		MaxConcurrent: cfg.Output.MaxConcurrent, StartTimeout: cfg.Output.StartTimeout.Std(),
-		Grace: cfg.Output.ReconnectGrace.Std(), Quality: quality(cfg), Logger: logger,
+		Grace: cfg.Output.ReconnectGrace.Std(), Quality: serverSettings.Quality, Logger: logger,
 	}
 	destinationSvc.Statuses, destinationSvc.Notifier = out, out
 	handlers.RegisterLive(srv.UserAPI(), handlers.LiveDeps{Output: out}) //nolint:contextcheck // handlers use each request's own context
@@ -243,15 +250,31 @@ func quality(cfg *config.Config) broadcast.Quality {
 	return broadcast.Quality{Default: cfg.Output.Resolution, Max: cfg.Output.MaxResolution, VideoKbps: cfg.Output.VideoBitrateKbps}
 }
 
-// warnFixedBitrate tells the operator when a fixed video bitrate starves the highest resolution a broadcast may
-// use. A config.toml copied from the example of 0.1.0 spells video_bitrate_kbps = 4000, which then applies to
-// every resolution: 0 lets the bitrate follow the resolution.
-func warnFixedBitrate(logger *slog.Logger, cfg *config.Config) {
-	fixed := cfg.Output.VideoBitrateKbps
-	byResolution := broadcast.Quality{Default: cfg.Output.MaxResolution, Max: cfg.Output.MaxResolution}.Profile(cfg.Output.MaxResolution)
-	if fixed != 0 && fixed < byResolution.VideoKbps {
-		logger.Warn("output.video_bitrate_kbps is fixed below what the highest resolution is meant for: set it to 0 to follow the resolution",
-			"video_bitrate_kbps", fixed, "max_resolution", cfg.Output.MaxResolution, "by_resolution_kbps", byResolution.VideoKbps)
+// lockedSettings names the server settings the environment sets (add-server-settings, S1): the app cannot change
+// them.
+func lockedSettings() []string {
+	var out []string
+	for field, env := range map[string]string{
+		settings.FieldResolution:    "STREAMGO_OUTPUT_RESOLUTION",
+		settings.FieldMaxResolution: "STREAMGO_OUTPUT_MAX_RESOLUTION",
+		settings.FieldVideoKbps:     "STREAMGO_OUTPUT_VIDEO_BITRATE_KBPS",
+	} {
+		if _, ok := os.LookupEnv(env); ok {
+			out = append(out, field)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// warnFixedBitrate tells the operator when the effective fixed video bitrate starves the highest resolution a
+// broadcast may use. A config.toml copied from the example of 0.1.0 spells video_bitrate_kbps = 4000, which then
+// applies to every resolution: 0 lets the bitrate follow the resolution.
+func warnFixedBitrate(logger *slog.Logger, q broadcast.Quality) {
+	byResolution := broadcast.Quality{Default: q.Max, Max: q.Max}.Profile(q.Max)
+	if q.VideoKbps != 0 && q.VideoKbps < byResolution.VideoKbps {
+		logger.Warn("the video bitrate is fixed below what the highest resolution is meant for: set it to by resolution (0) in Settings, Server",
+			"video_bitrate_kbps", q.VideoKbps, "max_resolution", q.Max, "by_resolution_kbps", byResolution.VideoKbps)
 	}
 }
 

@@ -104,9 +104,9 @@ type Service struct {
 	MaxConcurrent int           // output.max_concurrent
 	StartTimeout  time.Duration // output.start_timeout
 	Grace         time.Duration // output.reconnect_grace
-	// Quality gives the transcoder the broadcast's profile (zero: 720p). The resolution cannot change
-	// while the output is not offline, so every transcoder of a run gets the same profile.
-	Quality broadcast.Quality
+	// Quality gives the transcoder the broadcast's profile (nil or zero: 720p). It is read at a run's first
+	// transcoder; the run keeps that profile.
+	Quality func() broadcast.Quality
 	Logger  *slog.Logger
 	Now     func() time.Time
 
@@ -380,7 +380,10 @@ func (s *Service) apply(ctx context.Context, b *broadcast.Broadcast, events ...E
 		for _, c := range cmds {
 			switch c.Kind {
 			case StartTranscoder:
-				s.setProc(id, "", s.Processes.StartTranscoder(id, s.Quality.Profile(b.Resolution), s.notifier(id, c, TranscoderFlowing, ProgramLost))) //nolint:contextcheck // process events outlive the request
+				if st.Profile == (broadcast.Profile{}) {
+					st.Profile = s.quality().Profile(b.Resolution)
+				}
+				s.setProc(id, "", s.Processes.StartTranscoder(id, st.Profile, s.notifier(id, c, TranscoderFlowing, ProgramLost))) //nolint:contextcheck // process events outlive the request
 			case StartRelay:
 				t, err := s.Targets.Target(ctx, c.Dest)
 				if err != nil {
@@ -576,6 +579,13 @@ func (s *Service) isClosing() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.closing
+}
+
+func (s *Service) quality() broadcast.Quality {
+	if s.Quality == nil {
+		return broadcast.Quality{}
+	}
+	return s.Quality()
 }
 
 func (s *Service) init() {

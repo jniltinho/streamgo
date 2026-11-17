@@ -58,6 +58,28 @@ export interface UserPatch {
   password?: string
 }
 
+/** the output settings of GET and PUT /settings (administrators; add-server-settings) */
+export interface OutputSettings {
+  resolution: string
+  max_resolution: string
+  /** 0: each resolution's own bitrate */
+  video_bitrate_kbps: number
+  /** every known resolution, lowest first */
+  resolutions: string[]
+  /** the fields the server's environment sets: the app cannot change them */
+  locked: string[]
+}
+
+/** GET and PUT /settings */
+export interface ServerSettings {
+  output: OutputSettings
+}
+
+/** PUT /settings: only the given fields change */
+export interface ServerSettingsPatch {
+  output: Partial<Pick<OutputSettings, 'resolution' | 'max_resolution' | 'video_bitrate_kbps'>>
+}
+
 /** one entry of GET /themes */
 export interface ThemeInfo {
   id: string

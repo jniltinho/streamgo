@@ -130,8 +130,15 @@ ceiling to `1440p` only if the server and the owners can afford it: each live 14
 about two cores (one transcoder), and the owner's browser sends up to 24 Mbit/s. Some platforms accept at most
 1080p. `output.video_bitrate_kbps` is `0` by default, which sends each resolution at its own bitrate (4000, 6000 and
 12000 kbit/s); any other value, from 500 to 40000, is used for every resolution. Lowering the ceiling later is safe:
-a broadcast stored above it goes out at the ceiling. The measurements behind these numbers are in the
-[architecture guide](architecture.md#output-quality).
+a broadcast stored above it goes out at the ceiling, from its next go-live when it is live. The measurements behind
+these numbers are in the [architecture guide](architecture.md#output-quality).
+
+An administrator changes these three in the web app, **Settings → Server**: the values are stored in the database
+and apply at once, without a restart. Each one is taken from, in order: its environment variable
+(`STREAMGO_OUTPUT_RESOLUTION`, `STREAMGO_OUTPUT_MAX_RESOLUTION`, `STREAMGO_OUTPUT_VIDEO_BITRATE_KBPS`), the value
+saved in the app, then `config.toml` or the default. A setting given by its environment variable is locked in the
+app (shown disabled); remove the variable and restart to manage it from the app. At start the server warns when the
+effective fixed bitrate is below what the highest resolution is meant for.
 
 ## One StreamGo instance per deployment
 

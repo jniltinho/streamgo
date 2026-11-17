@@ -39,9 +39,9 @@ type Service struct {
 	Repo      Repository
 	Locks     *Locks
 	Sealer    Sealer
-	PublicURL string  // server.public_url; invite links are <PublicURL>/join/<token>
-	Remover   Remover // nil: nothing outside the row is removed
-	Quality   Quality // the output resolutions: default, ceiling, bitrate
+	PublicURL string         // server.public_url; invite links are <PublicURL>/join/<token>
+	Remover   Remover        // nil: nothing outside the row is removed
+	Quality   func() Quality // the output resolutions: default, ceiling, bitrate (nil: the zero Quality)
 	Logger    *slog.Logger
 }
 
@@ -98,8 +98,9 @@ func (s *Service) Update(ctx context.Context, owner, id string, p Patch) (*Broad
 		}
 		title = t
 	}
-	if p.Resolution != nil && !s.Quality.Allowed(*p.Resolution) {
-		return nil, core.Invalid("resolution", "must be one of "+strings.Join(s.resolutions(), ", "))
+	q := s.quality()
+	if p.Resolution != nil && !q.Allowed(*p.Resolution) {
+		return nil, core.Invalid("resolution", "must be one of "+strings.Join(resolutions(q), ", "))
 	}
 	unlock, err := s.Locks.Lock(ctx, id)
 	if err != nil {
@@ -115,7 +116,7 @@ func (s *Service) Update(ctx context.Context, owner, id string, p Patch) (*Broad
 	}
 	if p.Resolution != nil {
 		// the value it already goes out at is not a change, in any state
-		if b.Output.State != Offline && *p.Resolution != s.Quality.Profile(b.Resolution).Resolution {
+		if b.Output.State != Offline && *p.Resolution != q.Profile(b.Resolution).Resolution {
 			return nil, fmt.Errorf("change the resolution: the output is %s: %w", b.Output.State, core.ErrConflict)
 		}
 		if b.Output.State == Offline {
@@ -129,14 +130,21 @@ func (s *Service) Update(ctx context.Context, owner, id string, p Patch) (*Broad
 }
 
 // Profile is what the broadcast goes out at.
-func (s *Service) Profile(b *Broadcast) Profile { return s.Quality.Profile(b.Resolution) }
+func (s *Service) Profile(b *Broadcast) Profile { return s.quality().Profile(b.Resolution) }
 
 // Choices are the profiles the owner may choose from.
-func (s *Service) Choices() []Profile { return s.Quality.Choices() }
+func (s *Service) Choices() []Profile { return s.quality().Choices() }
 
-func (s *Service) resolutions() []string {
+func (s *Service) quality() Quality {
+	if s.Quality == nil {
+		return Quality{}
+	}
+	return s.Quality()
+}
+
+func resolutions(q Quality) []string {
 	var out []string
-	for _, p := range s.Quality.Choices() {
+	for _, p := range q.Choices() {
 		out = append(out, p.Resolution)
 	}
 	return out

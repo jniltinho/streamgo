@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // Theme and language in one modal, a tab each: the sign-in page and the signed-in header open it, so neither
 // carries those controls itself. Signed in it is "Settings", with a third tab for the name shown on the user's
-// name tag and the user's own password.
+// name tag and the user's own password, and for administrators a Server tab (ServerSettingsTab.vue).
 import { ref } from 'vue'
 import AppModal from '@/components/AppModal.vue'
 import LanguageSelect from '@/components/LanguageSelect.vue'
+import ServerSettingsTab from '@/components/ServerSettingsTab.vue'
 import ThemePicker from '@/components/ThemePicker.vue'
 import UiAlert from '@/components/ui/UiAlert.vue'
 import { ApiError } from '@/api/client'
@@ -15,7 +16,7 @@ import { errorMessage, t } from '@/i18n'
 const props = defineProps<{ initial?: 'theme' | 'language' | 'profile' }>()
 const emit = defineEmits<{ close: [] }>()
 const session = useSession()
-const tab = ref<'theme' | 'language' | 'profile'>(props.initial ?? 'theme')
+const tab = ref<'theme' | 'language' | 'profile' | 'server'>(props.initial ?? 'theme')
 const name = ref(session.me?.name ?? '')
 const nameError = ref('')
 const busy = ref(false)
@@ -103,6 +104,19 @@ async function changePassword(form: HTMLFormElement) {
       >
         {{ t('Profile') }}
       </button>
+      <button
+        v-if="session.me?.admin"
+        id="pref-tab-server"
+        type="button"
+        role="tab"
+        class="cardtab"
+        :class="{ on: tab === 'server' }"
+        :aria-selected="tab === 'server'"
+        aria-controls="pref-panel"
+        @click="tab = 'server'"
+      >
+        {{ t('Server') }}
+      </button>
     </div>
     <div id="pref-panel" class="pnl-body" role="tabpanel" :aria-labelledby="`pref-tab-${tab}`">
       <ThemePicker v-if="tab === 'theme'" />
@@ -110,6 +124,7 @@ async function changePassword(form: HTMLFormElement) {
         <label class="lbl" for="pref-lang">{{ t('Language') }}</label>
         <LanguageSelect id="pref-lang" />
       </div>
+      <ServerSettingsTab v-else-if="tab === 'server'" />
       <div v-else class="grid items-start gap-6 md:grid-cols-2">
         <form
           class="grid max-w-[20rem] gap-3"

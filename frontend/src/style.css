@@ -745,11 +745,12 @@ dialog.pnl.closing::backdrop {
 /* toasts (as in the earlier panel) */
 #toasts {
   position: fixed;
-  top: 0.875rem;
+  /* below the header bar (2rem), so a toast never covers its controls */
+  top: 2.5rem;
   right: 0.875rem;
   z-index: 9999;
   /* a popover: none of the browser's popover box */
-  inset: 0.875rem 0.875rem auto auto;
+  inset: 2.5rem 0.875rem auto auto;
   margin: 0;
   padding: 0;
   overflow: visible;

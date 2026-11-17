@@ -216,7 +216,10 @@ func serverRuns(t *testing.T, driver string) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	if code, body := get("/readyz"); code != http.StatusOK || !strings.Contains(body, `"database":"ok"`) {
+	// No LiveKit here: readyz says not ready and names it, with the database ok. The server is not pointed at
+	// the test LiveKit on purpose: its reconciler would delete the rooms of the packages testing against it.
+	if code, body := get("/readyz"); code != http.StatusServiceUnavailable ||
+		!strings.Contains(body, `"database":"ok"`) || !strings.Contains(body, `"livekit"`) {
 		t.Errorf("readyz: %d %s", code, body)
 	}
 	if code, body := get("/api/v1/nope"); code != http.StatusNotFound || !strings.Contains(body, `"not_found"`) {

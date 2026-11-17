@@ -28,8 +28,6 @@ type JoinDeps struct {
 	SecureCookies bool
 }
 
-var errRateLimited = httpserver.NewError(http.StatusTooManyRequests, "rate_limited", "Too many requests. Try again in a minute.")
-
 // RegisterJoin adds the invite-link routes to g (srv.API()).
 func RegisterJoin(g *echo.Group, d JoinDeps) {
 	s := d.Studio

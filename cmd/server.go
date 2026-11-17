@@ -7,9 +7,11 @@ import (
 	"errors"
 	"net"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/labstack/echo/v5"
 	"github.com/spf13/cobra"
 
 	"github.com/jniltinho/streamgo/internal/buildinfo"
@@ -17,8 +19,11 @@ import (
 	"github.com/jniltinho/streamgo/internal/core/account"
 	"github.com/jniltinho/streamgo/internal/core/broadcast"
 	"github.com/jniltinho/streamgo/internal/core/destination"
+	"github.com/jniltinho/streamgo/internal/core/stage"
+	"github.com/jniltinho/streamgo/internal/core/studio"
 	"github.com/jniltinho/streamgo/internal/httpserver"
 	"github.com/jniltinho/streamgo/internal/httpserver/handlers"
+	"github.com/jniltinho/streamgo/internal/livekit"
 	"github.com/jniltinho/streamgo/internal/ratelimit"
 	"github.com/jniltinho/streamgo/internal/sealed"
 	"github.com/jniltinho/streamgo/internal/store"
@@ -90,21 +95,26 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		Limiter:      ratelimit.New(10, time.Minute, 100_000), // sign-in attempts per client address
 		SecureCookie: cfg.SecureCookies(),
 	}
+	rooms := livekit.New(cfg.LiveKit.APIURL, cfg.LiveKit.APIKey, cfg.LiveKit.APISecret)
 	srv := httpserver.New(httpserver.Options{ //nolint:contextcheck // handlers use each request's own context
 		Addr:           cfg.Server.Addr,
 		PublicOrigin:   cfg.PublicOrigin(),
 		TrustedProxies: cfg.TrustedProxyPrefixes(),
 		Logger:         logger,
 		Dist:           web.Dist(),
-		ReadyChecks:    []httpserver.Check{{Name: "database", Check: db.Ping}},
-		Authenticate:   handlers.Authenticator(authDeps), //nolint:contextcheck // it uses each request's own context
+		BodyLimits:     handlers.LogoBodyLimits,
+		ReadyChecks: []httpserver.Check{
+			{Name: "database", Check: db.Ping},
+			{Name: "livekit", Check: rooms.Ready},
+		},
+		Authenticate: handlers.Authenticator(authDeps), //nolint:contextcheck // it uses each request's own context
 	})
 	handlers.RegisterAuth(srv.API(), authDeps)
 	handlers.RegisterThemes(srv.API())
 	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: accounts})
 
-	// Broadcasts and destinations. Remover (studio) and Statuses/Notifier (live output) are plugged in when
-	// those packages are integrated: until then nothing outside the row is removed and every status is "off".
+	// Broadcasts and destinations. Statuses and Notifier (live output) are plugged in when that package is
+	// integrated: until then every destination status is "off".
 	box, err := sealed.New(cfg.Secret.Bytes())
 	if err != nil {
 		return err
@@ -122,9 +132,58 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		Broadcasts: broadcastSvc, Destinations: destinationSvc,
 	})
 	handlers.RegisterDestinations(srv.UserAPI(), handlers.DestinationsDeps{Destinations: destinationSvc})
+
+	// Studio: the stage's single writer, joining, guests, banners, the logo, and the room reconciler.
+	writer := &stage.Writer{
+		Broadcasts: broadcasts, Locks: locks, Rooms: rooms, MaxOnStage: cfg.Studio.MaxOnStage, Logger: logger,
+	}
+	studioSvc := &studio.Service{
+		Broadcasts: broadcasts, Locks: locks, Stage: writer, Rooms: rooms,
+		Guests: store.NewGuests(db), Banners: store.NewBanners(db),
+		OwnerName: func(ctx context.Context, userID string) (string, error) {
+			u, err := accounts.User(ctx, userID)
+			if err != nil {
+				return "", err
+			}
+			return u.Name, nil
+		},
+		URL: cfg.LiveKit.URL, MaxParticipants: cfg.Studio.MaxParticipants,
+		AssetsDir: filepath.Join(cfg.Server.DataDir, "assets"), Logger: logger,
+	}
+	broadcastSvc.Remover = roomRemover{studioSvc}
+	handlers.RegisterStudio(srv.UserAPI(), handlers.StudioDeps{Studio: studioSvc}) //nolint:contextcheck // handlers use each request's own context
+	handlers.RegisterJoin(srv.API(), handlers.JoinDeps{                            //nolint:contextcheck // as above
+		Studio:        studioSvc,
+		Limiter:       ratelimit.New(20, time.Minute, 100_000), // guest joins per client address
+		SecureCookies: cfg.SecureCookies(),
+	})
+	if root, ok := srv.Handler().(*echo.Echo); ok {
+		handlers.RegisterAssets(root, studioSvc)
+	}
+
+	// The reconciler is owned here: it stops, and is waited for, before the database closes.
+	reconciler := &studio.Reconciler{Studio: studioSvc}
+	rctx, stopReconciler := context.WithCancel(ctx)
+	reconciled := make(chan struct{})
+	go func() {
+		defer close(reconciled)
+		reconciler.Run(rctx)
+	}()
+	defer func() {
+		stopReconciler()
+		<-reconciled
+	}()
+
 	if err := srv.Run(ctx, onListen); err != nil {
 		return err
 	}
 	logger.Info("streamgo stopped")
 	return nil
+}
+
+// roomRemover is the broadcasts package's Remover: deleting a broadcast closes its room and removes its logo.
+type roomRemover struct{ studio *studio.Service }
+
+func (r roomRemover) RemoveBroadcast(ctx context.Context, b broadcast.Broadcast) error {
+	return r.studio.Teardown(ctx, b.ID, b.Logo)
 }

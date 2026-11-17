@@ -27,7 +27,7 @@ import (
 	"github.com/jniltinho/streamgo/internal/httpserver/handlers"
 )
 
-const origin = "https://studio.example.test"
+const studioOrigin = "https://studio.example.test"
 
 // limiter is a minimal fixed-window stand-in for internal/ratelimit.
 type limiter struct {
@@ -55,7 +55,7 @@ func newHarness(t *testing.T) *harness {
 	t.Helper()
 	e := studiotest.New(t)
 	srv := httpserver.New(httpserver.Options{
-		PublicOrigin: origin,
+		PublicOrigin: studioOrigin,
 		BodyLimits:   handlers.LogoBodyLimits,
 		Authenticate: func(c *echo.Context) (string, error) {
 			if u := c.Request().Header.Get("X-Test-User"); u != "" {
@@ -79,7 +79,7 @@ type call struct {
 func (h *harness) do(t *testing.T, c call) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequestWithContext(context.Background(), c.method, c.path, strings.NewReader(c.body))
-	req.Header.Set("Origin", origin)
+	req.Header.Set("Origin", studioOrigin)
 	if c.contentType == "" {
 		c.contentType = "application/json"
 	}

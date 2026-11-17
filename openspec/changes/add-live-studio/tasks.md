@@ -86,7 +86,7 @@ counter into its video and plays a distinct tone.
   selection per broadcast, the in-use rule), the broadcast and destination repositories and handlers; verify
   every `broadcasts` and `destinations` scenario except "Redacted from errors" and "Name that later resolves to
   a private address", which are verified in 3.D
-- [ ] 3.C Studio: `core/stage` (state, validation, the single writer under the broadcast's lock), `core/studio`
+- [x] 3.C Studio: `core/stage` (state, validation, the single writer under the broadcast's lock), `core/studio`
   (owner and guest joining, guest sessions and expiry, capacity with the owner's priority, removal, the room
   reconciler), `internal/livekit` (tokens, rooms, metadata, participants), the banner and guest repositories,
   the studio, join, banners and logo handlers; verify every `studio` scenario, with a fake `Rooms` and a
@@ -101,7 +101,7 @@ counter into its video and plays a distinct tone.
   `destinations` scenarios left by 3.B and the `server-cli` "Graceful stop while live" scenario, using a fake
   ffmpeg script in unit tests and the real stack, with SIGKILL of the server, in an integration test. If the
   spike adopted MediaMTX forwards (1.6), the relays are implemented with them behind the same port
-- [ ] 3.E Frontend core: the layout function, the compositor (sources read with `MediaStreamTrackProcessor`,
+- [x] 3.E Frontend core: the layout function, the compositor (sources read with `MediaStreamTrackProcessor`,
   the program emitted with `MediaStreamTrackGenerator` on a 30 fps grid from a worker timer, the simple
   `<video>` drawing for guests' previews; placeholders, name tags, logo, banner), the audio mix (program and
   monitor buses, remote tracks through muted audio elements, limiter with its gain taken back, each track once)

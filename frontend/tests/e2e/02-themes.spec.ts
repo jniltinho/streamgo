@@ -228,7 +228,7 @@ test.describe('theme precedence', () => {
   test('signed in: the choice is saved in the user preferences', async ({ page }) => {
     const api = await stubApi(page, ANA)
     await page.goto('/broadcasts')
-    await page.locator('summary[aria-label=Theme]').click()
+    await page.getByRole('button', { name: 'Theme and language' }).click()
     await page.locator("[data-theme-id='winamp']").click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'winamp')
     await expect.poll(() => api.patches).toEqual([{ theme: 'winamp' }])

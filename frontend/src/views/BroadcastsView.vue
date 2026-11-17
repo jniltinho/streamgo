@@ -2,7 +2,7 @@
 // The user's broadcasts, newest first, with their state: create, rename, delete, and open one in the studio.
 import { onMounted, ref } from 'vue'
 import { Plus, Radio } from '@lucide/vue'
-import AppModal from '@/components/AppModal.vue'
+import BroadcastModal from '@/components/BroadcastModal.vue'
 import UiAlert from '@/components/ui/UiAlert.vue'
 import { ApiError } from '@/api/client'
 import type { Broadcast, Output } from '@/api/types'
@@ -13,10 +13,8 @@ import { errorMessage, t } from '@/i18n'
 
 const store = useBroadcasts()
 const loadError = ref('')
-// the create or rename dialog: id null creates
-const editing = ref<{ id: string | null; title: string } | null>(null)
-const formError = ref('')
-const busy = ref(false)
+// the create or rename modal: undefined is closed, null creates
+const editing = ref<Broadcast | null | undefined>(undefined)
 
 const message = (e: unknown) => (e instanceof ApiError ? errorMessage(e.code, e.message) : t('Unexpected error.'))
 
@@ -34,33 +32,6 @@ async function load() {
   }
 }
 onMounted(load)
-
-function open(b: Broadcast | null) {
-  formError.value = ''
-  editing.value = { id: b?.id ?? null, title: b?.title ?? '' }
-}
-
-async function save() {
-  const ed = editing.value
-  if (!ed) return
-  busy.value = true
-  formError.value = ''
-  try {
-    const title = ed.title.trim()
-    if (ed.id) {
-      await store.rename(ed.id, title)
-      toast.success(t('Broadcast renamed.'))
-    } else {
-      await store.create(title)
-      toast.success(t('Broadcast {title} created.', { title }))
-    }
-    editing.value = null
-  } catch (e) {
-    formError.value = message(e)
-  } finally {
-    busy.value = false
-  }
-}
 
 async function remove(b: Broadcast) {
   if (!(await askConfirm(t('Delete the broadcast {title}?', { title: b.title }), { ok: t('Delete'), danger: true })))
@@ -80,7 +51,7 @@ async function remove(b: Broadcast) {
   <div>
     <div class="mb-3 flex items-center gap-2">
       <h1 class="page-title mb-0 flex-1">{{ t('Broadcasts') }}</h1>
-      <button type="button" class="btn" @click="open(null)">
+      <button type="button" class="btn" @click="editing = null">
         <Plus class="size-3.5" aria-hidden="true" /> {{ t('New broadcast') }}
       </button>
     </div>
@@ -114,7 +85,7 @@ async function remove(b: Broadcast) {
                 type="button"
                 class="btn-ghost"
                 :aria-label="t('Rename {title}', { title: b.title })"
-                @click="open(b)"
+                @click="editing = b"
               >
                 {{ t('Rename') }}
               </button>
@@ -132,18 +103,6 @@ async function remove(b: Broadcast) {
       </tbody>
     </table>
 
-    <AppModal v-if="editing" :title="editing.id ? t('Rename broadcast') : t('New broadcast')" @close="editing = null">
-      <form novalidate @submit.prevent="($event.target as HTMLFormElement).reportValidity() && save()">
-        <div class="pnl-body">
-          <UiAlert v-if="formError" kind="error" class="mb-3">{{ formError }}</UiAlert>
-          <label class="lbl" for="b-title">{{ t('Title') }}</label>
-          <input id="b-title" v-model="editing.title" class="inp" required maxlength="120" pattern=".*\S.*" />
-        </div>
-        <div class="pnl-foot">
-          <button type="submit" class="btn" :disabled="busy">{{ editing.id ? t('Save') : t('Create') }}</button>
-          <button type="button" class="btn-ghost" @click="editing = null">{{ t('Cancel') }}</button>
-        </div>
-      </form>
-    </AppModal>
+    <BroadcastModal v-if="editing !== undefined" :broadcast="editing" @close="editing = undefined" />
   </div>
 </template>

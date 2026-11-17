@@ -15,9 +15,12 @@ import (
 	"github.com/jniltinho/streamgo/internal/buildinfo"
 	"github.com/jniltinho/streamgo/internal/config"
 	"github.com/jniltinho/streamgo/internal/core/account"
+	"github.com/jniltinho/streamgo/internal/core/broadcast"
+	"github.com/jniltinho/streamgo/internal/core/destination"
 	"github.com/jniltinho/streamgo/internal/httpserver"
 	"github.com/jniltinho/streamgo/internal/httpserver/handlers"
 	"github.com/jniltinho/streamgo/internal/ratelimit"
+	"github.com/jniltinho/streamgo/internal/sealed"
 	"github.com/jniltinho/streamgo/internal/store"
 	"github.com/jniltinho/streamgo/web"
 )
@@ -94,11 +97,31 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		Logger:         logger,
 		Dist:           web.Dist(),
 		ReadyChecks:    []httpserver.Check{{Name: "database", Check: db.Ping}},
-		Authenticate:   handlers.Authenticator(authDeps),
+		Authenticate:   handlers.Authenticator(authDeps), //nolint:contextcheck // it uses each request's own context
 	})
 	handlers.RegisterAuth(srv.API(), authDeps)
 	handlers.RegisterThemes(srv.API())
 	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: accounts})
+
+	// Broadcasts and destinations. Remover (studio) and Statuses/Notifier (live output) are plugged in when
+	// those packages are integrated: until then nothing outside the row is removed and every status is "off".
+	box, err := sealed.New(cfg.Secret.Bytes())
+	if err != nil {
+		return err
+	}
+	locks := &broadcast.Locks{}
+	broadcasts := store.NewBroadcasts(db)
+	broadcastSvc := &broadcast.Service{
+		Repo: broadcasts, Locks: locks, Sealer: box, PublicURL: cfg.Server.PublicURL, Logger: logger,
+	}
+	destinationSvc := &destination.Service{
+		Repo: store.NewDestinations(db), Broadcasts: broadcasts, Locks: locks, Sealer: box,
+		AllowPrivate: cfg.Output.AllowPrivateDestinations, MaxPerBroadcast: cfg.Output.MaxDestinations,
+	}
+	handlers.RegisterBroadcasts(srv.UserAPI(), handlers.BroadcastsDeps{
+		Broadcasts: broadcastSvc, Destinations: destinationSvc,
+	})
+	handlers.RegisterDestinations(srv.UserAPI(), handlers.DestinationsDeps{Destinations: destinationSvc})
 	if err := srv.Run(ctx, onListen); err != nil {
 		return err
 	}

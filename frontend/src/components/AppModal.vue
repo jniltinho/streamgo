@@ -5,7 +5,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { X } from '@lucide/vue'
 import { t } from '@/i18n'
 
-defineProps<{ title: string }>()
+defineProps<{ title: string; wide?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const dlg = ref<HTMLDialogElement | null>(null)
 const opener = document.activeElement as HTMLElement | null
@@ -22,7 +22,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <dialog ref="dlg" class="pnl w-[min(28rem,92vw)]" aria-labelledby="app-modal-title" @cancel.prevent="emit('close')">
+  <dialog
+    ref="dlg"
+    class="pnl max-h-[90vh] overflow-auto"
+    :class="wide ? 'w-[min(60rem,92vw)]' : 'w-[min(28rem,92vw)]'"
+    aria-labelledby="app-modal-title"
+    @cancel.prevent="emit('close')"
+  >
     <div class="pnl-head flex items-center">
       <span id="app-modal-title" class="flex-1">{{ title }}</span>
       <button type="button" class="icon-btn modal-x" :aria-label="t('Close')" @click="emit('close')">

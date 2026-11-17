@@ -24,8 +24,7 @@ async function choose(e: Event) {
 </script>
 
 <template>
-  <!-- pr-(--select-pr): the .inp padding in the components layer hides the arrow room style.css gives select.inp -->
-  <select :id="id" class="inp pr-(--select-pr)" :value="locale" @change="choose">
+  <select :id="id" class="inp" :value="locale" @change="choose">
     <option v-for="l in languages" :key="l.id" :value="l.id" :lang="l.id">{{ l.label }}</option>
   </select>
 </template>

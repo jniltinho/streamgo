@@ -38,5 +38,9 @@ func LockInstance(dataDir string) (*Instance, error) {
 	return &Instance{f: f}, nil
 }
 
-// Close releases the lock.
-func (i *Instance) Close() error { return i.f.Close() }
+// Close releases the lock. It unlocks before closing: a child forked meanwhile holds a copy of the
+// descriptor until it execs, and closing ours alone would leave the lock held for that moment.
+func (i *Instance) Close() error {
+	err := unix.Flock(int(i.f.Fd()), unix.LOCK_UN) //nolint:gosec // a file descriptor fits an int
+	return errors.Join(err, i.f.Close())
+}

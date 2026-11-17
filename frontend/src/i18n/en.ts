@@ -26,6 +26,7 @@ const catalog: Catalog = {
   Studio: 'Studio',
   Success: 'Success',
   Theme: 'Theme',
+  'Theme and language': 'Theme and language',
   'This field is required.': 'This field is required.',
   'to confirm:': 'to confirm:',
   'Too short.': 'Too short.',

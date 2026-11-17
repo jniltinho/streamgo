@@ -1,12 +1,11 @@
 <!-- Portions adapted from MeetHub (MIT): frontend/src/views/LoginView.vue -->
 <script setup lang="ts">
 // Sign-in: e-mail and password, back to the page the visitor came from (?next=, kept inside the app by safeNext).
-// The language and the theme can be chosen before signing in.
+// The language and the theme can be chosen before signing in, in the preferences modal.
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LogIn, Palette } from '@lucide/vue'
-import LanguageSelect from '@/components/LanguageSelect.vue'
-import ThemePicker from '@/components/ThemePicker.vue'
+import PreferencesModal from '@/components/PreferencesModal.vue'
 import UiAlert from '@/components/ui/UiAlert.vue'
 import { ApiError } from '@/api/client'
 import { safeNext } from '@/router'
@@ -20,6 +19,7 @@ const email = ref('')
 const password = ref('')
 const busy = ref(false)
 const error = ref('')
+const prefsOpen = ref(false)
 
 async function submit() {
   busy.value = true
@@ -62,12 +62,10 @@ async function submit() {
           <LogIn class="size-3.5" aria-hidden="true" /> {{ busy ? t('Please wait…') : t('Sign in') }}
         </button>
       </form>
-      <label class="lbl mt-4" for="lang">{{ t('Language') }}</label>
-      <LanguageSelect id="lang" />
-      <details class="mt-3">
-        <summary class="act px-0"><Palette class="size-3.5" aria-hidden="true" /> {{ t('Theme') }}</summary>
-        <div class="mt-2"><ThemePicker /></div>
-      </details>
+      <button type="button" class="act mt-4 px-0" @click="prefsOpen = true">
+        <Palette class="size-3.5" aria-hidden="true" /> {{ t('Theme and language') }}
+      </button>
     </main>
+    <PreferencesModal v-if="prefsOpen" @close="prefsOpen = false" />
   </div>
 </template>

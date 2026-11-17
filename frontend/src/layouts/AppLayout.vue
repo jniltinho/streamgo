@@ -1,18 +1,18 @@
 <!-- Portions adapted from MeetHub (MIT): frontend/src/layouts/AppLayout.vue -->
 <script setup lang="ts">
-// The signed-in shell: a header with the navigation, the user's name, the language switch, the theme picker and
-// sign-out; the page below it in a centred column of limited width (web-shell "Pages on large screens": 60rem is
+// The signed-in shell: a header with the navigation, the user's name, the theme and language modal and sign-out; the page below it in a centred column of limited width (web-shell "Pages on large screens": 60rem is
 // half of a Full HD window and, with the D13 root size, half of every larger one).
+import { ref } from 'vue'
 import { Palette } from '@lucide/vue'
 import { useRouter } from 'vue-router'
-import LanguageSelect from '@/components/LanguageSelect.vue'
-import ThemePicker from '@/components/ThemePicker.vue'
+import PreferencesModal from '@/components/PreferencesModal.vue'
 import { useSession } from '@/stores/session'
 import { toast } from '@/feedback/toasts'
 import { t } from '@/i18n'
 
 const session = useSession()
 const router = useRouter()
+const prefsOpen = ref(false)
 
 async function signOut() {
   try {
@@ -35,11 +35,9 @@ async function signOut() {
         </RouterLink>
       </nav>
       <span class="text-fg-muted" data-user-name>{{ session.me?.name }}</span>
-      <LanguageSelect id="app-lang" class="w-auto" :aria-label="t('Language')" />
-      <details class="relative">
-        <summary class="icon-btn" :aria-label="t('Theme')"><Palette class="size-4" aria-hidden="true" /></summary>
-        <div class="card absolute right-0 z-50 mt-1 w-[36rem] p-2"><ThemePicker /></div>
-      </details>
+      <button type="button" class="icon-btn" :aria-label="t('Theme and language')" @click="prefsOpen = true">
+        <Palette class="size-4" aria-hidden="true" />
+      </button>
       <button type="button" class="btn-ghost" @click="signOut">{{ t('Sign out') }}</button>
     </header>
     <main class="content-main">
@@ -47,5 +45,6 @@ async function signOut() {
         <RouterView />
       </div>
     </main>
+    <PreferencesModal v-if="prefsOpen" @close="prefsOpen = false" />
   </div>
 </template>

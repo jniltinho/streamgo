@@ -49,9 +49,11 @@ test.describe('sign-in', () => {
   test('language and theme can be chosen before signing in', async ({ page }) => {
     const api = await fakeApi(page, ANA, false)
     await page.goto('/login')
-    await page.getByLabel('Language').selectOption('pt-BR')
-    await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible()
-    await page.getByText('Tema').click()
+    await page.getByRole('button', { name: 'Theme and language' }).click()
+    await page.getByRole('tab', { name: 'Language' }).click()
+    await page.getByRole('combobox', { name: 'Language' }).selectOption('pt-BR')
+    await expect(page.locator('h1')).toHaveText('Entrar') // behind the modal, so not in the accessibility tree
+    await page.getByRole('tab', { name: 'Tema' }).click()
     await page.locator('[data-theme-id=matrix]').click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'matrix')
     expect(api.bodies).toEqual([]) // nothing saved while signed out
@@ -76,7 +78,10 @@ test.describe('signed-in shell', () => {
   }) => {
     const api = await fakeApi(page, ANA, true)
     await page.goto('/broadcasts')
+    await page.getByRole('button', { name: 'Theme and language' }).click()
+    await page.getByRole('tab', { name: 'Language' }).click()
     await page.getByRole('combobox', { name: 'Language' }).selectOption('pt-BR')
+    await page.keyboard.press('Escape')
     await expect(page.getByRole('heading', { name: 'Transmissões' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Sair' })).toBeVisible()
     await expect.poll(() => api.bodies).toContainEqual({ route: 'PATCH /me', body: { language: 'pt-BR' } })
@@ -266,6 +271,38 @@ test.describe('destinations', () => {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
     await expect(page.locator('.toast')).toContainText('Destination deleted.')
     await expect(page.getByText('No destinations yet.')).toBeVisible()
+  })
+})
+
+test.describe('no page scrollbar, modals below the top', () => {
+  for (const size of [
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+  ]) {
+    test(`sign-in and the theme and language modal fit ${size.width}x${size.height}`, async ({ page }) => {
+      await fakeApi(page, ANA, false)
+      await page.setViewportSize(size)
+      await page.goto('/login')
+      const fits = (sel: string) =>
+        page.locator(sel).evaluate((el) => el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth)
+      expect(await fits('html')).toBe(true)
+      expect(await fits('.auth-page')).toBe(true)
+      await page.getByRole('button', { name: 'Theme and language' }).click()
+      const dialog = page.locator('dialog[open]')
+      await expect(dialog).toBeVisible()
+      expect(await fits('dialog[open]')).toBe(true) // the 22 themes show without scrolling
+      const top = await dialog.evaluate((el) => el.getBoundingClientRect().top)
+      expect(Math.abs(top - size.height * 0.05)).toBeLessThanOrEqual(8) // 5% below the top (the rise animation ends there)
+    })
+  }
+
+  test('the signed-in pages do not scroll the document', async ({ page }) => {
+    await fakeApi(page, ANA, true)
+    for (const path of ['/broadcasts', '/destinations']) {
+      await page.goto(path)
+      await expect(page.locator('h1')).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+    }
   })
 })
 

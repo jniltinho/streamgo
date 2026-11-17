@@ -53,3 +53,10 @@ make check && make test && make test-db && make build && dist/streamgo version
 - **Migrations.** goose SQL files in `internal/store/migrations/{sqlite,mysql,postgres}` with the same number in all
   three (`00002_<name>.sql`); a test fails when the directories differ. `storetest.Each(t, fn)` runs a test on every
   database `make test-db` provides.
+
+## Web app conventions
+
+- Every modal is a component in its own file under `frontend/src/components/` built on `AppModal.vue`; views never
+  inline a modal. Modals and themed dialogs open 5 % of the window height below the top (`--dialog-top`).
+- No page scrollbar: the document never scrolls; a long list scrolls inside its own region.
+- The theme and the language live in `PreferencesModal.vue` (a tab each); pages do not carry their own controls.

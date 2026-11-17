@@ -362,7 +362,7 @@
   --toast-head-mix: 100%;
   --toast-alpha: 100%; /* < 100%: a translucent banner (the page blurred behind it, --toast-blur) */
   --toast-blur: 0px;
-  --dialog-top: 0.1; /* where a dialog opens, a fraction of the window height (0: a sheet hanging from the top) */
+  --dialog-top: 0.05; /* where a dialog opens: 5% of the window height below the top, in every theme */
   --dialog-rise: 0.375rem; /* it comes in from this far below (negative: from above, a sheet sliding down) */
   --focus-ring-w: 2px;
   --toast-line-w: 2px;
@@ -540,6 +540,10 @@ body {
   .inp {
     @apply h-(--control-h) w-full border border-field-line bg-field px-(--input-px) text-(length:--control-text) text-on-field shadow-(--shadow-field) outline-none focus:border-field-focus focus:shadow-(--shadow-field-focus) transition-[border-color,box-shadow] duration-150;
   }
+  /* in this layer, after .inp: its horizontal padding would otherwise win over the base layer's room for the arrow */
+  select.inp {
+    padding-right: var(--select-pr);
+  }
   /* filled by the browser and focused: the focus ring and the inset shadow that hides the autofill background */
   .inp:-webkit-autofill:focus {
     box-shadow:
@@ -681,7 +685,7 @@ body {
 dialog.pnl {
   @apply border-2 border-dialog-line bg-surface p-0 text-on-dialog shadow-(--shadow-dialog);
   border-width: var(--dialog-line-w);
-  /* 10% of the window height from the top, centered horizontally (like the login), in every theme */
+  /* 5% of the window height from the top (--dialog-top), centred horizontally, in every theme */
   margin: calc(var(--view-h) * var(--dialog-top)) auto auto;
 }
 dialog.pnl::backdrop {

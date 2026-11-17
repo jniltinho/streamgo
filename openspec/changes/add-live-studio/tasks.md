@@ -76,12 +76,12 @@ counter into its video and plays a distinct tone.
 
 ## 3. Parallel packages
 
-- [ ] 3.A Accounts: `core/account` (argon2id, sessions with inactivity expiry, disable), its repositories, the
+- [x] 3.A Accounts: `core/account` (argon2id, sessions with inactivity expiry, disable), its repositories, the
   auth and `me` handlers (`PATCH /me` validating the theme against the registry), the session middleware, the
   bounded sign-in rate limiter and `cmd/user.go`; verify the `authentication` "Accounts", "Password sign-in and
   sessions", "Sign-in rate limit" and "Authorization in the server" scenarios, the `server-cli` "User command"
   scenarios and the `ui-themes` "Follows the user" and "Unknown theme" scenarios
-- [ ] 3.B Broadcasts and destinations: `internal/sealed`, `core/broadcast` (management, deletion with its room,
+- [x] 3.B Broadcasts and destinations: `internal/sealed`, `core/broadcast` (management, deletion with its room,
   invite link and rotation), `core/destination` (management, sealed address and key, the private-address check,
   selection per broadcast, the in-use rule), the broadcast and destination repositories and handlers; verify
   every `broadcasts` and `destinations` scenario except "Redacted from errors" and "Name that later resolves to
@@ -107,7 +107,7 @@ counter into its video and plays a distinct tone.
   monitor buses, remote tracks through muted audio elements, limiter with its gain taken back, each track once)
   and the WHIP client (candidates gathered before the offer, no offer while audio is suspended), without Vue; verify the `studio-ui` "Layout rectangles" and "Absent participant" scenarios as a
   property test over every layout and source count, compositor snapshot tests, and audio-graph tests with tones
-- [ ] 3.F App pages: the sign-in, broadcasts and destinations views with their stores and API modules, the route
+- [x] 3.F App pages: the sign-in, broadcasts and destinations views with their stores and API modules, the route
   guard and the language switch, in a centred column that follows the D13 scale; verify every `web-shell`
   scenario with Playwright against the running server
 - [ ] 3.G Themes: copy MeetHub's 20 carried-over theme files, `matrix.json`, `catalog.ts`, `apply.ts` and the

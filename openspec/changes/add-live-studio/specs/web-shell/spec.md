@@ -37,6 +37,31 @@ in a centred column of limited width, so lines do not stretch across a QHD or 4K
 - **WHEN** the broadcasts page is opened in a 3840x2160 window
 - **THEN** its content is a centred column no wider than half the window, with text at twice its Full HD size
 
+### Requirement: Modals and scrolling
+Every modal SHALL be a component in its own file, open 5 % of the window height below the top, centred
+horizontally, in every theme, and scroll inside itself when its content is taller than the window. No page SHALL
+show a page scrollbar: the document never scrolls, and a list longer than its region scrolls inside that region.
+The theme and the language SHALL be chosen in one modal with a tab each, opened from the sign-in page and from the
+signed-in header, which carry no theme or language control of their own.
+
+#### Scenario: Modal position
+- **WHEN** any modal or themed dialog opens in a 1280x720 or a 1920x1080 window
+- **THEN** its top edge is 5 % of the window height below the top
+
+#### Scenario: Sign-in page is only the form
+- **WHEN** the sign-in page opens
+- **THEN** it shows the e-mail, the password, the sign-in button and one "Theme and language" button, and the
+  page does not scroll
+
+#### Scenario: Theme and language modal
+- **WHEN** "Theme and language" is opened
+- **THEN** the Theme tab shows the 22 themes without scrolling at 1280x720, and the Language tab the language
+  choice
+
+#### Scenario: No page scrollbar
+- **WHEN** the sign-in, broadcasts or destinations page is open
+- **THEN** the document's height does not exceed the window's
+
 ### Requirement: Language
 The web app SHALL be in English by default with a pt-BR catalog, choose the language from the user's preference,
 else the browser's, and let the user change it without a reload. Every catalog SHALL have the same keys.

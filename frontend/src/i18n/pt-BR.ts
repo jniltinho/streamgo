@@ -27,6 +27,7 @@ const catalog: Catalog = {
   Studio: 'Estúdio',
   Success: 'Sucesso',
   Theme: 'Tema',
+  'Theme and language': 'Tema e idioma',
   'This field is required.': 'Este campo é obrigatório.',
   'to confirm:': 'para confirmar:',
   'Too short.': 'Curto demais.',

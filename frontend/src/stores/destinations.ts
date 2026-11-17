@@ -2,7 +2,8 @@
 // the host and whether a key is set, and a PATCH without them keeps the stored ones.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { api } from '@/api/client'
+import { api, ApiError } from '@/api/client'
+import { errorMessage, t } from '@/i18n'
 import type { Destination, DestinationCreate, DestinationList, DestinationPatch } from '@/api/types'
 
 export const useDestinations = defineStore('destinations', () => {
@@ -33,3 +34,9 @@ export const useDestinations = defineStore('destinations', () => {
 
   return { items, loaded, load, create, update, remove }
 })
+
+// destinationError is the message for a failed destination request: a 409 means a broadcast is using it.
+export function destinationError(e: unknown): string {
+  if (e instanceof ApiError && e.code === 'conflict') return t('This destination is in use by a broadcast.')
+  return e instanceof ApiError ? errorMessage(e.code, e.message) : t('Unexpected error.')
+}

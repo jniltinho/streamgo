@@ -61,12 +61,9 @@ func (d MeDeps) patch(c *echo.Context) error {
 			return &httpserver.Error{Status: http.StatusUnprocessableEntity, Code: "invalid_language", Message: "This language is not available.", Field: "language"}
 		}
 	}
-	if in.Name != nil { // validated before anything is stored
-		if _, err := d.Accounts.Rename(c.Request().Context(), httpserver.UserID(c), *in.Name); err != nil {
-			return err
-		}
-	}
-	u, err := d.Accounts.SetPreferences(c.Request().Context(), httpserver.UserID(c), in.Theme, in.Language)
+	// one update with only the given fields: a refused name stores nothing, and a name alone does not write
+	// the theme or the language back
+	u, err := d.Accounts.UpdateProfile(c.Request().Context(), httpserver.UserID(c), in.Name, in.Theme, in.Language)
 	if err != nil {
 		return err
 	}

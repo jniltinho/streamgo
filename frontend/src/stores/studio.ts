@@ -474,9 +474,19 @@ export const useStudio = defineStore('studio', () => {
   async function joinGuest(token: string, name: string, publish: { mic: boolean; cam: boolean }) {
     reset('guest')
     try {
-      const j = await api<GuestJoin>('POST', `/join/${encodeURIComponent(token)}`, { name })
+      const join = () => api<GuestJoin>('POST', `/join/${encodeURIComponent(token)}`, { name })
+      const j = await join()
       title.value = j.title
-      await connect(j, publish)
+      try {
+        await connect(j, publish)
+      } catch (e) {
+        // Two guests can pass the server's check for the last place; the media server then refuses one. Asking
+        // again tells that from a network failure: the place is taken now, and the answer is "studio_full".
+        await join().catch((again) => {
+          if (isFull(again)) throw again
+        })
+        throw e
+      }
     } catch (e) {
       disconnect()
       throw e

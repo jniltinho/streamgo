@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The backstage: every participant and shared screen in the studio with whether each is on stage. The owner adds
-// and takes sources off the stage and removes guests; a guest sees the names only.
+// and takes sources off the stage, removes guests and sees a live picture of every source; a guest sees the names,
+// and a picture only of their own camera and screen.
 import { computed, ref } from 'vue'
 import { MicAudioLines, Mic, MicOff, MonitorUp, UserMinus, UserPlus, Video, VideoOff } from '@lucide/vue'
 import InviteModal from '@/components/studio/InviteModal.vue'
@@ -33,7 +34,8 @@ const cards = computed<Card[]>(() =>
         ? [{ key: `${p.identity}:screen`, person: p, source: { p: p.identity, k: 'screen' as const } }]
         : []),
     ])
-    .map((c) => ({ ...c, track: studio.videoTrack(c.source) })),
+    // the live picture of what is off stage is the owner's to see; a guest sees their own and names otherwise
+    .map((c) => ({ ...c, track: owner.value || c.person.local ? studio.videoTrack(c.source) : null })),
 )
 
 const label = (c: Card) => (c.source.k === 'screen' ? t("{name}'s screen", { name: c.person.name }) : c.person.name)

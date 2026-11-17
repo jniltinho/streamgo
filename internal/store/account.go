@@ -120,14 +120,18 @@ func (a *Accounts) SetDisabledAt(ctx context.Context, id string, t time.Time) er
 	return a.updateUser(ctx, id, map[string]any{"disabled_at": at})
 }
 
-// SetName stores the user's display name.
-func (a *Accounts) SetName(ctx context.Context, id, name string) error {
-	return a.updateUser(ctx, id, map[string]any{"name": name})
-}
-
-// SetPreferences stores the user's theme and language.
-func (a *Accounts) SetPreferences(ctx context.Context, id, theme, language string) error {
-	return a.updateUser(ctx, id, map[string]any{"theme": theme, "language": language})
+// UpdateProfile writes the given fields (nil: untouched) in one UPDATE.
+func (a *Accounts) UpdateProfile(ctx context.Context, id string, name, theme, language *string) error {
+	values := map[string]any{}
+	for column, v := range map[string]*string{"name": name, "theme": theme, "language": language} {
+		if v != nil {
+			values[column] = *v
+		}
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	return a.updateUser(ctx, id, values)
 }
 
 // CreateSession stores a session.

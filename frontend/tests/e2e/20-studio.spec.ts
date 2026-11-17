@@ -174,18 +174,6 @@ test.describe('owner studio', () => {
             .evaluate((v: HTMLVideoElement) => v.videoWidth),
         )
         .toBeGreaterThan(0)
-    // "Speaking": the microphone mark of a card changes while the media server hears that person (the fake
-    // microphone beeps)
-    for (const n of ['Ana Souza', 'Bruno Reis'])
-      await expect
-        .poll(
-          () =>
-            card(studio, n)
-              .getByRole('img')
-              .evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))),
-          { timeout: 20_000, intervals: [130] }, // the fake microphone beeps once a second: do not poll in step
-        )
-        .toContain('Speaking')
     // the invite link with copy and rotate, and the device settings, each in its own modal
     await studio.getByRole('toolbar').getByRole('button', { name: 'Invite', exact: true }).click()
     await expect(studio.locator('[data-invite-url]')).toHaveValue(b.invite_url)
@@ -235,6 +223,9 @@ test.describe('owner studio', () => {
     await expect(place(bruno.page)).toHaveText(/On stage/, { timeout: 15_000 })
     await expect(bruno.page.locator('[data-on-air]')).toHaveText(/Not on air/)
     await expect(card(bruno.page, 'Ana Souza')).toBeVisible()
+    // a guest sees the live picture of their own card only, never of someone else's source off stage
+    await expect(card(bruno.page, 'Bruno Reis').locator('[data-preview]')).toHaveCount(1)
+    await expect(card(bruno.page, 'Ana Souza').locator('[data-preview]')).toHaveCount(0)
     // the guest has no control that changes the stage
     await expect(bruno.page.getByRole('radiogroup', { name: 'Layout' })).toHaveCount(0)
     await expect(bruno.page.getByRole('button', { name: /Add to stage:|Take off the stage:/ })).toHaveCount(0)
@@ -397,6 +388,46 @@ test.describe('owner studio', () => {
       timeout: 15_000,
     })
   })
+})
+
+// "Speaking": Chrome's fake microphone beeps for a fraction of a second, which the media server does not always
+// take for speech, so this guest's microphone is a steady tone made in the page.
+test('Speaking: the microphone mark of a card follows a steady voice and its silence', async ({ browser }) => {
+  const ctx = await ownerContext(browser)
+  const b = await newBroadcast(ctx, 'Speaking')
+  const studio = await openStudio(ctx, b.id)
+  const guest = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: 'dark' })
+  await guest.addInitScript(() => {
+    const md = navigator.mediaDevices
+    const original = md.getUserMedia.bind(md)
+    let audio: AudioContext | null = null
+    md.getUserMedia = async (c?: MediaStreamConstraints) => {
+      const out = new MediaStream()
+      if (c?.video) for (const t of (await original({ video: c.video })).getVideoTracks()) out.addTrack(t)
+      if (c?.audio) {
+        audio ??= new AudioContext()
+        const gain = new GainNode(audio, { gain: 0.5 })
+        const to = audio.createMediaStreamDestination()
+        const tone = new OscillatorNode(audio, { frequency: 440 })
+        tone.connect(gain).connect(to)
+        tone.start()
+        ;(window as unknown as { __voice: GainNode }).__voice = gain
+        out.addTrack(to.stream.getAudioTracks()[0]!)
+      }
+      return out
+    }
+    for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => void audio?.resume(), true)
+  })
+  const page = await guest.newPage()
+  await page.goto(b.invite_url)
+  await page.getByLabel('Your name').fill('Clara Voz')
+  await page.getByRole('button', { name: 'Enter studio' }).click()
+  const clara = card(studio, 'Clara Voz')
+  await expect(clara.getByRole('img', { name: 'Speaking' })).toBeVisible({ timeout: 30_000 })
+  await page.evaluate(() => ((window as unknown as { __voice: GainNode }).__voice.gain.value = 0))
+  await expect(clara.getByRole('img', { name: 'Microphone on' })).toBeVisible({ timeout: 15_000 })
+  await guest.close()
+  await ctx.close()
 })
 
 test('One hosting tab: a second tab takes over and the first neither reconnects nor stays', async ({ browser }) => {

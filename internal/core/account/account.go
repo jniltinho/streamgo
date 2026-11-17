@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/jniltinho/streamgo/internal/core"
@@ -73,8 +74,8 @@ type Repository interface {
 	SetPasswordHash(ctx context.Context, id, hash string) error
 	// SetDisabledAt disables the user at t, or enables them when t is zero.
 	SetDisabledAt(ctx context.Context, id string, t time.Time) error
-	SetPreferences(ctx context.Context, id, theme, language string) error
-	SetName(ctx context.Context, id, name string) error
+	// UpdateProfile writes the given fields (nil: untouched) in one update.
+	UpdateProfile(ctx context.Context, id string, name, theme, language *string) error
 
 	CreateSession(ctx context.Context, s Session) error
 	// ActiveSession returns the session only while its user is enabled.
@@ -142,30 +143,42 @@ func (s *Service) Create(ctx context.Context, in NewUser) (*User, error) {
 	return u, nil
 }
 
-// cleanName trims a display name and checks its length.
+// cleanName trims a display name and checks it: 1 to MaxNameChars characters, valid UTF-8 and no control
+// characters (a name is printed by `streamgo user list` on the operator's terminal).
 func cleanName(name string) (string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || utf8.RuneCountInString(name) > MaxNameChars {
-		return "", core.Invalid("name", fmt.Sprintf("must have 1 to %d characters", MaxNameChars))
+	if name == "" || utf8.RuneCountInString(name) > MaxNameChars || !utf8.ValidString(name) ||
+		strings.ContainsFunc(name, unicode.IsControl) {
+		return "", core.Invalid("name", fmt.Sprintf("must have 1 to %d characters, none of them a control character", MaxNameChars))
 	}
 	return name, nil
 }
 
 // Rename changes the user's display name (the name tag in the studio) and returns the user.
 func (s *Service) Rename(ctx context.Context, id, name string) (*User, error) {
-	name, err := cleanName(name)
-	if err != nil {
+	return s.UpdateProfile(ctx, id, &name, nil, nil)
+}
+
+// UpdateProfile changes the display name, the theme and the language (nil: unchanged) in one update and
+// returns the user: nothing is stored when the name is refused, and a field that was not given is not written.
+// The caller validates the theme and the language against the theme registry and the catalogs.
+func (s *Service) UpdateProfile(ctx context.Context, id string, name, theme, language *string) (*User, error) {
+	if name != nil {
+		clean, err := cleanName(*name)
+		if err != nil {
+			return nil, err
+		}
+		name = &clean
+	}
+	if _, err := s.repo.UserByID(ctx, id); err != nil {
 		return nil, err
 	}
-	u, err := s.repo.UserByID(ctx, id)
-	if err != nil {
-		return nil, err
+	if name != nil || theme != nil || language != nil {
+		if err := s.repo.UpdateProfile(ctx, id, name, theme, language); err != nil {
+			return nil, err
+		}
 	}
-	if err := s.repo.SetName(ctx, id, name); err != nil {
-		return nil, err
-	}
-	u.Name = name
-	return u, nil
+	return s.repo.UserByID(ctx, id)
 }
 
 // List returns every account.
@@ -217,20 +230,7 @@ func (s *Service) SetDisabled(ctx context.Context, email string, disabled bool) 
 // SetPreferences changes the theme and the language (nil: unchanged) and returns the user.
 // The caller validates the values against the theme registry and the catalogs.
 func (s *Service) SetPreferences(ctx context.Context, id string, theme, language *string) (*User, error) {
-	u, err := s.repo.UserByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if theme != nil {
-		u.Theme = *theme
-	}
-	if language != nil {
-		u.Language = *language
-	}
-	if err := s.repo.SetPreferences(ctx, id, u.Theme, u.Language); err != nil {
-		return nil, err
-	}
-	return u, nil
+	return s.UpdateProfile(ctx, id, nil, theme, language)
 }
 
 // Login checks the e-mail and password and opens a session, returning the user and the

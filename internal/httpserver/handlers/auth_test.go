@@ -285,6 +285,11 @@ func TestPreferences(t *testing.T) {
 	if after := env.do(http.MethodGet, "/api/v1/me", ck, ""); !strings.Contains(after.body, `"name":"Ana Maria"`) || !strings.Contains(after.body, `"theme":"streamgo-light"`) {
 		t.Fatalf("a refused name changed something: %s", after.body)
 	}
+	// a name is printed on the operator's terminal: no control characters
+	r = env.do(http.MethodPatch, "/api/v1/me", ck, `{"name":"Ana\u001b[2J\u001b[H"}`)
+	if r.status != http.StatusUnprocessableEntity || !strings.Contains(r.body, `"field":"name"`) {
+		t.Fatalf("control characters: %d %s", r.status, r.body)
+	}
 
 	// only the given field changes; "" clears a choice
 	r = env.do(http.MethodPatch, "/api/v1/me", ck, `{"language":""}`)

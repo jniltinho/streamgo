@@ -75,12 +75,18 @@ func (f *fakeRepo) SetDisabledAt(_ context.Context, id string, t time.Time) erro
 	return f.update(id, func(u *User) { u.DisabledAt = t })
 }
 
-func (f *fakeRepo) SetName(_ context.Context, id, name string) error {
-	return f.update(id, func(u *User) { u.Name = name })
-}
-
-func (f *fakeRepo) SetPreferences(_ context.Context, id, theme, language string) error {
-	return f.update(id, func(u *User) { u.Theme, u.Language = theme, language })
+func (f *fakeRepo) UpdateProfile(_ context.Context, id string, name, theme, language *string) error {
+	return f.update(id, func(u *User) {
+		if name != nil {
+			u.Name = *name
+		}
+		if theme != nil {
+			u.Theme = *theme
+		}
+		if language != nil {
+			u.Language = *language
+		}
+	})
 }
 
 func (f *fakeRepo) CreateSession(_ context.Context, s Session) error {

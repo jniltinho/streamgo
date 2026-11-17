@@ -22,8 +22,8 @@ live to RTMP and RTMPS destinations.**
 - **Studio** — the owner opens the studio and guests join backstage from the invite link with a name, no account.
   The owner puts cameras and shared screens on stage (up to 6), picks one of six layouts, shows a logo and one
   lower-third banner at a time, removes a guest and rotates the invite link.
-- **Backstage** — every card shows the live picture of its camera or shared screen before it goes on stage, and
-  its microphone mark changes while that person is heard. A studio holds 10 people by default
+- **Backstage** — the host sees the live picture of every camera and shared screen before it goes on stage (a
+  guest sees only their own), and a microphone mark changes while that person is heard. A studio holds 10 people by default
   (`studio.max_participants`, up to 100); a guest who arrives at a full studio is told so.
 - **Wide windows** — in a window of 19:10 or wider the backstage and the side panel share the right-hand column,
   and the program fills the stage with no empty band beside it.

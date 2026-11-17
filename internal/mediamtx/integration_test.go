@@ -95,9 +95,14 @@ func TestLiveOutput(t *testing.T) {
 
 	t.Log("a destination stalls")
 	proxy.stalled.Store(true)
-	// The server takes about 11 s on an idle host (5 s to see the stall, 5 s of grace before the kill): the 15 s of
-	// the specification. A shared CI runner went past 15 s once, so the wait allows more and the log has the time.
-	took := s.waitStatus(b, dS, destination.Retrying, 25*time.Second)
+	// The specification gives 15 s. The server takes about 11 s on an idle host: the relay goes on writing for some
+	// seconds until its buffers fill, then its media time stands still for StallAfter and it is killed. A shared
+	// CI runner (CI is set) went past 15 s once, so only there the wait allows more.
+	limit := 15 * time.Second
+	if os.Getenv("CI") != "" {
+		limit = 25 * time.Second
+	}
+	took := s.waitStatus(b, dS, destination.Retrying, limit)
 	t.Logf("the stalled destination was retrying after %v", took)
 	if s.status(b, dA).State != destination.Live || !slices.Equal(ffmpegPIDs("a-KEYA"), relayA) {
 		t.Fatal("the working destination was interrupted")

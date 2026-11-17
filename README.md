@@ -34,7 +34,7 @@
 ## ✨ Why StreamGo
 
 - 🏠 **Your studio, your server** — your guests, your stream keys and your broadcasts stay on a machine you control.
-- 💸 **No monthly plan, no watermark** — open source under the MIT license: no seat limits, no hours-per-month cap.
+- 💸 **No monthly plan, no watermark** — open source under the MIT license: no price per seat, no hours-per-month cap.
 - 👋 **Guests join with a link** — no account, nothing to install. They wait backstage until you put them on air.
 - 📡 **Live everywhere at once** — one program to several destinations, each with its own status and retried on its own.
 
@@ -47,7 +47,8 @@ with StreamGo, its media servers and ffmpeg inside:
 docker run -d --name streamgo --stop-timeout 50 -v streamgo-data:/data -p 8080:8080 -p 7881:7881 -p 7882:7882/udp -p 8189:8189 -p 8189:8189/udp ghcr.io/jniltinho/streamgo:allinone
 ```
 
-Create your account (it asks for a password):
+Wait a few seconds until `docker ps` shows the container as `healthy`, then create your account (it asks for a
+password):
 
 ```bash
 docker exec -it streamgo streamgo user add --email you@example.com --name "Your Name"
@@ -67,12 +68,12 @@ To put it on a server for guests elsewhere, or to install without Docker, follow
 | | |
 |---|---|
 | 🎥 **Studio in the browser** | Cameras and shared screens, up to 6 on stage, six layouts switched live with one click. |
-| 🧑‍🤝‍🧑 **Backstage** | Everyone who joined waits backstage with a live preview and a mark that shows who is speaking. You decide who goes on air. |
+| 🧑‍🤝‍🧑 **Backstage** | Up to 10 people in a studio by default (100 at most). Everyone who joined waits backstage; the host sees a live preview of each one and who is speaking, and decides who goes on air. |
 | 🏷️ **Your brand** | Your logo, your accent colour, name tags and lower-third banners prepared ahead and shown at the right moment. |
-| 📡 **Multistreaming** | RTMP and RTMPS destinations per broadcast. YouTube, Twitch, Facebook and Instagram come ready: you only paste the stream key, which is encrypted at rest. |
-| 🔁 **Made to stay on air** | A destination that drops is retried; a program that disappears pauses the broadcast and resumes it, even across a server restart. |
+| 📡 **Multistreaming** | Up to 5 RTMP or RTMPS destinations per broadcast by default (10 at most). The form fills in the usual address of YouTube, Twitch, Facebook and Instagram; you check it and paste the stream key, which is encrypted at rest. |
+| 🔁 **Made to stay on air** | A destination that drops is retried; a program that disappears pauses the broadcast, which resumes when it is back within two minutes (the default), even across a server restart. |
 | 🖥️ **Any screen** | The interface scales from Full HD to 4K monitors and uses the whole window. The stream goes out in 720p or 1080p at 30 fps. |
-| 🎨 **22 themes, two languages** | Light, dark and 20 more themes; English and Brazilian Portuguese; keyboard and screen-reader friendly. |
+| 🎨 **22 themes, two languages** | Light, dark and 20 more themes; English and Brazilian Portuguese; every control reachable by keyboard, with automated accessibility checks. |
 | 📦 **Runs your way** | One Docker image, Docker Compose, a `.deb`, an `.rpm` or the plain binary (linux/amd64), with SQLite, MariaDB or PostgreSQL. |
 
 ## 📸 Screenshots
@@ -91,10 +92,12 @@ The people in these screens are not real: their pictures were generated for this
 
 This is the first version. So you can plan around it:
 
-- **The host needs a desktop Chromium-based browser** (Chrome, Edge, Brave); guests can use any current browser.
-  The program is composed in the host's browser, so the broadcast depends on that tab staying open.
+- **The host needs a desktop Chromium-based browser** (Chrome, Edge, Brave). Guests were tested in Chrome and
+  Firefox. The program is composed in the host's browser, so the broadcast depends on that tab staying open.
 - **The media ports must be reachable** from your guests' networks: there is no TURN server yet.
 - **Not included yet**: recordings, and output above 1080p.
+- **Still being checked**: the live output is tested against an RTMP test server; long broadcasts to the public
+  platforms and a host behind NAT reached from outside have not been verified yet.
 
 More in the [documentation](docs/README.md#where-it-stands) and the [architecture guide](docs/architecture.md#limits).
 

@@ -81,7 +81,7 @@ test-db: tools ## Go tests with -race against SQLite, MariaDB and PostgreSQL
 	$(COMPOSE_TEST) up -d --wait --quiet-pull >/dev/null || { echo "the test databases did not start"; exit 1; }; \
 	$(call TOOLS_RUN,--network $(TEST_PROJECT)_default -e STREAMGO_TEST_MARIADB_ADDR=mariadb:3306 \
 	  -e STREAMGO_TEST_POSTGRES_ADDR=postgres:5432 -e STREAMGO_TEST_LIVEKIT_URL=http://livekit:7880 \
-	  -e STREAMGO_TEST_MEDIAMTX=mediamtx -e STREAMGO_TEST_SINK=sink,go test -race -count=1 ./...)
+	  -e STREAMGO_TEST_MEDIAMTX=mediamtx -e STREAMGO_TEST_SINK=sink -e CI,go test -race -count=1 ./...)
 
 # ── Compose stack (deployments/compose; guide: docs/deployment.md) ───────────
 # Every published port comes from the environment or .env: HTTP_PORT, LIVEKIT_PORT, LIVEKIT_TCP_PORT,
@@ -94,7 +94,8 @@ COMPOSE      = docker compose --env-file .env -f $(COMPOSE_DIR)/compose.yml $(if
 # source of its default route): it serves every browser on this host and on the network. Without a network it is
 # 127.0.0.1, which Firefox does not reach before the site may use the camera.
 LAN_IP       = $(shell ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')
-NODE_ENV     = $(if $(NODE_IP)$(shell grep -qs '^NODE_IP=' .env && echo set),,NODE_IP=$(or $(LAN_IP),127.0.0.1))
+# .env may spell it "NODE_IP=", "NODE_IP = " or "export NODE_IP=": Compose accepts the three
+NODE_ENV     = $(if $(NODE_IP)$(shell grep -Eqs '^[[:space:]]*(export[[:space:]]+)?NODE_IP[[:space:]]*=' .env && echo set),,NODE_IP=$(or $(LAN_IP),127.0.0.1))
 STACK_ENV    = VERSION=$(VERSION) COMMIT=$(COMMIT) BUILDTIME=$(BUILDTIME) $(NODE_ENV)
 
 check-db:

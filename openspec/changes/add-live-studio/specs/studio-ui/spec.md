@@ -22,8 +22,14 @@ and carry an accessible name.
 #### Scenario: Preview before the stage
 - **GIVEN** nothing is on stage and the owner's camera is on
 - **WHEN** the owner looks at the studio
-- **THEN** the stage says it is empty and how to fill it, and each backstage card shows the live picture of its
-  camera or shared screen (the initials when the camera is off)
+- **THEN** the stage says it is empty and how to fill it, and each backstage card shows the owner the live
+  picture of its camera or shared screen (the initials when the camera is off)
+
+#### Scenario: Guests do not see what is off stage
+- **GIVEN** Ana and Bruno are in the studio with their cameras on
+- **WHEN** Bruno, a guest, looks at the backstage
+- **THEN** his own card shows his camera and Ana's card shows no picture: a source off stage is shown only to
+  the owner and to the person it belongs to
 
 #### Scenario: Speaking
 - **GIVEN** Bruno's microphone is on, whether he is on stage or backstage

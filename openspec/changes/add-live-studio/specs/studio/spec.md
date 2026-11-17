@@ -89,6 +89,12 @@ joined last, and the studio SHALL retry the owner's connection up to three times
 - **THEN** the join route answers 409 `studio_full` without creating a guest, and the join page says the studio
   is full; a guest already in the room who reloads the page joins again
 
+#### Scenario: Two guests for the last place
+- **GIVEN** one place is left and two guests ask to join at the same moment
+- **WHEN** both get a token and the media server admits one
+- **THEN** the other one's page asks the join route again, is answered 409 `studio_full`, and says the studio is
+  full, not that the connection failed
+
 #### Scenario: A failed connection is not a full studio
 - **GIVEN** the room has a free place
 - **WHEN** a guest's browser cannot connect to the media server

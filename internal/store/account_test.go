@@ -44,14 +44,15 @@ func TestAccountsUsers(t *testing.T) {
 		}
 
 		for range 2 { // the same values twice must not fail (MariaDB reports 0 changed rows)
-			if err := repo.SetPreferences(ctx, ana.ID, "streamgo-light", "pt-BR"); err != nil {
+			if err := repo.UpdateProfile(ctx, ana.ID, nil, new("streamgo-light"), new("pt-BR")); err != nil {
 				t.Fatal(err)
 			}
 		}
 		if err := repo.SetPasswordHash(ctx, ana.ID, "h2"); err != nil {
 			t.Fatal(err)
 		}
-		if err := repo.SetName(ctx, ana.ID, "Ana Maria"); err != nil {
+		// only the given field is written: the name alone leaves the theme and the language
+		if err := repo.UpdateProfile(ctx, ana.ID, new("Ana Maria"), nil, nil); err != nil {
 			t.Fatal(err)
 		}
 		at := time.Date(2026, 11, 2, 10, 30, 0, 0, time.UTC)

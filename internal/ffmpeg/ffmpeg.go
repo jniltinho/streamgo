@@ -6,7 +6,7 @@
 // with SIGKILL as its parent-death signal, from a goroutine locked to its thread for the
 // child's whole life (Linux delivers that signal when the thread that started the child ends).
 // It is flowing when the media time of its -progress reports advances, stalled when it does not
-// advance for StallAfter, and stopped with SIGINT and then SIGKILL after StopGrace.
+// advance for Timing.StallAfter, and stopped with SIGINT and then SIGKILL after Timing.StopGrace.
 package ffmpeg
 
 import (
@@ -26,17 +26,22 @@ import (
 	"github.com/jniltinho/streamgo/internal/core/output"
 )
 
-// Timing of the supervision (docs/spike-media-path.md, 1.5).
-const (
+// Timing is the supervision's clock.
+type Timing struct {
 	// StallAfter is how long the output's media time may stand still once it flowed.
-	StallAfter = 5 * time.Second
+	StallAfter time.Duration
 	// FirstFlowWithin is how long a process may take to start flowing (connecting, probing).
-	FirstFlowWithin = 15 * time.Second
+	FirstFlowWithin time.Duration
 	// StopGrace is how long a process gets after SIGINT before SIGKILL.
-	StopGrace = 5 * time.Second
-	// tailLines is how many lines of stderr are kept for the reason a process ended.
-	tailLines = 5
-)
+	StopGrace time.Duration
+}
+
+// DefaultTiming is the design's (docs/spike-media-path.md, 1.5): a 5 s watchdog meets the
+// 15 s promise for a stalled destination; a relay blocked on its destination ignores SIGINT.
+var DefaultTiming = Timing{StallAfter: 5 * time.Second, FirstFlowWithin: 15 * time.Second, StopGrace: 5 * time.Second}
+
+// tailLines is how many lines of stderr are kept for the reason a process ended.
+const tailLines = 5
 
 // Options configure a Supervisor.
 type Options struct {
@@ -47,6 +52,7 @@ type Options struct {
 	Height       int
 	VideoKbps    int
 	AudioKbps    int
+	Timing       Timing // zero: DefaultTiming
 	Logger       *slog.Logger
 }
 
@@ -65,6 +71,9 @@ var _ output.Processes = (*Supervisor)(nil)
 func New(o Options) *Supervisor {
 	if o.Logger == nil {
 		o.Logger = slog.New(slog.DiscardHandler)
+	}
+	if o.Timing == (Timing{}) {
+		o.Timing = DefaultTiming
 	}
 	return &Supervisor{o: o, procs: map[*proc]struct{}{}}
 }
@@ -118,7 +127,7 @@ func (s *Supervisor) StartRelay(broadcastID string, t destination.Target, notify
 	return s.start(RelayArgs(s.path("air", broadcastID), t.URL), redact, notify)
 }
 
-// StopAll stops every process at once (SIGINT, SIGKILL after StopGrace) and waits for them;
+// StopAll stops every process at once (SIGINT, SIGKILL after the grace) and waits for them;
 // processes started afterwards end at once.
 func (s *Supervisor) StopAll() {
 	s.mu.Lock()
@@ -219,7 +228,7 @@ func (s *Supervisor) run(p *proc, args []string, redact func(string) string, not
 
 	var last int64
 	flowing, stalled := false, false
-	watchdog := time.NewTimer(FirstFlowWithin)
+	watchdog := time.NewTimer(s.o.Timing.FirstFlowWithin)
 	defer watchdog.Stop()
 	var kill <-chan time.Time
 	stop := p.stop
@@ -230,7 +239,7 @@ func (s *Supervisor) run(p *proc, args []string, redact func(string) string, not
 				continue
 			}
 			last = t
-			watchdog.Reset(StallAfter)
+			watchdog.Reset(s.o.Timing.StallAfter)
 			if !flowing {
 				flowing = true
 				notify(true, "")
@@ -241,16 +250,16 @@ func (s *Supervisor) run(p *proc, args []string, redact func(string) string, not
 		case <-stop:
 			stop = nil
 			signal(syscall.SIGINT)
-			kill = time.After(StopGrace)
+			kill = time.After(s.o.Timing.StopGrace)
 		case <-kill:
 			signal(syscall.SIGKILL)
 		case err := <-exited:
 			signal(syscall.SIGKILL) // anything left in the group
 			switch {
 			case stalled && flowing:
-				return "the stream stopped advancing for " + StallAfter.String()
+				return "the stream stopped advancing for " + s.o.Timing.StallAfter.String()
 			case stalled:
-				return "no media flowed within " + FirstFlowWithin.String()
+				return "no media flowed within " + s.o.Timing.FirstFlowWithin.String()
 			case tail.last() != "":
 				return tail.last()
 			case err != nil:

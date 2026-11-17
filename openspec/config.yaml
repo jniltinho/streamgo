@@ -1,0 +1,24 @@
+schema: spec-driven
+
+context: |
+  StreamGo: self-hosted live-streaming studio in the browser (the StreamYard genre, with its own look). A host
+  opens a studio, invites guests by link, arranges who is on stage, and broadcasts the composed program to several
+  RTMP destinations. Single Go binary at the repository root (Cobra CLI + Echo v5 REST, GORM over SQLite (default,
+  pure-Go modernc.org/sqlite), MariaDB or PostgreSQL chosen by configuration) with an embedded Vue 3 + TypeScript
+  SPA (Vite+ `vp`, Pinia, Vue Router, Tailwind 4) built from frontend/ into web/dist.
+  One StreamGo instance per deployment: no Redis and no job queue (design.md D12 says when that changes).
+  Layout and conventions follow the author's MeetHub (github.com/jniltinho/meethub): main.go + cmd/ + internal/,
+  config.toml with environment overrides, the theme system (role tokens, one CSS file per theme, three shared corner
+  radii, more square than round) and themed toasts, alerts and dialogs instead of native browser UI.
+  Media: LiveKit is the studio (rooms, guests, presence, stage state); the host's browser composes the program on
+  a canvas and publishes it by WHIP to MediaMTX; ffmpeg, supervised by StreamGo, transcodes it once and relays it
+  to each RTMP destination. No LiveKit Egress, no Redis, no headless Chrome.
+  Domain logic lives in internal/core/ (and frontend/src/core/) and imports no framework, database, media server or
+  process package; adapters around it implement its interfaces.
+  Text, code, specs and commit messages in English; Portuguese only in the pt-BR translation catalog.
+  Secrets come only from the environment. Authorization is enforced in the server, never only in the UI.
+
+rules:
+  tasks:
+    - Every task names what verifies it (a test, a scenario, a command)
+    - Tasks in the same group that can run in parallel own disjoint files, listed in design.md

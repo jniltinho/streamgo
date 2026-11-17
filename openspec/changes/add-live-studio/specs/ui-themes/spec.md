@@ -1,0 +1,96 @@
+# Spec Delta
+
+## ADDED Requirements
+
+### Requirement: Theme catalog
+The system SHALL offer 22 themes, each with an id, a label and a `light` or `dark` scheme: StreamGo's own pair,
+`streamgo-dark` (default) and `streamgo-light`, and the 20 themes carried over from MeetHub's catalog with their
+ids, labels and looks.
+
+#### Scenario: Catalog
+- **WHEN** the registry is listed
+- **THEN** it holds, in order, `streamgo-dark`, `streamgo-light`, `default`, `admanager`, `breeze`, `breeze-dark`,
+  `violet`, `violet-dark`, `aurora`, `aurora-dark`, `crystal`, `crystal-dark`, `cone`, `classic-blue`,
+  `classic-gray`, `graphite`, `grafana`, `rabbitmq`, `matrix`, `winamp`, `pink-panther` and `high-contrast`
+
+#### Scenario: Theme list from the API
+- **WHEN** a client requests `GET /api/v1/themes`
+- **THEN** it receives the 22 ids, labels and schemes in catalog order, with `streamgo-dark` marked as the default
+
+#### Scenario: Registry, styles and picker agree
+- **WHEN** the theme lockstep test runs
+- **THEN** every registry id has a `[data-theme='<id>']` style rule and a picker entry, no style rule or picker
+  entry exists without a registry id, and every theme file is imported by the base stylesheet
+
+#### Scenario: Carried-over themes look the same
+- **WHEN** the feedback gallery (buttons, fields, cards, tabs, toasts, alerts, dialogs) is rendered in each
+  carried-over theme
+- **THEN** every role token resolves to the same value as in MeetHub's theme of the same id
+
+### Requirement: Theme contract
+The role-token contract SHALL be MeetHub's (text, page and surfaces, borders, primary, danger, success, warning,
+focus, tabs, and the toast, alert and dialog roles) extended with the studio's roles (on-air, stage frame, on-stage
+and backstage marks), each studio role defaulting to an existing role so that a carried-over theme needs no
+change. Every theme SHALL resolve every role token to a valid colour, and components SHALL use only role tokens
+for colour.
+
+#### Scenario: Unresolved token
+- **WHEN** the contract test applies each theme and reads the computed value of every role token
+- **THEN** it fails naming any theme and token that does not resolve to a colour
+
+#### Scenario: No literal colours in components
+- **WHEN** the style check searches component styles and templates
+- **THEN** it finds no hex, `rgb(` or `hsl(` colour outside the theme files and the compositor
+
+### Requirement: Corner radii
+Corner radii SHALL be three shared values, declared once in the base stylesheet and by no theme, and SHALL keep
+the interface more square than round: 2 px for small elements, 3 px for controls and 4 px for containers at the
+base size, as in MeetHub, growing with the interface scale. Only avatars and status dots may be round.
+
+#### Scenario: Shared radii
+- **WHEN** the style check reads the theme files and the component styles
+- **THEN** no theme declares a border radius, and every border radius in a component is one of the three shared
+  tokens or the round token
+
+#### Scenario: Nearly square corners
+- **WHEN** any theme is active in a 1920x1080 window
+- **THEN** buttons and inputs render with a 3 px radius, cards, panels, toasts, dialogs, the stage and its tiles
+  with 4 px, and nothing but avatars and status dots has a larger one
+
+#### Scenario: Corners keep their proportion at 4K
+- **WHEN** the same screen is opened in a 3840x2160 window
+- **THEN** each radius is twice its Full HD value
+
+### Requirement: Contrast
+Every theme SHALL meet WCAG AA on the declared contrast matrix (MeetHub's recipes plus the studio's: 4.5:1 for
+text, 3:1 for large text, icons, input borders and focus indicators), and `streamgo-dark`, `streamgo-light`,
+`high-contrast`, `crystal`, `crystal-dark` and `classic-blue` SHALL meet AAA (7:1 for text, 4.5:1 for large text).
+
+#### Scenario: Contrast test
+- **WHEN** the contrast test renders each of the 22 themes and measures every pair of the matrix
+- **THEN** every pair meets its threshold and the list of pending failures is empty
+
+#### Scenario: Studio in every theme
+- **WHEN** the studio is rendered in each of the 22 themes
+- **THEN** the on-air mark, the destination statuses, the on-stage marks and every control label meet the matrix
+
+### Requirement: Theme picker and persistence
+Users SHALL choose a theme from a picker that previews each one; the choice SHALL apply at once without a reload,
+be saved in the user's preferences on the server, and follow them to other browsers. Before sign-in and for
+guests, the choice SHALL be kept in the browser, and the theme SHALL be applied before the first paint.
+
+#### Scenario: Follows the user
+- **WHEN** Ana picks `streamgo-light` and signs in from another browser
+- **THEN** the app opens in `streamgo-light`
+
+#### Scenario: Guest choice
+- **WHEN** a guest picks a theme on the join page and reloads
+- **THEN** the page opens in that theme without flashing the default
+
+#### Scenario: First visit
+- **WHEN** someone with no saved choice opens the app
+- **THEN** it opens in `streamgo-dark`, or in `streamgo-light` when the browser prefers a light scheme
+
+#### Scenario: Unknown theme
+- **WHEN** a client sends `PATCH /api/v1/me` with a theme id that is not in the registry
+- **THEN** the response is 422 and the preference is unchanged

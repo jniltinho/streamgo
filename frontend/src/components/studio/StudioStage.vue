@@ -23,5 +23,17 @@ onBeforeUnmount(() => studio.detachCanvas())
       data-program
     />
     <LiveNotice v-if="studio.role === 'owner'" />
+    <p
+      v-if="studio.onStage.length === 0"
+      class="card z-10 self-end px-3 py-2 text-sm [grid-area:1/1]"
+      role="note"
+      data-empty-stage
+    >
+      {{
+        studio.role === 'owner'
+          ? t('The stage is empty. Use "Add to stage" in the backstage to put a camera or a screen on it.')
+          : t('Nothing is on stage yet.')
+      }}
+    </p>
   </div>
 </template>

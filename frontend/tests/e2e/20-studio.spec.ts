@@ -164,6 +164,16 @@ test.describe('owner studio', () => {
     await expect(card(studio, 'Ana Souza')).toContainText('Host')
     await expect(card(studio, 'Bruno Reis')).toContainText('Guest')
     for (const n of ['Ana Souza', 'Bruno Reis']) await expect(card(studio, n)).toHaveAttribute('data-on-stage', 'false')
+    // nothing is on stage yet: the stage says how to fill it, and each card shows the live picture of its camera
+    await expect(studio.locator('[data-empty-stage]')).toContainText('Add to stage')
+    for (const n of ['Ana Souza', 'Bruno Reis'])
+      await expect
+        .poll(() =>
+          card(studio, n)
+            .locator('[data-preview]')
+            .evaluate((v: HTMLVideoElement) => v.videoWidth),
+        )
+        .toBeGreaterThan(0)
     // the invite link with copy and rotate, and the device settings, each in its own modal
     await studio.getByRole('toolbar').getByRole('button', { name: 'Invite', exact: true }).click()
     await expect(studio.locator('[data-invite-url]')).toHaveValue(b.invite_url)
@@ -180,6 +190,7 @@ test.describe('owner studio', () => {
     await studio.keyboard.press('Enter')
     await expect(card(studio, 'Bruno Reis')).toHaveAttribute('data-on-stage', 'true')
     await expect(card(studio, 'Bruno Reis')).toContainText('On stage')
+    await expect(studio.locator('[data-empty-stage]')).toHaveCount(0)
     // "Add to stage": his camera is in the program (the fake camera is green), not the backdrop
     await expect.poll(async () => (await pixel(studio, 0.5, 0.5))[1]!).toBeGreaterThan(80)
 

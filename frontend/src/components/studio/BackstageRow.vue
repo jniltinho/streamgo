@@ -4,6 +4,7 @@
 import { computed, ref } from 'vue'
 import { Mic, MicOff, MonitorUp, UserMinus, UserPlus, Video, VideoOff } from '@lucide/vue'
 import InviteModal from '@/components/studio/InviteModal.vue'
+import SourcePreview from '@/components/studio/SourcePreview.vue'
 import { initials } from '@/core/compositor'
 import type { StageSource } from '@/core/stageState'
 import { type Person, studioError, useStudio } from '@/stores/studio'
@@ -20,6 +21,7 @@ interface Card {
   key: string
   person: Person
   source: StageSource
+  track: MediaStreamTrack | null
 }
 // the host first, then everyone in the order they joined; each shared screen right after its owner
 const cards = computed<Card[]>(() =>
@@ -30,7 +32,8 @@ const cards = computed<Card[]>(() =>
       ...(p.screen
         ? [{ key: `${p.identity}:screen`, person: p, source: { p: p.identity, k: 'screen' as const } }]
         : []),
-    ]),
+    ])
+    .map((c) => ({ ...c, track: studio.videoTrack(c.source) })),
 )
 
 const label = (c: Card) => (c.source.k === 'screen' ? t("{name}'s screen", { name: c.person.name }) : c.person.name)
@@ -75,7 +78,8 @@ async function removeGuest(p: Person) {
       :data-on-stage="studio.isOnStage(c.source)"
     >
       <div class="flex min-w-0 items-center gap-2.5">
-        <span v-if="c.source.k === 'screen'" class="studio-avatar avatar" aria-hidden="true">
+        <SourcePreview v-if="c.track" :track="c.track" />
+        <span v-else-if="c.source.k === 'screen'" class="studio-avatar avatar" aria-hidden="true">
           <MonitorUp class="size-4" />
         </span>
         <span v-else class="studio-avatar avatar" aria-hidden="true">{{ initials(c.person.name) }}</span>

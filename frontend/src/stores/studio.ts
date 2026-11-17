@@ -228,6 +228,12 @@ export const useStudio = defineStore('studio', () => {
     return pub?.track && !pub.isMuted ? pub.track.mediaStreamTrack : null
   }
 
+  /** the live video of a camera or a shared screen, for a preview outside the stage; it changes with `people` */
+  function videoTrack(s: StageSource): MediaStreamTrack | null {
+    const p = participants().find((x) => x.identity === s.p)
+    return p ? videoOf(p, s.k === 'screen' ? Track.Source.ScreenShare : Track.Source.Camera) : null
+  }
+
   function refresh() {
     const all = participants()
     people.value = all.map((p) => {
@@ -737,6 +743,7 @@ export const useStudio = defineStore('studio', () => {
     isOnStage,
     stageFull,
     meOnStage,
+    videoTrack,
     attachCanvas,
     detachCanvas,
     openOwner,

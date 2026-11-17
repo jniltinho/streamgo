@@ -94,6 +94,9 @@ const catalog: Catalog = {
   Remove: 'Remove',
   Backstage: 'Backstage',
   'Everyone in the studio': 'Everyone in the studio',
+  'The stage is empty. Use "Add to stage" in the backstage to put a camera or a screen on it.':
+    'The stage is empty. Use "Add to stage" in the backstage to put a camera or a screen on it.',
+  'Nothing is on stage yet.': 'Nothing is on stage yet.',
   'People in the studio': 'People in the studio',
   'On stage': 'On stage',
   'Take off the stage: {name}': 'Take off the stage: {name}',

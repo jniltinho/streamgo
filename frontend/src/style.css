@@ -1319,6 +1319,13 @@ dialog.pnl.closing::backdrop {
     font-size: 0.6875rem;
     font-weight: 600;
   }
+  .studio-card-video {
+    flex: none;
+    width: 6rem;
+    aspect-ratio: 16 / 9;
+    background: var(--color-stage-frame);
+    object-fit: contain;
+  }
   .studio-chip {
     display: inline-flex;
     align-items: center;

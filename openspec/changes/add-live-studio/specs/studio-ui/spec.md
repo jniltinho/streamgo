@@ -14,6 +14,12 @@ and carry an accessible name.
   each is on stage; the side panel has the Banners, Brand and Destinations tabs; and the controls cover the
   owner's microphone, camera, screen share, invite link, settings and leaving
 
+#### Scenario: Preview before the stage
+- **GIVEN** nothing is on stage and the owner's camera is on
+- **WHEN** the owner looks at the studio
+- **THEN** the stage says it is empty and how to fill it, and each backstage card shows the live picture of its
+  camera or shared screen (the initials when the camera is off)
+
 #### Scenario: Add to stage
 - **GIVEN** Bruno is backstage
 - **WHEN** the owner activates "Add to stage" on his card

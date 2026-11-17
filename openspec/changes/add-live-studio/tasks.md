@@ -91,7 +91,7 @@ counter into its video and plays a distinct tone.
   reconciler), `internal/livekit` (tokens, rooms, metadata, participants), the banner and guest repositories,
   the studio, join, banners and logo handlers; verify every `studio` scenario, with a fake `Rooms` and a
   controlled clock in the core and a real LiveKit container (automatic room creation off) in an integration test
-- [ ] 3.D Live output: `core/output` (the state machine with runs, stored deadlines, capacity reservation and
+- [x] 3.D Live output: `core/output` (the state machine with runs, stored deadlines, capacity reservation and
   restart recovery, table-tested with a controlled clock), `internal/ffmpeg` (supervisor with progress parsing,
   the stall watchdog, timeouts, process group and parent-death signal from a thread-locked goroutine, clean
   environment, the arguments from the spike, redaction of the whole address, backoff), `internal/mediamtx` (the
@@ -116,7 +116,7 @@ counter into its video and plays a distinct tone.
   picker with previews,
   and the `NOTICE` entry and file headers; verify every `ui-themes` scenario except "Follows the user" and
   "Unknown theme" (3.A) and "Studio in every theme" (4.2)
-- [ ] 3.H Deployment: the runtime Dockerfile (non-root, ffmpeg with libx264), `deployments/compose` with pinned
+- [x] 3.H Deployment: the runtime Dockerfile (non-root, ffmpeg with libx264), `deployments/compose` with pinned
   LiveKit (automatic room creation off, advertised address) and MediaMTX (RTSP and WebRTC only, internal
   credentials, advertised address, WebRTC on UDP and TCP) and the database chosen by
   `DB=sqlite|mariadb|postgres`, a create-only `make init`, and `docs/deployment.md`; verify the
@@ -134,11 +134,11 @@ counter into its video and plays a distinct tone.
 
 ## 4. Studio (after 3.C, 3.D and 3.E; design: `design/variant-d-square`)
 
-- [ ] 4.1 Build the studio's region arrangement of `design/variant-d-square` as layout components
+- [x] 4.1 Build the studio's region arrangement of `design/variant-d-square` as layout components
   (`StudioLayout.vue` and the empty region components) using only role tokens and `rem` sizes; verify every
   `studio-ui` "Screen sizes" scenario with Playwright at 1280x720, 1440x900, 1920x1080, 2560x1440, 3840x2160 and
   3440x1440, the `ui-themes` "Corners keep their proportion at 4K" scenario and the `ui-themes` contract test
-- [ ] 4.2 Build the owner's studio: LiveKit connection (adaptive stream off, the "opened elsewhere" state), the
+- [x] 4.2 Build the owner's studio: LiveKit connection (adaptive stream off, the "opened elsewhere" state), the
   stage canvas bound to the stage state, the layout picker, the backstage with add and remove, the Banners, Brand
   and Destinations tabs, the device controls and the invite link; verify the `studio-ui` "Studio screen for the
   owner", "The stage is the program" and "Program audio" scenarios and the `studio` "One hosting tab" scenario
@@ -149,7 +149,7 @@ counter into its video and plays a distinct tone.
   `interrupted`, the "Resume broadcast" action, the hidden-tab warning, the browser check and the end confirmation;
   verify the `studio-ui` "Live controls", "Recovery after a reload" and "Publishing while hidden" scenarios end to
   end
-- [ ] 4.4 Build the guest join page and guest view; verify every `studio-ui` "Guest join page and guest view"
+- [x] 4.4 Build the guest join page and guest view; verify every `studio-ui` "Guest join page and guest view"
   scenario and the `studio` "Reload keeps the identity" scenario with two browser contexts
 
 ## 5. Packages, images and release (after group 4; package P, files in design.md)

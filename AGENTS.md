@@ -60,3 +60,8 @@ make check && make test && make test-db && make build && dist/streamgo version
   inline a modal. Modals and themed dialogs open 5 % of the window height below the top (`--dialog-top`).
 - No page scrollbar: the document never scrolls; a long list scrolls inside its own region.
 - The theme and the language live in `PreferencesModal.vue` (a tab each); pages do not carry their own controls.
+
+## ffmpeg
+
+ffmpeg is never built from source: the `.deb` depends on the distribution's, the `.rpm` recommends it, and the
+Docker images install their base distribution's package.

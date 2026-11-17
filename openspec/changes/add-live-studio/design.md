@@ -514,7 +514,9 @@ configure and wire two media servers by hand, so both artifacts carry them:
   media servers' HTTP, RTSP and API listeners bind to the loopback address; only the app and the WebRTC media
   ports are reachable. HTTPS stays the administrator's reverse proxy, in front of the app and of LiveKit's
   signalling, with a worked example in `docs/install-linux.md`.
-- **ffmpeg is not shipped** in the packages: the `.deb` depends on the distribution's, which has libx264 on
+- **ffmpeg is never built from source, anywhere** (the owner's rule): the packages use the distribution's and
+  the images install their base distribution's package (Alpine's in the runtime image, Debian's in the
+  all-in-one). It is not shipped in the packages: the `.deb` depends on the distribution's, which has libx264 on
   Debian and Ubuntu; the `.rpm` only recommends it, because the RHEL family has none with libx264 in its own
   repositories. On AlmaLinux the package installs and the service refuses to start until one is added, which
   the guide explains; the smoke test checks the layout there and a real start on Debian 13 and Ubuntu 26.04.

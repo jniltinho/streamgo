@@ -27,8 +27,14 @@ import `vue`, `pinia` or `vue-router`. `make check` SHALL fail on a violation.
 - **THEN** `make check` fails naming the file and the import
 
 ### Requirement: Runtime image
-The runtime image SHALL contain the binary and an ffmpeg with `libx264` and `aac`, run as a non-root user, and
-declare a health check that uses `streamgo healthcheck`.
+The runtime image SHALL contain the binary and an ffmpeg with `libx264` and `aac` installed from the base
+distribution's packages, never built from source, run as a non-root user, and declare a health check that uses
+`streamgo healthcheck`.
+
+#### Scenario: No ffmpeg build
+- **WHEN** the `Dockerfile` and the packaging scripts are read
+- **THEN** no stage or script downloads or compiles ffmpeg or its codecs: the images install the distribution's
+  package and the Linux packages depend on, or recommend, the distribution's
 
 #### Scenario: Image starts
 - **WHEN** the image runs with a valid environment

@@ -1,4 +1,4 @@
-# Throwaway databases and LiveKit for make test-db (project "streamgo-test"). No published ports: the tools container joins
+# Throwaway databases, LiveKit and MediaMTX for make test-db (project "streamgo-test"). No published ports: the tools container joins
 # the project's network. Data lives in tmpfs: nothing persists. The credentials are test fixtures only.
 # Portions adapted from MeetHub (MIT): deployments/compose/compose.test.yml
 name: streamgo-test
@@ -42,6 +42,23 @@ services:
       timeout: 5s
       retries: 60
 
+  # The live output's integration test (internal/mediamtx): the ingest MediaMTX with the
+  # production settings of design D3 (RTSP over TCP and WebRTC only, every listener behind the
+  # internal credentials, the control API on), and a second one with RTMP as the test destination.
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.4@sha256:c730bccdbc8739f8f0c13cefe9bea8b61926f599b88fa4d0d229baa91846c7bc
+    command: ["/mediamtx.yml"]
+    configs:
+      - source: mediamtx
+        target: /mediamtx.yml
+
+  sink:
+    image: bluenviron/mediamtx:1.21.4@sha256:c730bccdbc8739f8f0c13cefe9bea8b61926f599b88fa4d0d229baa91846c7bc
+    command: ["/mediamtx.yml"]
+    configs:
+      - source: sink
+        target: /mediamtx.yml
+
   postgres:
     image: postgres:17-alpine@sha256:d3244e8ce3f165ee3c93d9c4a4b1d0fe48b3a89e2287b717fdcbbde92d405065
     environment:
@@ -54,3 +71,58 @@ services:
       interval: 2s
       timeout: 5s
       retries: 60
+
+configs:
+  mediamtx:
+    content: |
+      logLevel: warn
+      authMethod: internal
+      authInternalUsers:
+        - user: streamgo
+          pass: streamgo-test-mediamtx
+          ips: []
+          permissions:
+            - action: publish
+            - action: read
+            - action: api
+      api: true
+      apiAddress: :9997
+      rtsp: true
+      rtspTransports: [tcp]
+      rtspAddress: :8554
+      rtmp: false
+      hls: false
+      srt: false
+      moq: false
+      webrtc: true
+      webrtcAddress: :8889
+      webrtcLocalUDPAddress: :8189
+      webrtcLocalTCPAddress: :8189
+      pathDefaults:
+        source: publisher
+      paths:
+        all_others:
+  sink:
+    content: |
+      logLevel: warn
+      authMethod: internal
+      authInternalUsers:
+        - user: any
+          ips: []
+          permissions:
+            - action: publish
+            - action: read
+            - action: api
+      api: true
+      apiAddress: :9997
+      rtmp: true
+      rtmpAddress: :1935
+      rtsp: true
+      rtspTransports: [tcp]
+      rtspAddress: :8554
+      hls: false
+      srt: false
+      moq: false
+      webrtc: false
+      paths:
+        all_others:

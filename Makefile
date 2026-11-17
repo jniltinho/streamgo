@@ -75,7 +75,8 @@ test-db: tools ## Go tests with -race against SQLite, MariaDB and PostgreSQL
 	@trap '$(COMPOSE_TEST) down -v --remove-orphans >/dev/null 2>&1' EXIT INT TERM; \
 	$(COMPOSE_TEST) up -d --wait --quiet-pull >/dev/null || { echo "the test databases did not start"; exit 1; }; \
 	$(call TOOLS_RUN,--network $(TEST_PROJECT)_default -e STREAMGO_TEST_MARIADB_ADDR=mariadb:3306 \
-	  -e STREAMGO_TEST_POSTGRES_ADDR=postgres:5432 -e STREAMGO_TEST_LIVEKIT_URL=http://livekit:7880,go test -race -count=1 ./...)
+	  -e STREAMGO_TEST_POSTGRES_ADDR=postgres:5432 -e STREAMGO_TEST_LIVEKIT_URL=http://livekit:7880 \
+	  -e STREAMGO_TEST_MEDIAMTX=mediamtx -e STREAMGO_TEST_SINK=sink,go test -race -count=1 ./...)
 
 # ── Compose stack (deployments/compose, task 3.H) ─────────────────────────────
 DB          ?= sqlite

@@ -132,7 +132,7 @@ func (s *stack) startOutput() {
 		Width: 1280, Height: 720, VideoKbps: 2500, AudioKbps: 128, Logger: logger})
 	s.out = &output.Service{
 		Broadcasts: s.broadcasts, Locks: s.locks, Destinations: s.destRepo, Targets: s.destSvc,
-		Stage: &stage.Writer{Broadcasts: s.broadcasts, Locks: s.locks, Rooms: nopPusher{}, MaxOnStage: 6, Logger: logger},
+		Stage:  &stage.Writer{Broadcasts: s.broadcasts, Locks: s.locks, Rooms: nopPusher{}, MaxOnStage: 6, Logger: logger},
 		Ingest: s.mtx, Processes: sup, MaxConcurrent: 4, StartTimeout: 30 * time.Second, Grace: grace, Logger: logger,
 	}
 	s.destSvc.Statuses, s.destSvc.Notifier = s.out, s.out

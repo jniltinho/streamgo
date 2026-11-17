@@ -175,7 +175,7 @@ func (d BroadcastsDeps) selectDestinations(c *echo.Context) error {
 	}
 	list, err := d.Destinations.Select(c.Request().Context(), httpserver.UserID(c), c.Param("id"), body.IDs)
 	if err != nil {
-		return err
+		return outputError(err) // a refusal by the live output says why: the last destination, one in use
 	}
 	return c.JSON(http.StatusOK, map[string]any{"destinations": selectedViews(list)})
 }

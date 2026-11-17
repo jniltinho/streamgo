@@ -19,11 +19,14 @@ import (
 	"github.com/jniltinho/streamgo/internal/core/account"
 	"github.com/jniltinho/streamgo/internal/core/broadcast"
 	"github.com/jniltinho/streamgo/internal/core/destination"
+	"github.com/jniltinho/streamgo/internal/core/output"
 	"github.com/jniltinho/streamgo/internal/core/stage"
 	"github.com/jniltinho/streamgo/internal/core/studio"
+	"github.com/jniltinho/streamgo/internal/ffmpeg"
 	"github.com/jniltinho/streamgo/internal/httpserver"
 	"github.com/jniltinho/streamgo/internal/httpserver/handlers"
 	"github.com/jniltinho/streamgo/internal/livekit"
+	"github.com/jniltinho/streamgo/internal/mediamtx"
 	"github.com/jniltinho/streamgo/internal/ratelimit"
 	"github.com/jniltinho/streamgo/internal/sealed"
 	"github.com/jniltinho/streamgo/internal/store"
@@ -96,6 +99,10 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		SecureCookie: cfg.SecureCookies(),
 	}
 	rooms := livekit.New(cfg.LiveKit.APIURL, cfg.LiveKit.APIKey, cfg.LiveKit.APISecret)
+	mtx, err := mediamtx.New(cfg.MediaMTX.WHIPURL, cfg.MediaMTX.APIURL, cfg.MediaMTX.User, cfg.MediaMTX.Secret)
+	if err != nil {
+		return err
+	}
 	srv := httpserver.New(httpserver.Options{ //nolint:contextcheck // handlers use each request's own context
 		Addr:           cfg.Server.Addr,
 		PublicOrigin:   cfg.PublicOrigin(),
@@ -106,6 +113,7 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		ReadyChecks: []httpserver.Check{
 			{Name: "database", Check: db.Ping},
 			{Name: "livekit", Check: rooms.Ready},
+			{Name: "mediamtx", Check: mtx.Ready},
 		},
 		Authenticate: handlers.Authenticator(authDeps), //nolint:contextcheck // it uses each request's own context
 	})
@@ -113,8 +121,8 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	handlers.RegisterThemes(srv.API())
 	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: accounts})
 
-	// Broadcasts and destinations. Statuses and Notifier (live output) are plugged in when that package is
-	// integrated: until then every destination status is "off".
+	// Broadcasts and destinations. The live output below gives the destinations their statuses and hears
+	// about selection changes of a broadcast that is not offline.
 	box, err := sealed.New(cfg.Secret.Bytes())
 	if err != nil {
 		return err
@@ -124,8 +132,9 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	broadcastSvc := &broadcast.Service{
 		Repo: broadcasts, Locks: locks, Sealer: box, PublicURL: cfg.Server.PublicURL, Logger: logger,
 	}
+	destinations := store.NewDestinations(db)
 	destinationSvc := &destination.Service{
-		Repo: store.NewDestinations(db), Broadcasts: broadcasts, Locks: locks, Sealer: box,
+		Repo: destinations, Broadcasts: broadcasts, Locks: locks, Sealer: box,
 		AllowPrivate: cfg.Output.AllowPrivateDestinations, MaxPerBroadcast: cfg.Output.MaxDestinations,
 	}
 	handlers.RegisterBroadcasts(srv.UserAPI(), handlers.BroadcastsDeps{
@@ -161,8 +170,38 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		handlers.RegisterAssets(root, studioSvc)
 	}
 
-	// The reconciler is owned here: it stops, and is waited for, before the database closes.
-	reconciler := &studio.Reconciler{Studio: studioSvc}
+	// Live output: the state machine, the ffmpeg supervisor and the program ingest through MediaMTX.
+	width, height := ffmpeg.Size(cfg.Output.Resolution)
+	supervisor := ffmpeg.New(ffmpeg.Options{
+		Path: cfg.Output.FFmpegPath, RTSPURL: cfg.MediaMTX.RTSPURL,
+		User: cfg.MediaMTX.User, Secret: cfg.MediaMTX.Secret,
+		Width: width, Height: height,
+		VideoKbps: cfg.Output.VideoBitrateKbps, AudioKbps: cfg.Output.AudioBitrateKbps, Logger: logger,
+	})
+	out := &output.Service{
+		Broadcasts: broadcasts, Locks: locks, Destinations: destinations, Targets: destinationSvc,
+		Stage: writer, Ingest: mtx, Processes: supervisor,
+		MaxConcurrent: cfg.Output.MaxConcurrent, StartTimeout: cfg.Output.StartTimeout.Std(),
+		Grace: cfg.Output.ReconnectGrace.Std(), Logger: logger,
+	}
+	destinationSvc.Statuses, destinationSvc.Notifier = out, out
+	handlers.RegisterLive(srv.UserAPI(), handlers.LiveDeps{Output: out}) //nolint:contextcheck // handlers use each request's own context
+	handlers.RegisterWHIP(srv.UserAPI(), handlers.LiveDeps{Output: out}) //nolint:contextcheck // as above
+
+	// The output and the reconciler are owned here: on a signal the HTTP server drains while the output
+	// stops every ffmpeg at once, leaving the stored state alone; both are waited for before the database
+	// closes. Run begins with restart recovery.
+	octx, stopOutput := context.WithCancel(ctx)
+	outputDone := make(chan struct{})
+	go func() {
+		defer close(outputDone)
+		out.Run(octx)
+	}()
+	defer func() {
+		stopOutput()
+		<-outputDone
+	}()
+	reconciler := &studio.Reconciler{Studio: studioSvc, Steps: []studio.Step{out.CloseOrphans}}
 	rctx, stopReconciler := context.WithCancel(ctx)
 	reconciled := make(chan struct{})
 	go func() {

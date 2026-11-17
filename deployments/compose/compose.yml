@@ -33,6 +33,7 @@ services:
       STREAMGO_LIVEKIT_API_URL: http://livekit:7880
       STREAMGO_MEDIAMTX_WHIP_URL: http://mediamtx:8889
       STREAMGO_MEDIAMTX_RTSP_URL: rtsp://mediamtx:8554
+      STREAMGO_MEDIAMTX_API_URL: http://mediamtx:9997
     volumes:
       - ../../config.toml:/etc/streamgo/config.toml:ro
       - streamgo-data:/data

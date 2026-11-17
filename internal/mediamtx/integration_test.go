@@ -154,9 +154,13 @@ func TestLiveOutput(t *testing.T) {
 	s.waitFor(10*time.Second-time.Since(started), "no ffmpeg of the broadcast", func() bool { return len(ffmpegPIDs(b)) == 0 })
 	s.expect(http.StatusOK, http.MethodPost, live, ana, "", "")
 	deadline := time.Now().Add(20 * time.Second)
-	for s.output(b).State != broadcast.Live {
-		if o := s.output(b); o.State != broadcast.Starting || o.Run != run+1 || time.Now().After(deadline) {
+	for { // one read per turn: the state may become live between two reads
+		o := s.output(b)
+		if o.Run != run+1 || (o.State != broadcast.Starting && o.State != broadcast.Live) || time.Now().After(deadline) {
 			t.Fatalf("a late event of the first run acted, or no program: %+v", o)
+		}
+		if o.State == broadcast.Live {
+			break
 		}
 		time.Sleep(50 * time.Millisecond)
 	}

@@ -52,6 +52,9 @@ type Server struct {
 	PublicURL      string   `toml:"public_url"`      // canonical origin, e.g. https://studio.example.com
 	DataDir        string   `toml:"data_dir"`        // SQLite database, assets, the instance lock
 	TrustedProxies []string `toml:"trusted_proxies"` // IPs or CIDRs whose X-Forwarded-* headers are honoured
+	CertFile       string   `toml:"cert_file"`       // PEM certificate chain served over HTTPS
+	KeyFile        string   `toml:"key_file"`        // its PEM key
+	SelfSigned     bool     `toml:"self_signed"`     // HTTPS with a certificate generated under <data_dir>/tls
 }
 
 // Database selects the one database StreamGo uses.
@@ -171,6 +174,41 @@ func (c *Config) PublicOrigin() string {
 	return u.Scheme + "://" + u.Host
 }
 
+// PublicHost is the host name of server.public_url, without the port.
+func (c *Config) PublicHost() string {
+	u, err := url.Parse(c.Server.PublicURL)
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
+}
+
+// TLSFiles returns the certificate and the key the server serves HTTPS with: the configured pair (which wins over
+// self_signed), or the self-signed one under <data_dir>/tls. Both are empty when it speaks plain HTTP.
+func (c *Config) TLSFiles() (cert, key string) {
+	switch {
+	case c.Server.CertFile != "" || c.Server.KeyFile != "":
+		return c.Server.CertFile, c.Server.KeyFile
+	case c.Server.SelfSigned:
+		dir := filepath.Join(c.Server.DataDir, "tls")
+		return filepath.Join(dir, "selfsigned.crt"), filepath.Join(dir, "selfsigned.key")
+	}
+	return "", ""
+}
+
+// BrowserLiveKitURL is the LiveKit URL given to browsers: livekit.url unchanged, or, when it is empty, the public
+// origin with /livekit (the server's own signalling proxy), as wss:// under HTTPS and ws:// under HTTP.
+func (c *Config) BrowserLiveKitURL() string {
+	if c.LiveKit.URL != "" {
+		return c.LiveKit.URL
+	}
+	origin := c.PublicOrigin()
+	if rest, ok := strings.CutPrefix(origin, "https://"); ok {
+		return "wss://" + rest + "/livekit"
+	}
+	return "ws://" + strings.TrimPrefix(origin, "http://") + "/livekit"
+}
+
 // SecureCookies reports whether cookies must be Secure (the public URL is HTTPS).
 func (c *Config) SecureCookies() bool { return strings.HasPrefix(c.Server.PublicURL, "https://") }
 
@@ -208,6 +246,12 @@ func (c *Config) Validate() error {
 	if msg := publicURLProblem(c.Server.PublicURL); msg != "" {
 		bad("server.public_url", "%s", msg)
 	}
+	if (c.Server.CertFile == "") != (c.Server.KeyFile == "") {
+		bad("server.cert_file", "and server.key_file must be set together")
+	}
+	if cert, _ := c.TLSFiles(); cert != "" && !strings.HasPrefix(c.Server.PublicURL, "https://") {
+		bad("server.public_url", "must be https:// when the server speaks HTTPS (server.cert_file or server.self_signed), got %q", c.Server.PublicURL)
+	}
 	if c.Server.DataDir == "" {
 		bad("server.data_dir", "must not be empty")
 	}
@@ -233,7 +277,9 @@ func (c *Config) Validate() error {
 			bad(key, "must be an absolute %s URL, got %q", strings.Join(schemes, " or "), raw)
 		}
 	}
-	checkURL("livekit.url", c.LiveKit.URL, "ws", "wss")
+	if c.LiveKit.URL != "" { // empty: browsers use the server's own /livekit proxy
+		checkURL("livekit.url", c.LiveKit.URL, "ws", "wss")
+	}
 	checkURL("livekit.api_url", c.LiveKit.APIURL, "http", "https")
 	checkURL("mediamtx.whip_url", c.MediaMTX.WHIPURL, "http", "https")
 	checkURL("mediamtx.rtsp_url", c.MediaMTX.RTSPURL, "rtsp")

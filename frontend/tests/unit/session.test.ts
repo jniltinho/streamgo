@@ -5,7 +5,7 @@ import { useSession } from '@/stores/session'
 import { locale } from '@/i18n'
 import type { Me } from '@/api/types'
 
-const me: Me = { id: 'u1', name: 'Ana', email: 'ana@example.com', theme: '', language: '' }
+const me: Me = { id: 'u1', name: 'Ana', email: 'ana@example.com', theme: '', language: '', admin: false }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
 
 describe('session', () => {

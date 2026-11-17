@@ -6,7 +6,13 @@ are the section of that version.
 
 ## [Unreleased]
 
-—
+### Added
+
+- **User management** — the first account of an install is its administrator (on an existing install, the oldest
+  enabled account becomes one when the upgraded server applies its migrations). Administrators create accounts,
+  change their name, role and password, and disable or enable them on the new **Users** page; the command line gains
+  `streamgo user add --admin` and `streamgo user admin <email> [--revoke]`. Every user changes their own password in
+  Settings → Profile.
 
 ## [0.1.0] — 2026-11-17
 

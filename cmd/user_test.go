@@ -113,4 +113,44 @@ func userCommand(t *testing.T, driver string) {
 	if code, _, _ := executeIn(t, "", "user", "disable", "nobody@example.com"); code != 1 {
 		t.Error("disabling an unknown user succeeded")
 	}
+
+	// First account: ana is an administrator, the next account added the same way is not,
+	// one added with --admin is
+	if code, _, errOut := executeIn(t, "bruno-password\n", "user", "add", "--email", "bruno@example.com", "--name", "Bruno", "--password-stdin"); code != 0 {
+		t.Fatalf("add bruno: %q", errOut)
+	}
+	if code, out, errOut := executeIn(t, "carla-password\n", "user", "add", "--email", "carla@example.com", "--name", "Carla", "--admin", "--password-stdin"); code != 0 || !strings.Contains(out, "administrator") {
+		t.Fatalf("add carla --admin: %q %q", out, errOut)
+	}
+	roles := func() string {
+		t.Helper()
+		var parts []string
+		for _, u := range listUsers(t) {
+			parts = append(parts, u.Email+"="+u.Role)
+		}
+		return strings.Join(parts, " ")
+	}
+	if got, want := roles(), "ana@example.com=administrator bruno@example.com=user carla@example.com=administrator"; got != want {
+		t.Fatalf("roles %q, want %q", got, want)
+	}
+
+	// Grant and revoke from the CLI; the text list shows the role
+	if code, _, errOut := executeIn(t, "", "user", "admin", "bruno@example.com"); code != 0 {
+		t.Fatalf("admin: %q", errOut)
+	}
+	if got := roles(); !strings.Contains(got, "bruno@example.com=administrator") {
+		t.Fatalf("after admin: %q", got)
+	}
+	if code, out, errOut := executeIn(t, "", "user", "list"); code != 0 || !strings.Contains(out, "ROLE") || !strings.Contains(out, "administrator") {
+		t.Fatalf("text list: %q %q", out, errOut)
+	}
+	if code, _, errOut := executeIn(t, "", "user", "admin", "BRUNO@example.com", "--revoke"); code != 0 {
+		t.Fatalf("admin --revoke: %q", errOut)
+	}
+	if got := roles(); !strings.Contains(got, "bruno@example.com=user") {
+		t.Fatalf("after --revoke: %q", got)
+	}
+	if code, _, _ := executeIn(t, "", "user", "admin", "nobody@example.com"); code != 1 {
+		t.Error("granting an unknown user succeeded")
+	}
 }

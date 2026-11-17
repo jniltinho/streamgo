@@ -75,6 +75,8 @@ func newServer(t *testing.T, mutate ...func(*httpserver.Options)) *testServer {
 			return fmt.Errorf("broadcast b1: %w", core.ErrNotFound)
 		case "conflict":
 			return fmt.Errorf("delete: %w", core.ErrConflict)
+		case "forbidden":
+			return fmt.Errorf("users: %w", core.ErrForbidden)
 		case "invalid":
 			return core.Invalid("title", "must not be empty")
 		}
@@ -127,6 +129,7 @@ func TestRoutes(t *testing.T) {
 		{"wrong method", request(http.MethodDelete, "/api/v1/ip", "", "Origin", origin), 405, "method_not_allowed", ""},
 		{"not found from the core", request(http.MethodGet, "/api/v1/fail/missing", ""), 404, "not_found", ""},
 		{"conflict from the core", request(http.MethodGet, "/api/v1/fail/conflict", ""), 409, "conflict", ""},
+		{"forbidden from the core", request(http.MethodGet, "/api/v1/fail/forbidden", ""), 403, "forbidden", ""},
 		{"invalid input from the core", request(http.MethodGet, "/api/v1/fail/invalid", ""), 422, "invalid_input", ""},
 		{"internal error", request(http.MethodGet, "/api/v1/fail/other", ""), 500, "internal", ""},
 		{"client route", request(http.MethodGet, "/studio/01JABC", ""), 200, "", "<title>StreamGo</title>"},

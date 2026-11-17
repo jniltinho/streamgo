@@ -90,6 +90,9 @@ docker compose -p streamgo exec streamgo streamgo user add --email you@example.c
 It asks for the password twice. To pass it on standard input instead (from a password manager or a script), add
 `-T` after `exec` and `--password-stdin` at the end, and pipe the password in.
 
+This first account is the administrator: once signed in, it creates the other accounts on the **Users** page of
+the web app, so the command line is only needed for this one.
+
 ## 5. Sign in
 
 Open the address `make up` printed, for example `http://localhost:8080`, in a browser **on the same machine**, and
@@ -255,7 +258,8 @@ Create the first user; it asks for the password twice:
 docker exec -it streamgo streamgo user add --email you@example.com --name "Your Name"
 ```
 
-Then sign in at `http://<server>:8080`.
+Then sign in at `http://<server>:8080`. This first account is the administrator; it creates the others on the
+**Users** page.
 
 | | |
 |---|---|

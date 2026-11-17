@@ -1,7 +1,7 @@
 // A fake of the routes the sign-in, broadcasts and destinations pages call, built to "API shapes" in design.md:
 // every /api/v1 request is answered here with an in-memory state the tests read and change.
 import type { Page, Route } from '@playwright/test'
-import type { Broadcast, BroadcastDetail, Destination, Me } from '../../src/api/types'
+import type { AdminUser, Broadcast, BroadcastDetail, Destination, Me } from '../../src/api/types'
 
 export const PASSWORD = 'correct horse battery staple'
 
@@ -12,6 +12,8 @@ export interface FakeApi {
   destinations: Destination[]
   /** destination ids the fake answers 409 for (in use) */
   inUse: Set<string>
+  /** the accounts of GET /users (the signed-in user is added when missing); 403 unless me.admin */
+  users: AdminUser[]
   /** answer POST /auth/login with 429 */
   rateLimited: boolean
   /** every request body, keyed "METHOD /path" */
@@ -43,10 +45,13 @@ export async function fakeApi(page: Page, user: Me, signedIn: boolean, seed: Par
     broadcasts: [],
     destinations: [],
     inUse: new Set(),
+    users: [],
     rateLimited: false,
     bodies: [],
     ...seed,
   }
+  if (!api.users.some((u) => u.id === user.id))
+    api.users.unshift({ id: user.id, name: user.name, email: user.email, admin: user.admin, disabled: false })
   const json = (route: Route, status: number, body?: unknown) =>
     route.fulfill(
       body === undefined ? { status } : { status, contentType: 'application/json', body: JSON.stringify(body) },
@@ -78,6 +83,33 @@ export async function fakeApi(page: Page, user: Me, signedIn: boolean, seed: Par
     if (path === '/me' && m === 'PATCH') {
       api.me = api.user = { ...api.me, ...body }
       return json(route, 200, api.me)
+    }
+    if (path === '/me/password' && m === 'PUT') {
+      if (body.current !== PASSWORD)
+        return json(route, 422, {
+          error: { code: 'invalid_input', message: 'is not your current password', field: 'current' },
+        })
+      return json(route, 204)
+    }
+
+    if (path.startsWith('/users') && !api.me.admin) return error(route, 403, 'forbidden')
+    if (path === '/users' && m === 'GET') return json(route, 200, { users: api.users })
+    if (path === '/users' && m === 'POST') {
+      const email = String(body.email).toLowerCase()
+      if (api.users.some((x) => x.email === email)) return error(route, 409, 'conflict', 'The e-mail exists.')
+      const u = { id: ulid(), name: body.name, email, admin: !!body.admin, disabled: false }
+      api.users.push(u)
+      return json(route, 201, u)
+    }
+    const um = path.match(/^\/users\/([^/]+)$/)
+    const u = um && api.users.find((x) => x.id === um[1])
+    if (um && !u) return error(route, 404, 'not_found')
+    if (u && m === 'PATCH') {
+      if (u.id === api.me.id && (body.disabled === true || body.admin === false))
+        return error(route, 409, 'conflict', 'Not yourself.')
+      for (const k of ['name', 'admin', 'disabled'] as const)
+        if (body[k] !== undefined) Object.assign(u, { [k]: body[k] })
+      return json(route, 200, u)
     }
 
     if (path === '/broadcasts' && m === 'GET') return json(route, 200, { broadcasts: api.broadcasts })

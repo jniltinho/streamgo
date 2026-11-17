@@ -7,12 +7,16 @@ package core
 import "errors"
 
 // Domain errors. Packages wrap them (fmt.Errorf("...: %w", core.ErrNotFound)) and the HTTP
-// layer maps them: ErrNotFound → 404, ErrConflict → 409, *InvalidError → 422 with its field.
+// layer maps them: ErrNotFound → 404, ErrForbidden → 403, ErrConflict → 409, *InvalidError → 422
+// with its field.
 var (
 	// ErrNotFound is a missing resource, or one the caller does not own (authorization answers 404).
 	ErrNotFound = errors.New("not found")
 	// ErrConflict is a request the current state does not allow (e.g. deleting a live broadcast).
 	ErrConflict = errors.New("conflict")
+	// ErrForbidden is a signed-in user asking for something their role does not allow
+	// (e.g. user management by someone who is not an administrator).
+	ErrForbidden = errors.New("forbidden")
 )
 
 // InvalidError is input that fails validation; Message is safe to show to the user.

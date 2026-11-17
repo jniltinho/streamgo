@@ -10,6 +10,8 @@ export class ApiError extends Error {
     public readonly code: string,
     message: string,
     public readonly retryAfter?: number,
+    /** the input field at fault, for invalid_input */
+    public readonly field?: string,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -46,7 +48,7 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     const code = err?.code ?? 'internal'
     const retry = Number(res.headers.get('Retry-After')) || undefined
     if (res.status === 401 && path !== '/auth/login' && onUnauthorized) onUnauthorized(code)
-    throw new ApiError(res.status, code, err?.message ?? res.statusText, retry)
+    throw new ApiError(res.status, code, err?.message ?? res.statusText, retry, err?.field)
   }
   return data as T
 }

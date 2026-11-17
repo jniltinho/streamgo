@@ -6,8 +6,14 @@ server enforces.
 
 ## Accounts and sessions
 
-- Accounts are created by an administrator on the command line (`streamgo user add`); there is no sign-up page.
-- Passwords are hashed with argon2id. Changing a password (`streamgo user passwd`) ends that user's sessions.
+- There is no sign-up page. The first account is created on the command line (`streamgo user add`) and is the
+  administrator; administrators create the other accounts on the Users page of the web app, and grant or remove
+  the role there or with `streamgo user admin <email> [--revoke]`. The server checks the role on every user
+  management request and answers "forbidden" to anyone else; an administrator cannot disable or demote themself,
+  and the last enabled administrator cannot be disabled or demoted from the web app.
+- Passwords are hashed with argon2id. A password set by an administrator (in the web app or with
+  `streamgo user passwd`) ends that user's sessions. Users change their own password in Settings → Profile by
+  giving the current one; their other sessions end, the one they use stays. That form is rate-limited like sign-in.
 - A session is a row in the database, keyed by the hash of a random value kept in a cookie (`HttpOnly`,
   `SameSite=Lax`, and `Secure` when the public URL is HTTPS). A session expires after 14 days without use, and
   signing out deletes it.

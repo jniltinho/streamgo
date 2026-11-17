@@ -130,7 +130,8 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	})
 	handlers.RegisterAuth(srv.API(), authDeps)
 	handlers.RegisterThemes(srv.API())
-	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: accounts})
+	handlers.RegisterMe(srv.UserAPI(), handlers.MeDeps{Accounts: accounts, Limiter: authDeps.Limiter})
+	handlers.RegisterUsers(srv.UserAPI(), handlers.UsersDeps{Accounts: accounts})
 
 	// Broadcasts and destinations. The live output below gives the destinations their statuses and hears
 	// about selection changes of a broadcast that is not offline.

@@ -294,6 +294,136 @@ test.describe('destinations', () => {
   })
 })
 
+// the cells of the users-page row of an e-mail
+const cells = (page: Page, email: string) => page.locator(`[data-user="${email}"] td`)
+
+test.describe('users (add-user-management)', () => {
+  const bruno = { id: 'u2', name: 'Bruno', email: 'bruno@example.com', admin: false, disabled: false }
+
+  test('List and create: every account with its role and state, and a new one with a toast', async ({ page }) => {
+    const api = await fakeApi(page, ANA, true, { users: [{ ...bruno }] })
+    await page.goto('/broadcasts')
+    await page.getByRole('navigation').getByRole('link', { name: 'Users' }).click()
+    await expect(page).toHaveURL('/users')
+    await expect(cells(page, ANA.email)).toHaveText([ANA.name, ANA.email, 'Administrator', 'Active', /Edit/])
+    await expect(cells(page, 'bruno@example.com')).toHaveText(['Bruno', 'bruno@example.com', 'User', 'Active', /Edit/])
+
+    await page.getByRole('button', { name: 'New user' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New user' })
+    await dialog.getByLabel('Name').fill('Carla')
+    await dialog.getByLabel('E-mail').fill('carla@example.com')
+    await dialog.getByLabel('Password').fill('short')
+    await dialog.getByRole('button', { name: 'Create' }).click()
+    await expect(dialog.locator('.field-error')).toHaveText('Too short.') // refused before the request
+    expect(api.bodies).toEqual([])
+    await dialog.getByLabel('Password').fill('carla-password')
+    await dialog.getByRole('button', { name: 'Create' }).click()
+    await expect(page.locator('.toast')).toContainText('User Carla created.')
+    await expect(cells(page, 'carla@example.com')).toHaveText(['Carla', 'carla@example.com', 'User', 'Active', /Edit/])
+    expect(api.bodies).toEqual([
+      {
+        route: 'POST /users',
+        body: { email: 'carla@example.com', name: 'Carla', password: 'carla-password', admin: false },
+      },
+    ])
+
+    // a taken e-mail is a themed error in the modal
+    await page.getByRole('button', { name: 'New user' }).click()
+    await dialog.getByLabel('Name').fill('Bruno again')
+    await dialog.getByLabel('E-mail').fill('BRUNO@example.com')
+    await dialog.getByLabel('Password').fill('0123456789')
+    await dialog.getByRole('button', { name: 'Create' }).click()
+    await expect(dialog.locator('.alert-error')).toHaveText('A user with this e-mail already exists.')
+  })
+
+  test('Edit, disable, enable: the list follows, and the controls on oneself are disabled with a reason', async ({
+    page,
+  }) => {
+    const api = await fakeApi(page, ANA, true, { users: [{ ...bruno }] })
+    await page.goto('/users')
+    const row = cells(page, 'bruno@example.com')
+
+    await page.getByRole('button', { name: 'Edit Bruno' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit user' })
+    await expect(dialog.getByLabel('Name')).toHaveValue('Bruno')
+    await dialog.getByLabel('Name').fill('Bruno Lima')
+    await dialog.getByLabel('Administrator').check()
+    await dialog.getByRole('button', { name: 'Save' }).click()
+    await expect(page.locator('.toast')).toContainText('User saved.')
+    await expect(row).toHaveText(['Bruno Lima', 'bruno@example.com', 'Administrator', 'Active', /Edit/])
+    expect(api.bodies.at(-1)).toEqual({ route: 'PATCH /users/u2', body: { name: 'Bruno Lima', admin: true } })
+
+    await page.getByRole('button', { name: 'Disable Bruno Lima' }).click()
+    const confirm = page.getByRole('alertdialog', { name: 'Confirmation' })
+    await expect(confirm).toContainText('Disable Bruno Lima?')
+    await confirm.getByRole('button', { name: 'Cancel' }).click()
+    expect(api.bodies).toHaveLength(1)
+    await page.getByRole('button', { name: 'Disable Bruno Lima' }).click()
+    await confirm.getByRole('button', { name: 'Disable' }).click()
+    await expect(page.locator('.toast').last()).toContainText('Bruno Lima disabled.')
+    await expect(row.nth(3)).toHaveText('Disabled')
+    await page.getByRole('button', { name: 'Enable Bruno Lima' }).click()
+    await expect(page.locator('.toast').last()).toContainText('Bruno Lima enabled.')
+    await expect(row.nth(3)).toHaveText('Active')
+    expect(api.bodies.slice(1)).toEqual([
+      { route: 'PATCH /users/u2', body: { disabled: true } },
+      { route: 'PATCH /users/u2', body: { disabled: false } },
+    ])
+
+    // oneself: no disable, no demotion, each with the reason
+    const self = page.getByRole('button', { name: `Disable ${ANA.name}` })
+    await expect(self).toBeDisabled()
+    await expect(self).toHaveAccessibleDescription('You cannot disable your own account.')
+    await page.getByRole('button', { name: `Edit ${ANA.name}` }).click()
+    const own = page.getByRole('dialog', { name: 'Edit user' })
+    await expect(own.getByLabel('Administrator')).toBeDisabled()
+    await expect(own.getByLabel('Administrator')).toHaveAccessibleDescription(
+      'You cannot remove your own administrator role.',
+    )
+  })
+
+  test('Hidden from others: no Users link, and /users leads to the broadcasts', async ({ page }) => {
+    await fakeApi(page, { ...ANA, admin: false }, true)
+    await page.goto('/broadcasts')
+    await expect(page.getByRole('heading', { name: 'Broadcasts' })).toBeVisible()
+    await expect(page.getByRole('navigation').getByRole('link', { name: 'Users' })).toHaveCount(0)
+    await page.goto('/users')
+    await expect(page).toHaveURL('/broadcasts')
+  })
+
+  test('Change my password: the errors show at their field, success is a toast', async ({ page }) => {
+    const api = await fakeApi(page, { ...ANA, admin: false }, true)
+    await page.goto('/broadcasts')
+    await page.getByRole('button', { name: `Your profile: ${ANA.name}` }).click()
+    const form = page.getByRole('dialog', { name: 'Settings' }).getByRole('form', { name: 'Change password' })
+    const submit = form.getByRole('button', { name: 'Change password' })
+
+    // a different repetition: shown at the field, no request
+    await form.getByLabel('Current password').fill(PASSWORD)
+    await form.getByLabel('New password', { exact: true }).fill('battery-staple-horse')
+    await form.getByLabel('Repeat the new password').fill('battery-staple-house')
+    await submit.click()
+    await expect(form.locator('.field-error')).toHaveText('The passwords do not match.')
+    expect(api.bodies).toEqual([])
+
+    // a wrong current password: shown at the field
+    await form.getByLabel('Repeat the new password').fill('battery-staple-horse')
+    await form.getByLabel('Current password').fill('not my password')
+    await submit.click()
+    await expect(form.locator('.field-error')).toHaveText('This is not your current password.')
+    await expect(form.getByLabel('Current password')).toHaveAttribute('aria-invalid', 'true')
+
+    await form.getByLabel('Current password').fill(PASSWORD)
+    await submit.click()
+    await expect(page.locator('.toast')).toContainText('Password changed. Your other sessions ended.')
+    await expect(form.getByLabel('New password', { exact: true })).toHaveValue('')
+    expect(api.bodies.at(-1)).toEqual({
+      route: 'PUT /me/password',
+      body: { current: PASSWORD, password: 'battery-staple-horse' },
+    })
+  })
+})
+
 test.describe('no page scrollbar, modals below the top', () => {
   for (const size of [
     { width: 1280, height: 720 },
@@ -318,7 +448,7 @@ test.describe('no page scrollbar, modals below the top', () => {
 
   test('the signed-in pages do not scroll the document', async ({ page }) => {
     await fakeApi(page, ANA, true)
-    for (const path of ['/broadcasts', '/destinations']) {
+    for (const path of ['/broadcasts', '/destinations', '/users']) {
       await page.goto(path)
       await expect(page.locator('h1')).toBeVisible()
       expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
@@ -372,6 +502,7 @@ test.describe('large screens and accessibility', () => {
     ['/login', false],
     ['/broadcasts', true],
     ['/destinations', true],
+    ['/users', true],
   ] as const) {
     test(`axe finds no WCAG A/AA violation on ${path}`, async ({ page }) => {
       await fakeApi(page, ANA, signedIn, {

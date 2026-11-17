@@ -3,7 +3,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api, ApiError } from '@/api/client'
-import type { LoginRequest, Me, MePatch } from '@/api/types'
+import type { LoginRequest, Me, MePatch, PasswordChange } from '@/api/types'
 import { isLanguage, setLanguage } from '@/i18n'
 import { themeCatalog } from '@/themes/catalog'
 import { applyTheme, forgetTheme } from '@/themes/apply'
@@ -39,6 +39,11 @@ export const useSession = defineStore('session', () => {
     return accept(await api<Me>('PATCH', '/me', patch))
   }
 
+  // the user's other sessions end; this one stays
+  async function changePassword(current: string, password: string): Promise<void> {
+    await api('PUT', '/me/password', { current, password } satisfies PasswordChange)
+  }
+
   // clear forgets the session locally (after sign-out or when the server ended it).
   function clear(): void {
     me.value = null
@@ -56,5 +61,5 @@ export const useSession = defineStore('session', () => {
     clear()
   }
 
-  return { me, loggedIn, loadMe, login, updateMe, logout, clear }
+  return { me, loggedIn, loadMe, login, updateMe, changePassword, logout, clear }
 })

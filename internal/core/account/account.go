@@ -1,6 +1,6 @@
-// Package account is the accounts domain (work package A): users created from the CLI,
-// argon2id passwords, server-side sessions that expire after 14 days without use, and
-// disabling an account, which ends its sessions at once.
+// Package account is the accounts domain (work package A): users created from the CLI or by
+// an administrator, argon2id passwords, server-side sessions that expire after 14 days without
+// use, and disabling an account, which ends its sessions at once.
 package account
 
 import (
@@ -40,6 +40,10 @@ var (
 	ErrInvalidCredentials = errors.New("invalid e-mail or password")
 	// ErrUnauthenticated is a missing, unknown or expired session.
 	ErrUnauthenticated = errors.New("no valid session")
+	// ErrSelf is an administrator disabling or demoting their own account; it wraps core.ErrConflict.
+	ErrSelf = fmt.Errorf("an administrator cannot disable or demote their own account: %w", core.ErrConflict)
+	// ErrLastAdmin is a change that would leave no enabled administrator; it wraps core.ErrConflict.
+	ErrLastAdmin = fmt.Errorf("an install needs an enabled administrator: %w", core.ErrConflict)
 )
 
 // User is one account. Theme and Language are "" when not chosen.
@@ -50,6 +54,7 @@ type User struct {
 	PasswordHash string
 	Theme        string
 	Language     string
+	Admin        bool
 	DisabledAt   time.Time // zero while enabled
 }
 
@@ -66,7 +71,10 @@ type Session struct {
 // Repository stores users and sessions; internal/store implements it. Lookups return an
 // error wrapping core.ErrNotFound when nothing matches.
 type Repository interface {
-	// CreateUser stores u and sets u.ID; a duplicate e-mail wraps core.ErrConflict.
+	// CreateUser stores u and sets u.ID and u.Admin: the account is an administrator when u.Admin
+	// is set or when no account existed, read and written in one transaction (two racing first
+	// creations may both become administrators, never neither). A duplicate e-mail wraps
+	// core.ErrConflict.
 	CreateUser(ctx context.Context, u *User) error
 	UserByID(ctx context.Context, id string) (*User, error)
 	UserByEmail(ctx context.Context, email string) (*User, error)
@@ -74,8 +82,15 @@ type Repository interface {
 	SetPasswordHash(ctx context.Context, id, hash string) error
 	// SetDisabledAt disables the user at t, or enables them when t is zero.
 	SetDisabledAt(ctx context.Context, id string, t time.Time) error
-	// UpdateProfile writes the given fields (nil: untouched) in one update.
+	// UpdateProfile writes the supplied columns (nil: unchanged).
 	UpdateProfile(ctx context.Context, id string, name, theme, language *string) error
+	// SetAdmin grants or revokes the role without any check (the CLI's).
+	SetAdmin(ctx context.Context, id string, admin bool) error
+	// UpdateUser applies c in one transaction and returns the user after it: only the supplied
+	// columns change, and the user's sessions end in the same transaction when c sets a password
+	// or disables the account. A change that would leave no enabled administrator wraps
+	// core.ErrConflict, checked under row locks so two processes cannot both pass it.
+	UpdateUser(ctx context.Context, id string, c UserChanges) (*User, error)
 
 	CreateSession(ctx context.Context, s Session) error
 	// ActiveSession returns the session only while its user is enabled.
@@ -83,6 +98,26 @@ type Repository interface {
 	TouchSession(ctx context.Context, idHash string, at time.Time) error
 	DeleteSession(ctx context.Context, idHash string) error
 	DeleteUserSessions(ctx context.Context, userID string) error
+	// DeleteOtherSessions removes every session of the user except the one with keepIDHash.
+	DeleteOtherSessions(ctx context.Context, userID, keepIDHash string) error
+}
+
+// UserChanges are the columns of Repository.UpdateUser; nil leaves a column as is.
+type UserChanges struct {
+	Name         *string
+	Admin        *bool
+	DisabledAt   *time.Time // a zero time enables the account
+	PasswordHash *string
+}
+
+// RemovesAdmin reports whether c takes an account out of the enabled administrators.
+func (c UserChanges) RemovesAdmin() bool {
+	return (c.Admin != nil && !*c.Admin) || (c.DisabledAt != nil && !c.DisabledAt.IsZero())
+}
+
+// EndsSessions reports whether c ends the account's sessions: a new password or disabling it.
+func (c UserChanges) EndsSessions() bool {
+	return c.PasswordHash != nil || (c.DisabledAt != nil && !c.DisabledAt.IsZero())
 }
 
 // Options tune a Service; the zero value is the production setting.
@@ -114,10 +149,31 @@ type NewUser struct {
 	Email    string
 	Name     string
 	Password string
+	Admin    bool
 }
 
 // Create adds an account; an e-mail that exists in any letter case wraps core.ErrConflict.
+// The first account of an install is an administrator whatever in.Admin says.
 func (s *Service) Create(ctx context.Context, in NewUser) (*User, error) {
+	return s.create(ctx, "", in)
+}
+
+// CreateBy is Create done by the administrator actorID (core.ErrForbidden otherwise).
+func (s *Service) CreateBy(ctx context.Context, actorID string, in NewUser) (*User, error) {
+	if actorID == "" {
+		return nil, core.ErrForbidden
+	}
+	return s.create(ctx, actorID, in)
+}
+
+// create checks the actor (none: the CLI) twice: first, so that someone who is not an administrator learns
+// nothing and costs no password hash, and again after the slow hashing, right before the write.
+func (s *Service) create(ctx context.Context, actorID string, in NewUser) (*User, error) {
+	if actorID != "" {
+		if err := s.requireAdmin(ctx, actorID); err != nil {
+			return nil, err
+		}
+	}
 	email, err := normalizeEmail(in.Email)
 	if err != nil {
 		return nil, err
@@ -133,7 +189,12 @@ func (s *Service) Create(ctx context.Context, in NewUser) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	u := &User{Email: email, Name: name, PasswordHash: hash}
+	if actorID != "" {
+		if err := s.requireAdmin(ctx, actorID); err != nil {
+			return nil, err
+		}
+	}
+	u := &User{Email: email, Name: name, PasswordHash: hash, Admin: in.Admin}
 	if err := s.repo.CreateUser(ctx, u); err != nil {
 		if errors.Is(err, core.ErrConflict) {
 			return nil, fmt.Errorf("a user with the e-mail %s already exists: %w", email, core.ErrConflict)
@@ -179,6 +240,116 @@ func (s *Service) UpdateProfile(ctx context.Context, id string, name, theme, lan
 		}
 	}
 	return s.repo.UserByID(ctx, id)
+}
+
+// requireAdmin answers core.ErrForbidden unless actorID is an enabled administrator.
+func (s *Service) requireAdmin(ctx context.Context, actorID string) error {
+	a, err := s.repo.UserByID(ctx, actorID)
+	if errors.Is(err, core.ErrNotFound) || (err == nil && (!a.Admin || a.Disabled())) {
+		return fmt.Errorf("user management needs an administrator: %w", core.ErrForbidden)
+	}
+	return err
+}
+
+// ListFor returns every account to the administrator actorID (core.ErrForbidden otherwise).
+func (s *Service) ListFor(ctx context.Context, actorID string) ([]User, error) {
+	if err := s.requireAdmin(ctx, actorID); err != nil {
+		return nil, err
+	}
+	return s.repo.ListUsers(ctx)
+}
+
+// Changes are the fields of an account an administrator changes; nil leaves a field as is.
+type Changes struct {
+	Name     *string
+	Admin    *bool
+	Disabled *bool
+	Password *string
+}
+
+// UpdateBy applies c to the account id for the administrator actorID, in one repository update,
+// and returns the account. It answers core.ErrForbidden to anyone else, ErrSelf when the
+// administrator would disable or demote themself and ErrLastAdmin when no enabled administrator
+// would remain (the repository checks it under row locks, so it holds between processes). A new
+// password or a disabled state ends the account's sessions in the same update.
+func (s *Service) UpdateBy(ctx context.Context, actorID, id string, c Changes) (*User, error) {
+	// authorization first: someone who is not an administrator learns nothing and costs no password hash
+	if err := s.requireAdmin(ctx, actorID); err != nil {
+		return nil, err
+	}
+	var ch UserChanges
+	if c.Name != nil {
+		name, err := cleanName(*c.Name)
+		if err != nil {
+			return nil, err
+		}
+		ch.Name = &name
+	}
+	if c.Password != nil {
+		if err := checkPassword(*c.Password); err != nil {
+			return nil, err
+		}
+		hash, err := s.pw.hash(ctx, *c.Password)
+		if err != nil {
+			return nil, err
+		}
+		ch.PasswordHash = &hash
+	}
+	ch.Admin = c.Admin
+	if c.Disabled != nil {
+		var at time.Time
+		if *c.Disabled {
+			at = s.now().UTC()
+		}
+		ch.DisabledAt = &at
+	}
+
+	if id == actorID && ch.RemovesAdmin() {
+		return nil, ErrSelf
+	}
+	u, err := s.repo.UpdateUser(ctx, id, ch)
+	if errors.Is(err, core.ErrConflict) {
+		return nil, ErrLastAdmin
+	}
+	return u, err
+}
+
+// ChangePassword sets the user's own password after checking the current one (an invalid
+// "current" field when it is wrong) and ends their other sessions; the session with the cookie
+// value keepToken stays.
+func (s *Service) ChangePassword(ctx context.Context, id, keepToken, current, password string) error {
+	if err := checkPassword(password); err != nil {
+		return err
+	}
+	u, err := s.repo.UserByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	ok, err := s.pw.verify(ctx, u.PasswordHash, current)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return core.Invalid("current", "is not your current password")
+	}
+	hash, err := s.pw.hash(ctx, password)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.SetPasswordHash(ctx, id, hash); err != nil {
+		return err
+	}
+	return s.repo.DeleteOtherSessions(ctx, id, hashToken(keepToken))
+}
+
+// SetAdmin grants or revokes the administrator role of the account with email. It is the
+// CLI's: it may leave an install without an administrator, since the operator can undo it.
+func (s *Service) SetAdmin(ctx context.Context, email string, admin bool) error {
+	u, err := s.byEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+	return s.repo.SetAdmin(ctx, u.ID, admin)
 }
 
 // List returns every account.

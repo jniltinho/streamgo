@@ -102,7 +102,8 @@ are up. The logs are in the journal (`journalctl -u streamgo`).
 ## 5. From here on
 
 Everything else is as for the packages, in [Install from the Linux packages](install-linux.md): the
-[first user](install-linux.md#4-create-the-first-user), the [ports](install-linux.md#5-open-the-ports),
+[first user](install-linux.md#4-create-the-first-user) (the administrator, who creates the other accounts in the
+web app), the [ports](install-linux.md#5-open-the-ports),
 [HTTPS](install-linux.md#6-https), the [configuration](install-linux.md#7-configuration) and
 [backups](install-linux.md#9-backup).
 

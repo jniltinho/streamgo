@@ -1,0 +1,30 @@
+# Test-only RTMP destination: RTMP + RTMPS, records everything it receives.
+logLevel: info
+authMethod: internal
+authInternalUsers:
+  - user: any
+    permissions:
+      - action: publish
+      - action: read
+      - action: api
+api: true
+apiAddress: :9997
+rtsp: false
+hls: false
+srt: false
+moq: false
+webrtc: false
+rtmp: true
+rtmpEncryption: optional
+rtmpAddress: :1935
+rtmpsAddress: :1936
+rtmpServerKey: /tls/server.key
+rtmpServerCert: /tls/server.crt
+pathDefaults:
+  record: true
+  recordPath: /rec/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordSegmentDuration: 2h
+  recordDeleteAfter: 0s
+paths:
+  all_others:

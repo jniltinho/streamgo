@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>vispage</title>
+<body style="font:14px monospace;background:#111;color:#eee"><h3>Visibility check</h3>
+<p>Minimize this window (or switch tab) for a while, then come back. Each line: time, visibilityState, Web Worker ticks seen in the last second (30 expected).</p>
+<pre id="o"></pre>
+<script>
+// reports document.visibilityState (on screen and to the logging server if any) and Web Worker timer ticks per second
+const o = document.getElementById('o'); let ticks = 0, minHidden = Infinity;
+const w = new Worker(URL.createObjectURL(new Blob([`let t0=performance.now(),n=0;(function l(){postMessage(n++);setTimeout(l,Math.max(0,t0+n*1000/30-performance.now()))})()`])));
+w.onmessage = () => ticks++;
+const r = (e) => { const s = `${new Date().toISOString().slice(11, 23)} ${e} ${document.visibilityState} worker-ticks/s=${ticks}`;
+  if (e !== 'tick' || document.visibilityState === 'hidden') o.textContent = s + '\n' + o.textContent.slice(0, 20000);
+  fetch(`/vislog?e=${e}&v=${document.visibilityState}&ticks=${ticks}&t=${Date.now()}`).catch(() => {}); };
+document.addEventListener('visibilitychange', () => r('change')); setInterval(() => { r('tick'); ticks = 0; }, 1000); r('load');
+</script>

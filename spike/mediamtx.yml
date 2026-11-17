@@ -1,0 +1,30 @@
+# Ingest instance, production-like: RTSP (TCP) + WebRTC only, internal credentials. API on for the spike (1.6).
+logLevel: info
+authMethod: internal
+authInternalUsers:
+  - user: streamgo
+    pass: spike-internal-pass
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: api
+api: true
+apiAddress: 127.0.0.1:19997
+rtsp: true
+rtspTransports: [tcp]
+rtspAddress: 127.0.0.1:18554
+rtmp: false
+hls: false
+srt: false
+moq: false
+webrtc: true
+webrtcAddress: 127.0.0.1:18889
+webrtcLocalUDPAddress: 127.0.0.1:18189
+webrtcLocalTCPAddress: 127.0.0.1:18189
+webrtcIPsFromInterfaces: false
+webrtcAdditionalHosts: [127.0.0.1]
+pathDefaults:
+  source: publisher
+paths:
+  all_others:

@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>guest</title><body style="background:#222;color:#eee">
+<p id="s">guest</p>
+<script type="module">
+import { q, log, startTicker, makeSource, join, publishSource } from '/common.js';
+const src = makeSource('GUEST', '#246', 660, 5000);
+document.body.append(Object.assign(document.createElement('div'), { id: 'click' }));
+window.start = async () => {
+  await src.actx.resume();
+  startTicker(30, src.draw);
+  const lk = await join(q.get('room'), 'guest-1');
+  await publishSource(lk, src);
+  log('guest-published');
+  const vt = [...lk.localParticipant.trackPublications.values()].find(p => p.kind === 'video').track;
+  let last = {};
+  setInterval(async () => {
+    const L = {}; (await vt.getRTCStatsReport())?.forEach(s => { if (s.type === 'outbound-rtp') {
+      const p = last[s.rid]; L[s.rid || '-'] = { h: s.frameHeight, fps: p ? +((s.framesEncoded - p.framesEncoded) / ((s.timestamp - p.timestamp) / 1000)).toFixed(1) : 0, q: s.qualityLimitationReason, active: s.active }; last[s.rid] = s; } });
+    log('guest-stats', { frames: src.count(), actx: src.actx.state, layers: L });
+  }, 5000);
+};
+</script>

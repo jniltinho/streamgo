@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>whiptest</title><canvas id="c" width="320" height="180"></canvas>
+<script>
+// Minimal WHIP publisher for protocol checks: publish(url, auth) -> {status, location, etag, pc}
+const c = document.getElementById('c'), g = c.getContext('2d'); let n = 0;
+setInterval(() => { g.fillStyle = `hsl(${n++ % 360},50%,50%)`; g.fillRect(0, 0, 320, 180); }, 33);
+const track = c.captureStream(30).getVideoTracks()[0];
+window.publish = async (url, auth) => {
+  const pc = new RTCPeerConnection(); pc.addTransceiver(track, { direction: 'sendonly' });
+  await pc.setLocalDescription(await pc.createOffer());
+  await new Promise(r => { if (pc.iceGatheringState === 'complete') r(); pc.onicegatheringstatechange = () => pc.iceGatheringState === 'complete' && r(); setTimeout(r, 2000); });
+  const h = { 'Content-Type': 'application/sdp' }; if (auth) h.Authorization = 'Basic ' + btoa(auth);
+  const r = await fetch(url, { method: 'POST', headers: h, body: pc.localDescription.sdp });
+  const res = { status: r.status, location: r.headers.get('Location'), etag: r.headers.get('ETag') };
+  if (r.status === 201) await pc.setRemoteDescription({ type: 'answer', sdp: await r.text() });
+  (window.pcs ||= []).push(pc); return res;
+};
+window.states = () => (window.pcs || []).map(p => p.connectionState);
+</script>

@@ -127,7 +127,7 @@ func TestRoutes(t *testing.T) {
 		{"wrong method", request(http.MethodDelete, "/api/v1/ip", "", "Origin", origin), 405, "method_not_allowed", ""},
 		{"not found from the core", request(http.MethodGet, "/api/v1/fail/missing", ""), 404, "not_found", ""},
 		{"conflict from the core", request(http.MethodGet, "/api/v1/fail/conflict", ""), 409, "conflict", ""},
-		{"invalid input from the core", request(http.MethodGet, "/api/v1/fail/invalid", ""), 400, "invalid_input", ""},
+		{"invalid input from the core", request(http.MethodGet, "/api/v1/fail/invalid", ""), 422, "invalid_input", ""},
 		{"internal error", request(http.MethodGet, "/api/v1/fail/other", ""), 500, "internal", ""},
 		{"client route", request(http.MethodGet, "/studio/01JABC", ""), 200, "", "<title>StreamGo</title>"},
 		{"join route", request(http.MethodGet, "/join/sometoken", ""), 200, "", "<title>StreamGo</title>"},
@@ -194,7 +194,7 @@ func TestBodyLimit(t *testing.T) {
 	chunked.ContentLength = -1
 	unknown := request(http.MethodPost, "/api/v1/nope", big, "Origin", origin)
 	for name, r := range map[string]*http.Request{"declared": declared, "chunked": chunked} {
-		if w := ts.do(r); w.Code != http.StatusRequestEntityTooLarge || errorCode(t, w) != "payload_too_large" {
+		if w := ts.do(r); w.Code != http.StatusRequestEntityTooLarge || errorCode(t, w) != "too_large" {
 			t.Errorf("%s: %d %s", name, w.Code, w.Body)
 		}
 	}

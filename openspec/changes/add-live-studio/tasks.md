@@ -12,29 +12,30 @@ composes them, MediaMTX with the production settings (RTSP and WebRTC only, inte
 separate test-only MediaMTX with RTMP enabled as the destination. Each test source burns a changing frame
 counter into its video and plays a distinct tone.
 
-- [ ] 1.1 Compose the owner's and the guest's LiveKit tracks on a canvas driven by a Web Worker timer, with
+- [x] 1.1 Compose the owner's and the guest's LiveKit tracks on a canvas driven by a Web Worker timer, with
   adaptive stream off, mix audio with WebAudio (program bus with a limiter, silent when empty) and publish by
   WHIP; verify with `ffprobe` on the RTSP path that video and audio arrive, once offering VP8 and once H.264
-- [ ] 1.2 Run the transcoder and one copy relay by hand into the test RTMP sink; verify H.264 at the configured
+- [x] 1.2 Run the transcoder and one copy relay by hand into the test RTMP sink; verify H.264 at the configured
   size and 30 fps, keyframes 2 s apart, AAC 48 kHz, each tone present once, and A/V drift under 100 ms after 30
   minutes; repeat the relay over RTMPS; record CPU use at 720p and 1080p
-- [ ] 1.3 Hide the owner's tab for five minutes, then minimize its window for five minutes; verify in the sink's
+- [x] 1.3 Hide the owner's tab for five minutes, then minimize its window for five minutes; verify in the sink's
   recording that both frame counters keep advancing (at least 25 times in every second, never stopped for more
-  than 1 s). This is the result that decides whether browser composition stands
-- [ ] 1.4 Proxy WHIP `POST`, `PATCH` and `DELETE` through a minimal Go handler with MediaMTX on internal
+  than 1 s). This is the result that decides whether browser composition stands (done: the hidden tab passed;
+  the minimized window passed only as an emulation and is checked on a real desktop in 6.2)
+- [x] 1.4 Proxy WHIP `POST`, `PATCH` and `DELETE` through a minimal Go handler with MediaMTX on internal
   credentials; verify publishing works through the proxy and is refused directly, that restarting the handler
   does not stop the media, and that a `DELETE` sent after the restart with the stored session URL closes it
-- [ ] 1.5 Failure behaviour: stop and restart the publisher during a relay; blackhole the sink's network; make
+- [x] 1.5 Failure behaviour: stop and restart the publisher during a relay; blackhole the sink's network; make
   the sink accept and stop reading. Verify what ffmpeg does in each case (exit or hang), that the media time in
   `-progress` output distinguishes flowing from stalled, how long a sink that stopped reading goes unnoticed,
   and which timeouts end a blocked process; record the timings. The 15 s bound of the `live-output` "Destination
   stalls" scenario stands or is corrected by this result
-- [ ] 1.6 Evaluate MediaMTX's native `forward` on the pinned version against the relay requirements: add and
+- [x] 1.6 Evaluate MediaMTX's native `forward` on the pinned version against the relay requirements: add and
   remove a destination without touching the others, per-destination status and last error through its API,
   retry after failure; record whether it can replace the relay processes
-- [ ] 1.7 Reload the owner's page in a fresh browser profile; record whether the `AudioContext` starts
+- [x] 1.7 Reload the owner's page in a fresh browser profile; record whether the `AudioContext` starts
   suspended and what the page can restore by itself
-- [ ] 1.8 Write the results (pinned MediaMTX, LiveKit and ffmpeg versions, exact ffmpeg arguments, measurements,
+- [x] 1.8 Write the results (pinned MediaMTX, LiveKit and ffmpeg versions, exact ffmpeg arguments, measurements,
   the answers to 1.3, 1.5, 1.6 and 1.7) to `docs/spike-media-path.md`, and update design decisions D2 to D5 where
   the results differ. If 1.3 or the drift measurement fails, stop and take the result to the owner before group 2
 
@@ -94,14 +95,17 @@ counter into its video and plays a distinct tone.
   restart recovery, table-tested with a controlled clock), `internal/ffmpeg` (supervisor with progress parsing,
   the stall watchdog, timeouts, process group and parent-death signal from a thread-locked goroutine, clean
   environment, the arguments from the spike, redaction of the whole address, backoff), `internal/mediamtx` (the
-  WHIP client behind the proxy routes with one opaque resource per offer and no upstream call under the lock,
+  WHIP client behind the proxy routes, without `PATCH`, with one opaque resource per offer and no upstream call
+  under the lock,
   and the control API client that closes orphan ingest sessions), destination claims under the global lock, the live and WHIP handlers; verify every `live-output` scenario, the two
   `destinations` scenarios left by 3.B and the `server-cli` "Graceful stop while live" scenario, using a fake
   ffmpeg script in unit tests and the real stack, with SIGKILL of the server, in an integration test. If the
   spike adopted MediaMTX forwards (1.6), the relays are implemented with them behind the same port
-- [ ] 3.E Frontend core: the layout function, the compositor (canvas drawing, placeholders, name tags, logo,
-  banner, worker-driven frames), the audio mix (program and monitor buses, limiter, each track once) and the WHIP
-  client, without Vue; verify the `studio-ui` "Layout rectangles" and "Absent participant" scenarios as a
+- [ ] 3.E Frontend core: the layout function, the compositor (sources read with `MediaStreamTrackProcessor`,
+  the program emitted with `MediaStreamTrackGenerator` on a 30 fps grid from a worker timer, the simple
+  `<video>` drawing for guests' previews; placeholders, name tags, logo, banner), the audio mix (program and
+  monitor buses, remote tracks through muted audio elements, limiter with its gain taken back, each track once)
+  and the WHIP client (candidates gathered before the offer, no offer while audio is suspended), without Vue; verify the `studio-ui` "Layout rectangles" and "Absent participant" scenarios as a
   property test over every layout and source count, compositor snapshot tests, and audio-graph tests with tones
 - [ ] 3.F App pages: the sign-in, broadcasts and destinations views with their stores and API modules, the route
   guard and the language switch, in a centred column that follows the D13 scale; verify every `web-shell`
@@ -137,7 +141,7 @@ counter into its video and plays a distinct tone.
   theme" scenario over the 22 themes
 - [ ] 4.3 Build the live controls: go live, publishing the program through the WHIP client, state and
   per-destination status polling, switching destinations while live, automatic re-publishing when
-  `interrupted`, the "Resume audio" action, the hidden-tab warning, the browser check and the end confirmation;
+  `interrupted`, the "Resume broadcast" action, the hidden-tab warning, the browser check and the end confirmation;
   verify the `studio-ui` "Live controls", "Recovery after a reload" and "Publishing while hidden" scenarios end to
   end
 - [ ] 4.4 Build the guest join page and guest view; verify every `studio-ui` "Guest join page and guest view"
@@ -168,7 +172,7 @@ counter into its video and plays a distinct tone.
   verify the `build-and-deploy` "End-to-end smoke" scenario in `make test-e2e`
 - [ ] 6.2 Run a 30-minute live broadcast by hand, with the server behind NAT and the owner on another network,
   one guest, two destinations (one real platform), a layout change, a banner, a destination switched off and on,
-  an owner reload and a server restart; verify the `build-and-deploy` "Reachable from outside" scenario and
+  an owner reload, a server restart and the studio window minimized for five minutes on a real desktop; verify the `build-and-deploy` "Reachable from outside" scenario and
   record the result in `docs/spike-media-path.md`
 - [ ] 6.3 Back up the database, the assets and the secret key of a stack with data and restore them into a new
   one; verify the `build-and-deploy` "Restore from a backup" scenario

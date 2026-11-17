@@ -7,7 +7,7 @@ package core
 import "errors"
 
 // Domain errors. Packages wrap them (fmt.Errorf("...: %w", core.ErrNotFound)) and the HTTP
-// layer maps them: ErrNotFound → 404, ErrConflict → 409, *InvalidError → 400.
+// layer maps them: ErrNotFound → 404, ErrConflict → 409, *InvalidError → 422 with its field.
 var (
 	// ErrNotFound is a missing resource, or one the caller does not own (authorization answers 404).
 	ErrNotFound = errors.New("not found")

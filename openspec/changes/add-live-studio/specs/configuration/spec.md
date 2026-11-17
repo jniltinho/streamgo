@@ -57,7 +57,8 @@ when present in `config.toml`, and SHALL never be written to logs or command out
 At startup the server SHALL verify that `public_url` is an absolute HTTPS URL (plain HTTP only for `localhost`
 and loopback addresses), that `data_dir` is writable, and that the configured ffmpeg runs and offers what the
 output needs: the `libx264` and `aac` encoders, the `h264`, `vp8` and `opus` decoders, the `rtsp` demuxer, the
-`rtsp` and `flv` muxers and the `rtmp` and `rtmps` protocols; it SHALL refuse to start otherwise.
+`rtsp`, `rtp` and `flv` muxers, the `tcp`, `tls`, `rtmp` and `rtmps` protocols and the `scale`, `pad` and
+`format` filters; it SHALL refuse to start otherwise.
 
 #### Scenario: ffmpeg missing a capability
 - **WHEN** the configured ffmpeg lacks the `libx264` encoder, or the `rtmps` protocol

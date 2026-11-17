@@ -1,0 +1,12 @@
+# throwaway spike key; single node, no Redis, rooms only via API
+port: 17880
+rtc:
+  tcp_port: 17881
+  udp_port: 17882
+  use_external_ip: false
+room:
+  auto_create: false
+keys:
+  spikekey: spike-throwaway-secret-0123456789abcdef
+logging:
+  level: info

@@ -61,12 +61,12 @@ media server's own listeners SHALL require the server's internal credentials.
 
 #### Scenario: Late request for a replaced session
 - **GIVEN** offer B replaced offer A
-- **WHEN** a `DELETE` or `PATCH` for A's session resource arrives
+- **WHEN** a `DELETE` for A's session resource arrives
 - **THEN** the response is 404 and B keeps publishing
 
-#### Scenario: Trickle ICE
-- **WHEN** the owner sends `PATCH` with `application/trickle-ice-sdpfrag` and `If-Match` to the current session
-- **THEN** the media server receives the same body, content type and `If-Match`, and its status is returned
+#### Scenario: No trickle ICE
+- **WHEN** a `PATCH` is sent to a session resource
+- **THEN** the response is 405, and the studio's offers already carry their ICE candidates
 
 #### Scenario: Media server error
 - **WHEN** the media server refuses the offer or does not answer within 10 seconds
@@ -77,7 +77,7 @@ media server's own listeners SHALL require the server's internal credentials.
 - **THEN** within 15 seconds the server has closed it
 
 #### Scenario: Not the owner
-- **WHEN** another signed-in user, or a guest, posts an offer, or sends `PATCH` or `DELETE` to a session resource
+- **WHEN** another signed-in user, or a guest, posts an offer, or sends `DELETE` to a session resource
 - **THEN** the response is 404 and nothing reaches the media server
 
 #### Scenario: Offline broadcast
@@ -163,6 +163,10 @@ reason `program lost`.
 - **GIVEN** a live broadcast
 - **WHEN** the program stops and is published again within the grace period
 - **THEN** the state goes `interrupted` then `live`, and the destinations are `live` again
+
+#### Scenario: Program without audio
+- **WHEN** an offer arrives without an audio track
+- **THEN** the broadcast does not become `live` on it, and the studio publishes again once its audio is running
 
 #### Scenario: Owner never returns
 - **WHEN** the program is absent past the deadline

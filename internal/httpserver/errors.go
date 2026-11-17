@@ -18,6 +18,7 @@ type Error struct {
 	Status  int
 	Code    string
 	Message string
+	Field   string // the input field at fault, for invalid_input
 }
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }
@@ -34,15 +35,17 @@ var (
 	ErrCrossOrigin     = NewError(http.StatusForbidden, "cross_origin", "The request does not come from this site.")
 	ErrNotFound        = NewError(http.StatusNotFound, "not_found", "The requested resource does not exist.")
 	ErrConflict        = NewError(http.StatusConflict, "conflict", "The request conflicts with the current state.")
-	ErrTooLarge        = NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "The request body is too large.")
+	ErrTooLarge        = NewError(http.StatusRequestEntityTooLarge, "too_large", "The request body is too large.")
 	ErrInternal        = NewError(http.StatusInternalServerError, "internal", "An internal error occurred.")
 )
 
-// errorBody is the JSON envelope of every API error: {"error":{"code","message"}}.
+// errorBody is the JSON envelope of every API error: {"error":{"code","message"}}, with the
+// field at fault when the input is invalid.
 type errorBody struct {
 	Error struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
+		Field   string `json:"field,omitempty"`
 	} `json:"error"`
 }
 
@@ -63,7 +66,7 @@ func errorHandler(logger *slog.Logger) echo.HTTPErrorHandler {
 			return
 		}
 		var body errorBody
-		body.Error.Code, body.Error.Message = apiErr.Code, apiErr.Message
+		body.Error.Code, body.Error.Message, body.Error.Field = apiErr.Code, apiErr.Message, apiErr.Field
 		_ = c.JSON(apiErr.Status, body)
 	}
 }
@@ -76,7 +79,10 @@ func toAPIError(err error) *Error {
 	case errors.As(err, &apiErr):
 		return apiErr
 	case errors.As(err, &invalid):
-		return NewError(http.StatusBadRequest, "invalid_input", invalid.Error())
+		return &Error{
+			Status: http.StatusUnprocessableEntity, Code: "invalid_input",
+			Message: invalid.Message, Field: invalid.Field,
+		}
 	case errors.Is(err, core.ErrNotFound):
 		return ErrNotFound
 	case errors.Is(err, core.ErrConflict):

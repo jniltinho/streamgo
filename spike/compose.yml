@@ -1,0 +1,24 @@
+# docker compose -p streamgo-spike up -d
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.10
+    network_mode: host
+    command: ["--config", "/livekit.yaml"]
+    volumes: ["./livekit.yaml:/livekit.yaml:ro"]
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.4@sha256:c730bccdbc8739f8f0c13cefe9bea8b61926f599b88fa4d0d229baa91846c7bc
+    network_mode: host
+    volumes: ["./mediamtx.yml:/mediamtx.yml:ro"]
+  sink:
+    image: bluenviron/mediamtx:1.21.4@sha256:c730bccdbc8739f8f0c13cefe9bea8b61926f599b88fa4d0d229baa91846c7bc
+    user: "1000:1000"
+    ports: ["127.0.0.1:11935:1935", "127.0.0.1:11936:1936", "127.0.0.1:19998:9997"]
+    volumes: ["./sink.yml:/mediamtx.yml:ro", "./out/tls:/tls:ro", "./out/rec-sink:/rec"]
+  # second sink, only for the failure tests (paused / disconnected); reached on its container IP
+  sink2:
+    image: bluenviron/mediamtx:1.21.4@sha256:c730bccdbc8739f8f0c13cefe9bea8b61926f599b88fa4d0d229baa91846c7bc
+    user: "1000:1000"
+    networks: [sink2net]
+    volumes: ["./sink.yml:/mediamtx.yml:ro", "./out/tls:/tls:ro", "./out/rec-sink2:/rec"]
+networks:
+  sink2net: {}

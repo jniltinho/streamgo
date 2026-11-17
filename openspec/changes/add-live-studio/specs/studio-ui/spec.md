@@ -108,6 +108,10 @@ between participants of the same studio.
 - **WHEN** every source is taken off stage during a live broadcast
 - **THEN** the program still carries an audio track, silent, and the broadcast stays `live`
 
+#### Scenario: Level
+- **WHEN** one tone at a known level is on stage
+- **THEN** its level in the program is within 1 dB of its level at the source
+
 #### Scenario: Six voices
 - **WHEN** six microphones at full level are on stage
 - **THEN** the program's audio does not clip
@@ -145,16 +149,16 @@ browser that cannot host.
 - **THEN** a themed dialog asks for confirmation before anything stops
 
 ### Requirement: Recovery after a reload
-After a reload during a live or interrupted broadcast the studio SHALL reconnect and publish the program again by
-itself, ask for one action when the browser holds audio until a click, and say that screen shares must be shared
-again.
+After a reload during a live or interrupted broadcast the studio SHALL reconnect to the room by itself and SHALL
+publish the program again only when its audio is running: at once when the browser allows audio, otherwise on one
+"Resume broadcast" action. It SHALL say that screen shares must be shared again.
 
 #### Scenario: Reload while live
 - **GIVEN** a live broadcast
 - **WHEN** the owner reloads the studio in a browser profile with no autoplay exemption
-- **THEN** the studio reconnects and publishes video without any action, the broadcast becomes `live` again, a
-  "Resume audio" action is shown until audio flows, and a screen that was shared is listed as needing to be
-  shared again
+- **THEN** the studio reconnects to the room without any action and shows "Resume broadcast"; on that one click
+  it publishes the program with audio and the broadcast becomes `live` again; a screen that was shared is listed
+  as needing to be shared again
 
 ### Requirement: Guest join page and guest view
 The invite link SHALL open a page showing the broadcast's title, a field for the guest's name and a preview of the

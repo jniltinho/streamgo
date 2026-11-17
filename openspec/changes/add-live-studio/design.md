@@ -67,8 +67,8 @@ LiveKit runs with automatic room creation off, and StreamGo calls `CreateRoom` (
 `EmptyTimeout` 300 s, `MaxParticipants` `studio.max_participants`) before every token is issued. A client whose
 room expired asks StreamGo for a new token. Deleting a broadcast deletes its room. Upstream reports races in
 which a join recreates a room around a delete, so nothing relies on that setting alone: whatever room exists is
-brought in line by the reconciler within 15 s, and the integration test reproduces the case on the pinned
-release.
+brought in line by the reconciler within 15 s. On v1.13.10 the spike saw a token for a missing room refused
+(404) and a join racing a delete recreate the room in 3 of 5 tries.
 
 Capacity: the room limit includes the owner. When the room is full and the owner is not in it, issuing the
 owner's token first removes the guest who joined last. That frees a slot but reserves nothing, so the studio
@@ -125,6 +125,15 @@ Video:
   hidden tab. That alone proves nothing: the transcoder outputs a constant frame rate, so a frozen picture still
   arrives at 30 fps. The spike and the tests therefore measure **fresh pictures**: each test source burns a
   changing frame counter into its video, and the destination's recording must show it advancing.
+- The spike showed that drawing `<video>` elements and capturing the canvas with `captureStream` is not good
+  enough even with the tab visible: it skips 3 to 5 of a remote source's frames every second. The owner's
+  compositor therefore reads each source through a `MediaStreamTrackProcessor` (a queue of two frames, one taken
+  per tick, at the cost of about 66 ms on remote sources) and emits the program through a
+  `MediaStreamTrackGenerator` with timestamps on an exact 30 fps grid. With that, every second of a five-minute
+  hidden tab had at least 28 fresh pictures per participant. Both interfaces exist in Chromium, which hosting
+  already requires; guests' previews, which are not published, keep the simple `<video>` drawing.
+- Cameras are published with an explicit 30 fps on every simulcast layer; LiveKit's presets send 20 and 25 fps
+  on the lower ones, which showed as a slow start after a guest joined.
 - The owner's LiveKit connection turns adaptive stream off, so subscriptions do not pause when video elements are
   hidden or off-screen.
 - The logo is served from StreamGo's own origin so the canvas is never tainted.
@@ -140,15 +149,25 @@ Audio (one `AudioContext`):
 - **Program bus**: every on-stage track, the owner's own microphone included, through a limiter, into one
   `MediaStreamDestination` that exists for the whole session, so the program always has an audio track, silent
   when the stage is empty.
-- **Monitor bus**: every on-stage track except the listener's own, to the speakers. LiveKit audio elements are
-  never attached, so nothing is heard twice and nothing bypasses the mix. Guests have only a monitor bus.
+- **Monitor bus**: every on-stage track except the listener's own, to the speakers. Guests have only a monitor
+  bus.
+- Chrome delivers a remote WebRTC track to WebAudio only while the track is also playing in a media element
+  (measured: silence without it), so each remote audio track is attached to an `<audio>` element that is muted:
+  it is heard only through the buses, never twice.
+- The limiter is a `DynamicsCompressorNode`, which adds a fixed make-up gain (+1.7 dB measured); a gain node
+  after it takes that back.
 - Backstage tracks enter neither bus. This keeps backstage out of the program and out of normal playback; it is
   **not** a privacy boundary between participants of the same studio, who could subscribe to each other's tracks
   with a modified client.
 
-Reload: a reloaded studio reconnects and publishes the video again by itself. Browsers may hold a new page's
-`AudioContext` suspended until a click, and a screen share always needs a new user gesture, so the studio shows
-one "Resume audio" action when the context is suspended and screen shares must be shared again.
+Reload: a reloaded studio reconnects to the room by itself, but every new page starts with its `AudioContext`
+suspended until a click, and an offer made while it is suspended loses its audio track for good (MediaMTX then
+publishes a video-only path, which the transcoder rejects). So the program is published only once the context
+is running: after a reload during a live or interrupted broadcast the studio shows one "Resume broadcast"
+action, and publishes on that click. A screen share always needs a new user gesture and must be shared again.
+
+Not proven: a minimized window. The spike could only emulate it (no window manager under Xvfb); the emulation
+passed, and `spike/check-minimize.sh` checks it on a real desktop. It is part of the manual run (task 6.2).
 
 - *Alternative: LiveKit Egress room composite (headless Chrome).* Survives the owner's browser, costs two to
   four cores, Redis and Chrome. Rejected by the owner for weight.
@@ -168,18 +187,22 @@ cannot touch the new one:
 | Request | Body | StreamGo does |
 |---|---|---|
 | `POST …/program/whip` | `application/sdp` offer, at most 64 kB | checks owner and state under the broadcast's lock and notes the run number; without the lock, forwards to `<mediamtx.whip_url>/program/<id>/whip` with the internal credentials and a 10 s timeout; under the lock again, if the run is still the same, closes the previous upstream session, stores the new upstream URL with a new random session id, and answers 201 with the SDP answer, `Location: …/program/whip/sessions/<session id>` and the upstream `ETag` and `Link` headers; if the run changed meanwhile, it closes the new upstream session and answers 409 |
-| `PATCH …/program/whip/sessions/<session id>` | `application/trickle-ice-sdpfrag` | forwards to the stored upstream URL with `If-Match`, returning the upstream status |
 | `DELETE …/program/whip/sessions/<session id>` | none | forwards, clears the stored session |
 
 A session id that is not the current one answers 404. Upstream calls never run while the broadcast's lock is
 held, so a slow media server cannot delay End. The client's cookies and `Authorization` are never forwarded,
 redirects are not followed, an upstream error is answered as 502, and if storing the session fails StreamGo closes
-the upstream session. ICE restart is not supported: the client publishes again. The stored URL survives a
+the upstream session. There is no `PATCH`: MediaMTX ignores `If-Match` and treats a changed ICE fragment as a
+restart, so instead of policing that in the proxy, the studio gathers its ICE candidates before sending the
+offer and publishes again when a connection fails. MediaMTX keeps its default of letting a new publisher
+replace the one on the path, which is the behaviour the single ingest session relies on. The stored URL survives a
 StreamGo restart, so ending a broadcast after a restart still closes its ingest.
 
 A crash between the upstream answer and storing it would leave a session nobody remembers. MediaMTX's control
 API is therefore enabled on the internal network (same credentials), and the reconciler (D1) closes any ingest
-session publishing on the path of a broadcast that is `offline`; End does the same for its own path.
+session publishing on the path of a broadcast that is `offline`; End does the same for its own path. The spike
+confirmed the calls on MediaMTX 1.21.4: `GET /v3/paths/get/<path>` gives the source's session id and
+`POST /v3/webrtcsessions/kick/<id>` closes it.
 
 - *Alternative: browser talks to MediaMTX directly with MediaMTX's HTTP auth callback.* A public listener, a
   token format and a callback to maintain. More surface for the same result.
@@ -203,10 +226,13 @@ A running process is not a working one, so the supervisor (`internal/ffmpeg`) re
 - **flowing**: ffmpeg's machine-readable progress (`-progress` on a pipe) shows the output's media time
   advancing between reports. The transcoder flowing is what makes a broadcast `live`; a relay flowing is what
   makes a destination `live`. Progress says ffmpeg wrote the data, not that the far end received it: a sink that
-  stops reading is noticed only when socket buffers fill, so the 15 s bound in the specs is confirmed or
-  corrected by spike task 1.5;
-- **stalled or exited**: no progress for 10 s (the process is killed), or the process ended. Inputs and outputs
-  carry connection and read/write timeouts so a blocked socket ends instead of hanging.
+  stops reading is noticed only when socket buffers fill (1.8 s of media at 4.5 Mbit/s in the spike), after
+  which the 5 s watchdog fires; that is how the 15 s bound in the specs is met;
+- **stalled or exited**: the output's media time did not advance for 5 s (the process is killed), or the
+  process ended. Any exit during a run is a loss: ffmpeg exits with code 0 when its input goes away. The RTSP
+  inputs carry `-timeout` and the relay's output `-rw_timeout` (5 s each); without the latter a relay whose
+  destination stops reading never exits and ignores SIGINT, so SIGKILL after the grace is required, not a
+  precaution.
 
 An ffmpeg whose input path does not exist yet exits at once, so retrying the transcoder every second until it
 flows, bounded by `output.start_timeout`, is the wait for the program; the same loop bounded by the interruption
@@ -218,17 +244,20 @@ that signal when the operating-system thread that started the child exits, not t
 started from a goroutine locked to its thread for the child's whole life. They are stopped with
 SIGINT then SIGKILL after 5 s, all at once under one deadline at shutdown. The supervisor keeps the last lines of
 stderr with the destination's secret part redacted. At startup StreamGo checks that the configured ffmpeg has
-what the two command lines need: the `libx264` and `aac` encoders, the `h264`, `vp8` and `opus` decoders, the
-`rtsp` demuxer, the `rtsp` and `flv` muxers and the `rtmp` and `rtmps` protocols (RTSP is a format in ffmpeg,
-not a protocol).
+what the two command lines need (the list the spike derived from them): the `libx264` and `aac` encoders, the
+`h264`, `vp8` and `opus` decoders, the `rtsp` demuxer, the `rtsp`, `rtp` and `flv` muxers, the `tcp`, `tls`,
+`rtmp` and `rtmps` protocols and the `scale`, `pad` and `format` filters (RTSP is a format in ffmpeg, not a
+protocol). The exact command lines are in `docs/spike-media-path.md`.
 
 - *Alternative: one ffmpeg with the `tee` muxer.* One process, but changing destinations restarts everything
   and a failed output is silent.
-- *Alternative: MediaMTX's native `forward`.* The transcoder is needed either way. Current MediaMTX reports
-  per-destination state and errors through its API and keeps unchanged destinations across a reload, which
-  would replace the relay processes and keep stream keys out of process arguments. The spike (task 1.6) checks
-  it on the pinned version against switching, isolation, status and retry; if it meets them, relays become
-  MediaMTX forwards behind the same `Relays` port and this section is updated.
+- *Alternative: MediaMTX's native `forward`.* The spike found it viable on 1.21.4: destinations are added and
+  removed without touching the others, and its API reports a state, the last error and the bytes sent per
+  destination. Not chosen for this version: the supervisor is needed for the transcoder anyway, so relays cost
+  almost no extra code, while forwards would need an API client, polling, and `outboundBytes` as the liveness
+  signal (its `state` says `forwarding` with nothing flowing); MediaMTX retries on its own every 5 s, so the
+  private-address check could not run before each attempt; and it was not tried against a real platform over
+  RTMPS. It stays the way to take stream keys out of process arguments later, behind the same `Relays` port.
 - *Alternative: OvenMediaEngine instead of MediaMTX + ffmpeg.* It ingests WHIP, transcodes and pushes RTMP by
   REST on its own. AGPL-3.0, XML configuration, and WebRTC-in to RTMP-out is not its common path. Kept as the
   fallback if the spike shows the MediaMTX path is not stable.
@@ -236,6 +265,10 @@ not a protocol).
 Known limit: a destination's address with its key is an argument of the relay process, visible to other
 processes of the same user or container. StreamGo and ffmpeg run in one container as a dedicated user; the
 argument list is never logged.
+
+Measured in the spike (flat test content, alone on the machine): the transcoder used 28 % of one core at 720p30
+and 52 % at 1080p30, a relay under 1 %; A/V drift over 30 minutes was about 9 ms. Pinned versions: MediaMTX
+1.21.4, LiveKit v1.13.10, with their digests in `docs/spike-media-path.md`.
 
 ### D5. Output state machine, runs and locks (in `internal/core/output`, pure)
 
@@ -512,13 +545,77 @@ configure and wire two media servers by hand, so both artifacts carry them:
 | `DELETE /broadcasts/:id/participants/:identity` | owner | remove a guest |
 | `PUT /broadcasts/:id/destinations` | owner | `{ "ids": [...] }` chosen for this broadcast; allowed while live |
 | `POST /broadcasts/:id/live`, `DELETE /broadcasts/:id/live` | owner | go live, end |
-| `POST /broadcasts/:id/program/whip`, `PATCH/DELETE /broadcasts/:id/program/whip/sessions/:sid` | owner | D3 |
+| `POST /broadcasts/:id/program/whip`, `DELETE /broadcasts/:id/program/whip/sessions/:sid` | owner | D3 |
 | `GET/POST /destinations`, `PATCH/DELETE /destinations/:id` | user | address and key are write-only; returns scheme, host, `has_key` |
 | `GET /join/:token`, `POST /join/:token` | anyone | broadcast title; join with `{ "name" }` |
 | `GET /healthz`, `GET /readyz` | anyone | outside `/api/v1` |
 
 The owner's studio polls `GET /broadcasts/:id` every 3 s while the state is not `offline`; `on_air` reaches
 everyone through the stage state.
+
+### API shapes
+
+Server and web app are built in parallel against these. Field names are snake_case; ids are ULID strings; a
+missing optional value is an empty string or `null`, never an absent key. Lists come wrapped in an object.
+
+```text
+User         { id, name, email, theme, language }            theme and language "" when not chosen
+Theme        { id, label, scheme, default? }
+Stage        the stage state of D1: { v, on_air, layout, sources: [{ p, k }], banner: { id, text } | null,
+               logo: string | null, accent }
+Output       { state: "offline"|"starting"|"live"|"interrupted", reason: string, started_at: RFC 3339 | null,
+               deadline: RFC 3339 | null }
+Destination  { id, name, scheme, host, has_key }
+BroadcastDestination   Destination + { status: "off"|"connecting"|"live"|"retrying", error: string }
+Broadcast    { id, title, output: Output }                    in lists
+BroadcastDetail        Broadcast + { invite_url, stage: Stage, destinations: [BroadcastDestination] }
+Banner       { id, text }
+Join         { url, token, identity }                         LiveKit URL for browsers, access token, identity
+
+POST   /auth/login            { email, password }              200 User | 401 invalid_credentials | 429
+POST   /auth/logout                                            204
+GET    /me                                                     200 User | 401 unauthenticated
+PATCH  /me                    { theme?, language? }            200 User | 422 invalid_theme, invalid_language
+GET    /themes                                                 200 { themes: [Theme] }
+
+GET    /broadcasts                                             200 { broadcasts: [Broadcast] }  newest first
+POST   /broadcasts            { title }                        201 BroadcastDetail
+GET    /broadcasts/:id                                         200 BroadcastDetail
+PATCH  /broadcasts/:id        { title }                        200 BroadcastDetail
+DELETE /broadcasts/:id                                         204 | 409 conflict
+POST   /broadcasts/:id/invite                                  200 { invite_url }
+PUT    /broadcasts/:id/destinations   { ids: [id] }            200 { destinations: [BroadcastDestination] }
+
+GET    /destinations                                           200 { destinations: [Destination] }
+POST   /destinations          { name, address, key? }          201 Destination
+PATCH  /destinations/:id      { name?, address?, key? }        200 Destination | 409 conflict (in use)
+DELETE /destinations/:id                                       204 | 409 conflict (in use)
+
+POST   /broadcasts/:id/studio-token                            200 Join
+PATCH  /broadcasts/:id/stage  { layout?, sources?, banner_id?, accent? }   200 { stage: Stage }
+GET    /broadcasts/:id/banners                                 200 { banners: [Banner] }
+POST   /broadcasts/:id/banners        { text }                 201 Banner
+DELETE /broadcasts/:id/banners/:bid                            200 { stage: Stage }
+POST   /broadcasts/:id/logo   multipart, field "file"          200 { stage: Stage } | 413 too_large | 422
+DELETE /broadcasts/:id/logo                                    200 { stage: Stage }
+DELETE /broadcasts/:id/participants/:identity                  200 { stage: Stage }
+
+POST   /broadcasts/:id/live                                    200 { output: Output } | 409 conflict
+DELETE /broadcasts/:id/live                                    200 { output: Output }
+POST   /broadcasts/:id/program/whip   application/sdp          201 application/sdp, Location | 409 | 502
+DELETE /broadcasts/:id/program/whip/sessions/:sid              200 | 404
+
+GET    /join/:token                                            200 { title } | 404
+POST   /join/:token           { name }                         200 Join + { title } | 404 | 429
+```
+
+Errors are `{ "error": { "code", "message", "field"? } }`. Codes: `bad_request` (400), `unauthenticated` (401),
+`invalid_credentials` (401), `cross_origin` (403), `not_found` (404, also for what the caller does not own),
+`method_not_allowed` (405), `conflict` (409), `too_large` (413), `unsupported_media_type` (415), `invalid_input`
+(422, with `field`), `invalid_theme` and `invalid_language` (422), `rate_limited` (429), `internal` (500),
+`bad_gateway` (502), `unavailable` (503). `message` is English and safe to show; the web app translates by code
+and falls back to the message. A `conflict` carries a message saying why (live broadcast, destination in use,
+server at its limit).
 
 ## Data model
 
@@ -556,10 +653,10 @@ studio views (group 4) come after C, D and E and follow the chosen design.
 
 ## Risks / Trade-offs
 
-- **Hidden or throttled owner tab freezes the program** → worker-driven frames, adaptive stream off, a visible
-  warning, and a spike that measures fresh pictures (a changing frame counter in each source) through real
-  LiveKit with the tab hidden and the window minimized for more than five minutes. If it cannot be made
-  reliable, fall back to D2's first alternative before building further.
+- **Hidden or throttled owner tab freezes the program** → the spike passed with the tab hidden for five minutes
+  (at least 28 fresh pictures per second per participant) using the compositor of D2. A minimized window passed
+  only as an emulation and is checked on a real desktop in the manual run; the studio warns while the tab is
+  hidden.
 - **Owner's uplink or machine limits quality; WebRTC lowers resolution under congestion** → the transcoder
   normalizes size and rate so destinations always get a valid stream; the studio shows the publish bitrate.
 - **The broadcast depends on one browser** → interruption with a stored deadline instead of an abrupt end; stated

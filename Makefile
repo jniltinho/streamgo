@@ -11,7 +11,7 @@ DIST      := dist
 BUILD_ARGS := --platform $(PLATFORM) \
 	--build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILDTIME=$(BUILDTIME)
 
-.PHONY: all help build init clean tools check test test-db up down dev
+.PHONY: all help build init clean tools check check-go test test-go test-db up down dev
 
 all: build
 
@@ -55,16 +55,26 @@ check: tools ## gofmt, go vet, golangci-lint (with the layering rule), govulnche
 	  go vet ./...; golangci-lint run ./...; govulncheck ./...; \
 	  $(NPM_CI); npm run check; npm run build)
 
+check-go: tools ## The Go half of check: gofmt, go vet, golangci-lint, govulncheck (no frontend install)
+	$(call TOOLS_RUN,,set -e; \
+	  test -z "$$(gofmt -l $$($(GO_FILES)))" || { gofmt -l $$($(GO_FILES)); echo "gofmt: the files above need formatting"; exit 1; }; \
+	  go vet ./...; golangci-lint run ./...; govulncheck ./...)
+
 test: tools ## Go tests with -race (SQLite) and frontend unit tests
 	$(call TOOLS_RUN,,set -e; go test -race -count=1 ./...; $(NPM_CI); npm test -- --run --passWithNoTests)
 
+test-go: tools ## The Go half of test (no frontend install)
+	$(call TOOLS_RUN,,set -e; go test -race -count=1 ./...)
+
 # test-db starts throwaway MariaDB and PostgreSQL (no published ports) and runs the Go tests on the three databases;
 # the containers are removed on exit, failure or interruption.
-COMPOSE_TEST := docker compose -f deployments/compose/compose.test.yml
+# TEST_PROJECT names the Compose project, so two checkouts can run test-db at the same time.
+TEST_PROJECT ?= streamgo-test
+COMPOSE_TEST := docker compose -p $(TEST_PROJECT) -f deployments/compose/compose.test.yml
 test-db: tools ## Go tests with -race against SQLite, MariaDB and PostgreSQL
 	@trap '$(COMPOSE_TEST) down -v --remove-orphans >/dev/null 2>&1' EXIT INT TERM; \
 	$(COMPOSE_TEST) up -d --wait --quiet-pull >/dev/null || { echo "the test databases did not start"; exit 1; }; \
-	$(call TOOLS_RUN,--network streamgo-test_default -e STREAMGO_TEST_MARIADB_ADDR=mariadb:3306 \
+	$(call TOOLS_RUN,--network $(TEST_PROJECT)_default -e STREAMGO_TEST_MARIADB_ADDR=mariadb:3306 \
 	  -e STREAMGO_TEST_POSTGRES_ADDR=postgres:5432,go test -race -count=1 ./...)
 
 # ── Compose stack (deployments/compose, task 3.H) ─────────────────────────────

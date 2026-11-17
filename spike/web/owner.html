@@ -1,0 +1,133 @@
+<!doctype html><meta charset="utf-8"><title>owner</title><body style="background:#222;color:#eee">
+<div id="thumbs"></div><canvas id="program" style="width:640px"></canvas>
+<script type="module">
+import { LK, q, log, startTicker, makeSource, join, publishSource } from '/common.js';
+const H = q.get('res') === '1080' ? 1080 : 720, W = H * 16 / 9;
+const codec = (q.get('codec') || 'vp8').toLowerCase(), bid = q.get('bid') || 'test';
+const canvas = document.getElementById('program'); canvas.width = W; canvas.height = H;
+const g = canvas.getContext('2d');
+// ?gen=1: emit frames through a MediaStreamTrackGenerator with timestamps on an exact 30 fps grid
+// instead of canvas.captureStream(0)+requestFrame (whose frames land on the page's 60 Hz paint clock)
+const GEN = q.get('gen') === '1', PROC = !!q.get('proc') && q.get('proc') !== '0';
+const gen = GEN ? new MediaStreamTrackGenerator({ kind: 'video' }) : null, genW = gen?.writable.getWriter();
+const outVideo = GEN ? gen : canvas.captureStream(0).getVideoTracks()[0];
+let genT0 = 0;
+
+// One mixing AudioContext: program bus (limiter -> one MediaStreamDestination for the whole session)
+// and a monitor bus (others only) to the speakers. LiveKit audio elements are never attached.
+const mix = new AudioContext();
+const limiter = new DynamicsCompressorNode(mix, { threshold: -3, knee: 0, ratio: 20, attack: 0.003, release: 0.1 });
+const program = mix.createMediaStreamDestination(); limiter.connect(program);
+const monitor = mix.createGain(); monitor.connect(mix.destination);
+const addAudio = (track, isOwn) => {
+  const ms = new MediaStream([track]);
+  // ael (default on, ?ael=0 off): workaround test for Chrome feeding silence to WebAudio from a remote WebRTC track with no media element
+  if (!isOwn && q.get('ael') !== '0') { const a = new Audio(); a.muted = true; a.srcObject = ms; a.play().catch(() => {}); window.ael = a; }
+  const n = mix.createMediaStreamSource(ms), gain = mix.createGain();
+  n.connect(gain); gain.connect(limiter); if (!isOwn) gain.connect(monitor);
+  log('audio-in', { isOwn });
+};
+log('audioctx', { state: mix.state });
+mix.onstatechange = () => log('audioctx', { state: mix.state });
+
+const tiles = []; // [{el}] owner left, guest right
+const thumbs = document.getElementById('thumbs');
+const latest = [], queues = [];
+// ?proc=1: read each source with a MediaStreamTrackProcessor and draw its newest decoded frame,
+// instead of drawing the <video> element (which updates on the paint clock)
+const place = (i, el, track) => {
+  el.width = 160; el.height = 90; thumbs.append(el); tiles[i] = el;
+  if (!PROC) return;
+  const rd = new MediaStreamTrackProcessor({ track }).readable.getReader();
+  // ?proc=2: keep a small queue per source and show the next queued frame on each tick (jitter buffer of 1-2 frames)
+  const qd = (queues[i] = []);
+  (async () => { for (;;) { const { value, done } = await rd.read(); if (done) return;
+    if (q.get('proc') === '2') { qd.push(value); while (qd.length > 4) qd.shift().close(); }
+    else { latest[i]?.close(); latest[i] = value; } } })();
+};
+let drawn = 0;
+const compose = (n) => {
+  g.fillStyle = '#111'; g.fillRect(0, 0, W, H);
+  if (q.get('proc') === '2') queues.forEach((qd, i) => { if (qd.length > 2 || (qd.length > 1 && !latest[i])) { latest[i]?.close(); latest[i] = qd.shift(); } });
+  if (PROC) latest.forEach((f, i) => f && g.drawImage(f, i * W / 2, H / 4, W / 2, H / 2));
+  else tiles.forEach((el, i) => el && el.readyState >= 2 && g.drawImage(el, i * W / 2, H / 4, W / 2, H / 2));
+  if (GEN) { genT0 ||= performance.now() * 1000;
+    const f = new VideoFrame(canvas, { timestamp: Math.round(genT0 + n * 1e6 / 30) }); genW.write(f); f.close(); }
+  else outVideo.requestFrame();
+  drawn++;
+};
+
+let lastIn = null;
+async function inbound() { // guest video as received from LiveKit
+  if (!window.guestVideo) return null;
+  let i = {}; (await guestVideo.getRTCStatsReport())?.forEach(s => { if (s.type === 'inbound-rtp') i = s; });
+  const r = lastIn ? { fps: +((i.framesDecoded - lastIn.framesDecoded) / ((i.timestamp - lastIn.timestamp) / 1000)).toFixed(1),
+    dropped: i.framesDropped - lastIn.framesDropped, w: i.frameWidth, freezes: i.freezeCount } : null;
+  lastIn = i; return r;
+}
+async function whip() {
+  const pc = new RTCPeerConnection();
+  const vt = pc.addTransceiver(outVideo, { direction: 'sendonly' });
+  pc.addTransceiver(program.stream.getAudioTracks()[0], { direction: 'sendonly' });
+  const want = codec === 'h264' ? 'video/H264' : 'video/VP8';
+  vt.setCodecPreferences(RTCRtpSender.getCapabilities('video').codecs.filter(c =>
+    c.mimeType === want && (want !== 'video/H264' || /packetization-mode=1/.test(c.sdpFmtpLine))));
+  const p = vt.sender.getParameters();
+  p.degradationPreference = 'maintain-resolution';
+  p.encodings[0].maxBitrate = H === 1080 ? 12_000_000 : 8_000_000;
+  await vt.sender.setParameters(p);
+  const pending = []; let session = null;
+  const patch = async (cands) => {
+    const sdp = pc.localDescription.sdp, ufrag = sdp.match(/a=ice-ufrag:(.*)\r\n/)[1], pwd = sdp.match(/a=ice-pwd:(.*)\r\n/)[1];
+    let frag = `a=ice-ufrag:${ufrag}\r\na=ice-pwd:${pwd}\r\n`;
+    for (const c of cands) frag += `m=audio 9 UDP/TLS/RTP/SAVPF 0\r\na=mid:${c.sdpMid}\r\na=${c.candidate}\r\n`;
+    const r = await fetch(session, { method: 'PATCH', headers: { 'Content-Type': 'application/trickle-ice-sdpfrag', 'If-Match': '*' }, body: frag });
+    log('whip-patch', { status: r.status, n: cands.length });
+  };
+  pc.onicecandidate = (e) => { if (!e.candidate || !e.candidate.candidate) return; session ? patch([e.candidate]) : pending.push(e.candidate); };
+  pc.onconnectionstatechange = () => log('whip-pc', { state: pc.connectionState });
+  await pc.setLocalDescription(await pc.createOffer());
+  const r = await fetch(`/b/${bid}/program/whip`, { method: 'POST', headers: { 'Content-Type': 'application/sdp' }, body: pc.localDescription.sdp });
+  if (r.status !== 201) { log('whip-error', { status: r.status, body: await r.text() }); return; }
+  session = r.headers.get('Location');
+  await pc.setRemoteDescription({ type: 'answer', sdp: await r.text() });
+  log('whip-answer', { session, codec: pc.remoteDescription.sdp.match(/a=rtpmap:\d+ (H264|VP8)/)?.[1] });
+  if (pending.length) patch(pending.splice(0));
+  window.pc = pc;
+  let last = null;
+  setInterval(async () => {
+    let o = {}, au = {}; (await pc.getStats()).forEach(s => { if (s.type === 'outbound-rtp') { if (s.kind === 'video') o = s; else au = s; } });
+    const fps = last ? (o.framesEncoded - last.framesEncoded) / ((o.timestamp - last.timestamp) / 1000) : 0;
+    log('stats', { drawn, srcFrames: src.count(), encFps: +fps.toFixed(1), q: o.qualityLimitationReason,
+      w: o.frameWidth, h: o.frameHeight, kbps: last ? Math.round((o.bytesSent - last.bytesSent) * 8 / (o.timestamp - last.timestamp)) : 0,
+      mix: mix.state, src: src.actx.state, enc: o.encoderImplementation, audioPkts: au.packetsSent, guestIn: await inbound() });
+    last = o;
+  }, 5000);
+}
+
+const src = makeSource('OWNER', '#622', 440, 3000);
+window.start = async (noGesture) => {
+  if (noGesture) { // 1.7: started by the page itself after a reload; contexts may stay suspended until a click
+    mix.resume(); src.actx.resume();
+    addEventListener('click', () => { mix.resume(); src.actx.resume(); log('resume-click', { mix: mix.state }); });
+  } else { await mix.resume(); await src.actx.resume(); }
+  log('resumed', { mix: mix.state, src: src.actx.state });
+  startTicker(30, src.draw);
+  const lk = await join(q.get('room'), 'host-1', lk => lk.on(LK.RoomEvent.TrackSubscribed, (track, pub, part) => {
+    log('subscribed', { kind: track.kind, from: part.identity });
+    if (track.kind === 'video') { place(1, track.attach(), track.mediaStreamTrack); window.guestVideo = track; }
+    else addAudio(track.mediaStreamTrack, false);
+  }));
+  await publishSource(lk, src);
+  for (const p of lk.localParticipant.trackPublications.values()) {
+    if (p.track.kind === 'video') place(0, p.track.attach(), p.track.mediaStreamTrack); else addAudio(p.track.mediaStreamTrack, true);
+  }
+  startTicker(30, compose);
+  await whip();
+};
+window.mixState = () => mix.state;
+// ?autostart=1 (pages opened without DevTools): start on the first real click
+if (q.get('autostart') === 'load') window.start(true);
+else if (q.get('autostart')) addEventListener('click', () => window.start(), { once: true });
+setInterval(() => log('vis-tick', { mix: mix.state }), 10000);
+</script>

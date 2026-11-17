@@ -225,7 +225,7 @@ func checkFormat(t *testing.T, url string) {
 	if !video || !audio {
 		t.Fatalf("format %+v", info.Streams)
 	}
-	out := probe(t, "-read_intervals", "%+7", "-select_streams", "v:0", "-skip_frame", "nokey",
+	out := probe(t, "-read_intervals", "%+9", "-select_streams", "v:0", "-skip_frame", "nokey",
 		"-show_entries", "frame=pts_time", "-of", "csv=p=0", url)
 	var times []float64
 	for line := range strings.FieldsSeq(string(out)) {
@@ -233,10 +233,12 @@ func checkFormat(t *testing.T, url string) {
 			times = append(times, f)
 		}
 	}
-	if len(times) < 3 {
+	if len(times) < 4 {
 		t.Fatalf("keyframes at %v", times)
 	}
-	for i := 1; i < len(times); i++ {
+	// From the second keyframe on: a reader that joins a live stream may place the first one before the
+	// stream's clock reference arrives, which showed as a first interval of 1.84 s on a slow runner.
+	for i := 2; i < len(times); i++ {
 		if d := times[i] - times[i-1]; math.Abs(d-2) > 0.05 {
 			t.Fatalf("keyframes %v s apart (%v)", d, times)
 		}

@@ -127,7 +127,7 @@ counter into its video and plays a distinct tone.
   three databases against the Compose stack, and fix what does not meet between packages; verify
   `make check test test-db build` and a route test listing every route of the REST contract with its owner check
 
-- [ ] 3.T Standalone HTTPS: copy MeetHub's `internal/tlsutil`, add `server.cert_file`, `key_file` and
+- [x] 3.T Standalone HTTPS: copy MeetHub's `internal/tlsutil`, add `server.cert_file`, `key_file` and
   `self_signed`, serve HTTPS, proxy LiveKit's signalling at `/livekit/` with WebSocket upgrades, and derive the
   browsers' LiveKit URL from the public URL when `livekit.url` is empty; verify every `standalone-https` scenario,
   the studio one with two real browsers against a server on a self-signed certificate
@@ -144,7 +144,7 @@ counter into its video and plays a distinct tone.
   owner", "The stage is the program" and "Program audio" scenarios and the `studio` "One hosting tab" scenario
   with Playwright using fake media devices and an axe accessibility check, and the `ui-themes` "Studio in every
   theme" scenario over the 22 themes
-- [ ] 4.3 Build the live controls: go live, publishing the program through the WHIP client, state and
+- [x] 4.3 Build the live controls: go live, publishing the program through the WHIP client, state and
   per-destination status polling, switching destinations while live, automatic re-publishing when
   `interrupted`, the "Resume broadcast" action, the hidden-tab warning, the browser check and the end confirmation;
   verify the `studio-ui` "Live controls", "Recovery after a reload" and "Publishing while hidden" scenarios end to

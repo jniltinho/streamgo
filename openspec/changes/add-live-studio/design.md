@@ -607,7 +607,8 @@ Output       { state: "offline"|"starting"|"live"|"interrupted", reason: string,
 Destination  { id, name, scheme, host, has_key }
 BroadcastDestination   Destination + { status: "off"|"connecting"|"live"|"retrying", error: string }
 Broadcast    { id, title, output: Output }                    in lists
-BroadcastDetail        Broadcast + { invite_url, stage: Stage, destinations: [BroadcastDestination] }
+BroadcastDetail        Broadcast + { invite_url, stage: Stage, destinations: [BroadcastDestination],
+               studio: { max_on_stage, program_width, program_height, video_bitrate_kbps } }   read-only settings
 Banner       { id, text }
 Join         { url, token, identity }                         LiveKit URL for browsers, access token, identity
 

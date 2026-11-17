@@ -5,7 +5,9 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { Play, Radio, Square } from '@lucide/vue'
 import type { Output } from '@/api/types'
-import { destinationDot as statusDot, destinationLabel as statusLabel, useStudio } from '@/stores/studio'
+import EndBroadcastModal from '@/components/studio/EndBroadcastModal.vue'
+import { destinationDot as statusDot, destinationLabel as statusLabel, liveError, useStudio } from '@/stores/studio'
+import { toast } from '@/feedback/toasts'
 import { t } from '@/i18n'
 
 const studio = useStudio()
@@ -26,7 +28,23 @@ const timer = computed(() => {
   return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((n) => String(n).padStart(2, '0')).join(':')
 })
 
-const nextStep = () => t('Live output arrives in the next step.')
+const busy = ref(false)
+const ending = ref(false)
+// a refusal by the server (no destination, its limit, a destination in use) is shown as it answers
+const goLiveBlocked = computed(() =>
+  studio.hostable ? '' : t('Hosting needs a Chromium-based desktop browser, such as Chrome or Edge.'),
+)
+
+async function goLive() {
+  busy.value = true
+  try {
+    await studio.goLive()
+  } catch (e) {
+    toast.error(liveError(e))
+  } finally {
+    busy.value = false
+  }
+}
 </script>
 
 <template>
@@ -57,15 +75,25 @@ const nextStep = () => t('Live output arrives in the next step.')
       >
         <span class="studio-dot status-dot" :class="statusDot(d)" aria-hidden="true" />
         {{ d.name }}
-        <span class="sr-only">{{ statusLabel(d) }}</span>
+        <span class="sr-only">{{ statusLabel(d) }}{{ d.error ? `: ${d.error}` : '' }}</span>
       </li>
     </ul>
-    <button v-if="output.state === 'offline'" type="button" class="btn" disabled :title="nextStep()">
+    <button
+      v-if="output.state === 'offline'"
+      type="button"
+      class="btn"
+      :disabled="busy || !!goLiveBlocked || studio.phase !== 'joined'"
+      :title="goLiveBlocked || undefined"
+      :aria-describedby="goLiveBlocked ? 'go-live-blocked' : undefined"
+      @click="goLive"
+    >
       <Radio class="size-4" aria-hidden="true" /> {{ t('Go live') }}
     </button>
-    <button v-else type="button" class="btn-danger" disabled :title="nextStep()">
+    <button v-else type="button" class="btn-danger" @click="ending = true">
       <Square class="size-4" aria-hidden="true" /> {{ t('End broadcast') }}
     </button>
+    <span v-if="goLiveBlocked" id="go-live-blocked" class="sr-only">{{ goLiveBlocked }}</span>
+    <EndBroadcastModal v-if="ending" @close="ending = false" />
   </template>
 
   <template v-else-if="studio.role === 'guest'">

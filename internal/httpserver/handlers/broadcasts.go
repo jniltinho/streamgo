@@ -19,6 +19,17 @@ import (
 type BroadcastsDeps struct {
 	Broadcasts   *broadcast.Service
 	Destinations *destination.Service
+	// Studio is given read-only to the studio in every broadcast detail.
+	Studio StudioSettings
+}
+
+// StudioSettings are the server settings the owner's studio builds on: the stage limit, the program size and
+// the transcoder's video bitrate (the WHIP sender's ceiling stays above it).
+type StudioSettings struct {
+	MaxOnStage       int `json:"max_on_stage"`
+	ProgramWidth     int `json:"program_width"`
+	ProgramHeight    int `json:"program_height"`
+	VideoBitrateKbps int `json:"video_bitrate_kbps"`
 }
 
 // RegisterBroadcasts adds the broadcast routes to g (srv.UserAPI()).
@@ -50,6 +61,7 @@ type broadcastDetailView struct {
 	InviteURL    string                     `json:"invite_url"`
 	Stage        json.RawMessage            `json:"stage"`
 	Destinations []broadcastDestinationView `json:"destinations"`
+	Studio       StudioSettings             `json:"studio"`
 }
 
 type broadcastDestinationView struct {
@@ -91,7 +103,7 @@ func (d BroadcastsDeps) detail(ctx context.Context, b *broadcast.Broadcast) (bro
 		return broadcastDetailView{}, err
 	}
 	return broadcastDetailView{broadcastView: newBroadcastView(b), InviteURL: invite,
-		Stage: json.RawMessage(b.Stage), Destinations: selectedViews(dests)}, nil
+		Stage: json.RawMessage(b.Stage), Destinations: selectedViews(dests), Studio: d.Studio}, nil
 }
 
 func (d BroadcastsDeps) writeDetail(c *echo.Context, status int, b *broadcast.Broadcast) error {

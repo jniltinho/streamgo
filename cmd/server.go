@@ -149,7 +149,7 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		AllowPrivate: cfg.Output.AllowPrivateDestinations, MaxPerBroadcast: cfg.Output.MaxDestinations,
 	}
 	handlers.RegisterBroadcasts(srv.UserAPI(), handlers.BroadcastsDeps{
-		Broadcasts: broadcastSvc, Destinations: destinationSvc,
+		Broadcasts: broadcastSvc, Destinations: destinationSvc, Studio: studioSettings(cfg),
 	})
 	handlers.RegisterDestinations(srv.UserAPI(), handlers.DestinationsDeps{Destinations: destinationSvc})
 
@@ -229,6 +229,14 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 	}
 	logger.Info("streamgo stopped")
 	return nil
+}
+
+// studioSettings are the settings the studio reads from every broadcast detail.
+func studioSettings(cfg *config.Config) handlers.StudioSettings {
+	w, h := ffmpeg.Size(cfg.Output.Resolution)
+	return handlers.StudioSettings{
+		MaxOnStage: cfg.Studio.MaxOnStage, ProgramWidth: w, ProgramHeight: h, VideoBitrateKbps: cfg.Output.VideoBitrateKbps,
+	}
 }
 
 // roomRemover is the broadcasts package's Remover: deleting a broadcast closes its room and removes its logo.

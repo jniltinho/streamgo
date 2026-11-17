@@ -86,11 +86,26 @@ export interface BroadcastDestination extends Destination {
   error: string
 }
 
+/** the server settings the owner's studio builds on, read-only */
+export interface StudioSettings {
+  max_on_stage: number
+  program_width: number
+  program_height: number
+  /** the transcoder's video bitrate: the WHIP sender's ceiling stays above it */
+  video_bitrate_kbps: number
+}
+
 /** POST /broadcasts (201), GET and PATCH /broadcasts/:id */
 export interface BroadcastDetail extends Broadcast {
   invite_url: string
   stage: Stage
   destinations: BroadcastDestination[]
+  studio: StudioSettings
+}
+
+/** POST and DELETE /broadcasts/:id/live */
+export interface LiveAnswer {
+  output: Output
 }
 
 /** GET /broadcasts, newest first */

@@ -2,6 +2,7 @@
 // The stage region: the canvas the compositor draws from the stage state. For the owner it is the program itself
 // (what is published); for a guest, the compositor's preview.
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import LiveNotice from '@/components/studio/LiveNotice.vue'
 import { useStudio } from '@/stores/studio'
 import { t } from '@/i18n'
 
@@ -16,10 +17,11 @@ onBeforeUnmount(() => studio.detachCanvas())
   <div class="studio-stage stage">
     <canvas
       ref="canvas"
-      class="studio-program stage-tile"
+      class="studio-program stage-tile [grid-area:1/1]"
       role="img"
       :aria-label="studio.role === 'owner' ? t('Program') : t('Stage')"
       data-program
     />
+    <LiveNotice v-if="studio.role === 'owner'" />
   </div>
 </template>

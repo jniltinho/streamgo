@@ -172,7 +172,30 @@ const catalog: Catalog = {
   'Picture in picture': 'Imagem na imagem',
   Layout: 'Layout',
   'Studio settings': 'Configurações do estúdio',
-  'Live output arrives in the next step.': 'A saída ao vivo chega na próxima etapa.',
+  'Choose at least one destination before going live.': 'Escolha ao menos um destino antes de entrar ao vivo.',
+  'The server is at its limit of {n} live broadcasts.': 'O servidor está no limite de {n} transmissões ao vivo.',
+  'The destination “{name}” is in use by another broadcast.': 'O destino “{name}” está em uso por outra transmissão.',
+  'A destination is in use by another broadcast.': 'Um destino está em uso por outra transmissão.',
+  'A live broadcast needs at least one destination; end the broadcast to remove the last one.':
+    'Uma transmissão ao vivo precisa de ao menos um destino; encerre a transmissão para remover o último.',
+  'The broadcast is already on air.': 'A transmissão já está no ar.',
+  'The server is stopping. Try again in a moment.': 'O servidor está parando. Tente novamente em instantes.',
+  'Hosting needs a Chromium-based desktop browser, such as Chrome or Edge.':
+    'Apresentar exige um navegador de desktop baseado em Chromium, como Chrome ou Edge.',
+  'Hosting needs a Chromium-based desktop browser, such as Chrome or Edge. You can prepare the stage here, but not go live.':
+    'Apresentar exige um navegador de desktop baseado em Chromium, como Chrome ou Edge. Você pode preparar o palco aqui, mas não entrar ao vivo.',
+  'The broadcast ended.': 'A transmissão foi encerrada.',
+  'End the broadcast now? Every destination stops receiving it.':
+    'Encerrar a transmissão agora? Todos os destinos deixam de recebê-la.',
+  'Keep broadcasting': 'Continuar transmitindo',
+  'The broadcast is on, but this studio is not sending it.':
+    'A transmissão está ativa, mas este estúdio não a está enviando.',
+  'After a reload the browser needs one click before the studio can send sound.':
+    'Depois de recarregar, o navegador precisa de um clique antes que o estúdio possa enviar som.',
+  'Resume broadcast': 'Retomar transmissão',
+  'Your screen is on stage but no longer shared: a reload stops it. Share it again with “Share screen”.':
+    'Sua tela está no palco mas não é mais compartilhada: recarregar a página a interrompe. Compartilhe de novo com “Compartilhar tela”.',
+  '● On air from this tab: keep it open': '● No ar a partir desta aba: mantenha-a aberta',
   'Time on air': 'Tempo no ar',
   'Go live': 'Entrar ao vivo',
   'End broadcast': 'Encerrar transmissão',

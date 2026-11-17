@@ -52,6 +52,8 @@ class FrameFeed implements Feed {
   private queue: { frame: VideoFrame; at: number }[] = []
   private shown: VideoFrame | null = null
   private now = 0
+  private scratch = new OffscreenCanvas(1, 1)
+  private scratchG = this.scratch.getContext('2d')!
   private reader: ReadableStreamDefaultReader<VideoFrame>
 
   constructor(track: MediaStreamTrack) {
@@ -63,9 +65,23 @@ class FrameFeed implements Feed {
     for (;;) {
       const r = await this.reader.read().catch(() => null)
       if (!r || r.done) return
-      this.queue.push({ frame: r.value, at: this.now })
+      this.queue.push({ frame: this.copy(r.value), at: this.now })
       while (this.queue.length > 4) this.queue.shift()!.frame.close()
     }
+  }
+
+  // A camera lends its frames from a small pool: holding a few of them in the queue starved the owner's own camera
+  // to half its rate (15 of 30 fps measured, task 4.3). Each frame is copied and given back at once.
+  private copy(f: VideoFrame): VideoFrame {
+    const c = this.scratch
+    if (c.width !== f.displayWidth || c.height !== f.displayHeight) {
+      c.width = f.displayWidth
+      c.height = f.displayHeight
+    }
+    this.scratchG.drawImage(f, 0, 0)
+    const out = new VideoFrame(c, { timestamp: f.timestamp })
+    f.close()
+    return out
   }
 
   tick(n: number) {

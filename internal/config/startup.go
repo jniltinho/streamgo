@@ -25,8 +25,9 @@ func CheckDataDir(dir string) error {
 	return os.Remove(name)
 }
 
-// ffmpegNeeds is what the live output needs from ffmpeg: the listing flag, what the
-// listing calls the item, and the names that must be in it.
+// ffmpegNeeds is what the live output's two command lines need from ffmpeg (the list the
+// spike derived, docs/spike-media-path.md): the listing flag, what the listing calls the
+// item, and the names that must be in it. RTSP is a format in ffmpeg, not a protocol.
 var ffmpegNeeds = []struct {
 	flag, kind string
 	names      []string
@@ -34,8 +35,9 @@ var ffmpegNeeds = []struct {
 	{"-encoders", "encoder", []string{"libx264", "aac"}},
 	{"-decoders", "decoder", []string{"h264", "vp8", "opus"}},
 	{"-demuxers", "demuxer", []string{"rtsp"}},
-	{"-muxers", "muxer", []string{"rtsp", "flv"}},
-	{"-protocols", "output protocol", []string{"rtmp", "rtmps"}},
+	{"-muxers", "muxer", []string{"rtsp", "rtp", "flv"}},
+	{"-protocols", "output protocol", []string{"tcp", "tls", "rtmp", "rtmps"}},
+	{"-filters", "filter", []string{"scale", "pad", "format"}},
 }
 
 // CheckFFmpeg runs the ffmpeg at path and verifies it offers every encoder, decoder,
@@ -49,7 +51,7 @@ func CheckFFmpeg(ctx context.Context, path string) error {
 		if err != nil {
 			return fmt.Errorf("output.ffmpeg_path: cannot run %q: %w", path, err)
 		}
-		have := listed(out, need.flag == "-protocols")
+		have := listed(out, need.flag)
 		for _, n := range need.names {
 			if !have[n] {
 				missing = append(missing, fmt.Sprintf("the %s %s", n, need.kind))
@@ -64,9 +66,11 @@ func CheckFFmpeg(ctx context.Context, path string) error {
 
 // listed parses one of ffmpeg's listings. Codec and format listings have a header ending in
 // a dashed line, then one entry per line: flags, name(s), description. The protocol listing
-// has an "Output:" section with one name per line.
-func listed(out []byte, protocols bool) map[string]bool {
+// has an "Output:" section with one name per line. The filter listing has no dashed line; an
+// entry is flags, name, its pads ("V->V") and a description.
+func listed(out []byte, flag string) map[string]bool {
 	have := map[string]bool{}
+	protocols := flag == "-protocols"
 	inside := false
 	sc := bufio.NewScanner(bytes.NewReader(out))
 	for sc.Scan() {
@@ -74,6 +78,10 @@ func listed(out []byte, protocols bool) map[string]bool {
 		fields := strings.Fields(line)
 		switch {
 		case len(fields) == 0:
+		case flag == "-filters":
+			if len(fields) >= 3 && strings.Contains(fields[2], "->") {
+				have[fields[1]] = true
+			}
 		case protocols && strings.HasSuffix(line, ":"):
 			inside = line == "Output:"
 		case protocols:

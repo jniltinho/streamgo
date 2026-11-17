@@ -73,6 +73,7 @@ type LiveKit struct {
 type MediaMTX struct {
 	WHIPURL string `toml:"whip_url"` // HTTP base URL of MediaMTX's WebRTC server
 	RTSPURL string `toml:"rtsp_url"` // RTSP base URL ffmpeg reads and writes
+	APIURL  string `toml:"api_url"`  // HTTP base URL of MediaMTX's control API
 	User    string `toml:"user" secret:"true"`
 	Secret  string `toml:"secret" secret:"true"`
 }
@@ -139,7 +140,7 @@ func Default() *Config {
 		},
 		Database: Database{Driver: DriverSQLite},
 		LiveKit:  LiveKit{URL: "ws://localhost:7880", APIURL: "http://localhost:7880"},
-		MediaMTX: MediaMTX{WHIPURL: "http://localhost:8889", RTSPURL: "rtsp://localhost:8554"},
+		MediaMTX: MediaMTX{WHIPURL: "http://localhost:8889", RTSPURL: "rtsp://localhost:8554", APIURL: "http://localhost:9997"},
 		Studio:   Studio{MaxParticipants: 10, MaxOnStage: 6},
 		Output: Output{
 			FFmpegPath:       "ffmpeg",
@@ -237,6 +238,7 @@ func (c *Config) Validate() error {
 	checkURL("livekit.api_url", c.LiveKit.APIURL, "http", "https")
 	checkURL("mediamtx.whip_url", c.MediaMTX.WHIPURL, "http", "https")
 	checkURL("mediamtx.rtsp_url", c.MediaMTX.RTSPURL, "rtsp")
+	checkURL("mediamtx.api_url", c.MediaMTX.APIURL, "http", "https")
 
 	between("studio.max_participants", c.Studio.MaxParticipants, 2, 100)
 	between("studio.max_on_stage", c.Studio.MaxOnStage, 1, 6)

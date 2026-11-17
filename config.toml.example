@@ -38,6 +38,8 @@ api_url = "http://localhost:7880"
 whip_url = "http://localhost:8889"
 # RTSP base URL ffmpeg reads the program from and writes the transcoded stream to.
 rtsp_url = "rtsp://localhost:8554"
+# HTTP base URL of MediaMTX's control API (internal network only): it closes ingest sessions nobody tracks.
+api_url = "http://localhost:9997"
 
 [studio]
 # Participants in a studio room, the owner included (2 to 100).
@@ -46,7 +48,8 @@ max_participants = 10
 max_on_stage = 6
 
 [output]
-# The ffmpeg binary; it must offer libx264, aac, the h264, vp8 and opus decoders, rtsp, flv, rtmp and rtmps.
+# The ffmpeg binary; it must offer the libx264 and aac encoders, the h264, vp8 and opus decoders, the rtsp
+# demuxer, the rtsp, rtp and flv muxers, the tcp, tls, rtmp and rtmps protocols and the scale, pad and format filters.
 ffmpeg_path = "ffmpeg"
 # Program resolution sent to destinations: 720p or 1080p (30 fps).
 resolution = "720p"

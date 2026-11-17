@@ -46,7 +46,8 @@ func fakeFFmpeg(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "ffmpeg")
 	script := "#!/bin/sh\nprintf ' ------\\n V..... libx264 x\\n A..... aac x\\n V..... h264 x\\n V..... vp8 x\\n" +
-		" A..... opus x\\n DE rtsp x\\n E flv x\\nOutput:\\n  rtmp\\n  rtmps\\n'\n"
+		" A..... opus x\\n DE rtsp x\\n E rtp x\\n E flv x\\n ... scale V->V x\\n ... pad V->V x\\n ... format V->V x\\n" +
+		"Output:\\n  rtmp\\n  rtmps\\n  tcp\\n  tls\\n'\n"
 	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { //nolint:gosec // an executable test script
 		t.Fatal(err)
 	}

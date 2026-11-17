@@ -7,6 +7,7 @@ require (
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/labstack/echo/v5 v5.4.5
 	github.com/pelletier/go-toml/v2 v2.4.3
+	github.com/pion/webrtc/v4 v4.2.23
 	github.com/pressly/goose/v3 v3.30.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/sys v0.50.0
@@ -77,7 +78,6 @@ require (
 	github.com/pion/stun/v4 v4.0.1 // indirect
 	github.com/pion/transport/v5 v5.1.1 // indirect
 	github.com/pion/turn/v5 v5.1.2 // indirect
-	github.com/pion/webrtc/v4 v4.2.23 // indirect
 	github.com/prometheus/client_golang v1.25.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.0 // indirect

@@ -95,6 +95,8 @@ const catalog: Catalog = {
   Remove: 'Remover',
   Backstage: 'Bastidores',
   'Everyone in the studio': 'Todos no estúdio',
+  'Name tags': 'Etiquetas de nome',
+  "Show each person's name on the program": 'Mostrar o nome de cada pessoa no programa',
   Settings: 'Configurações',
   'Your profile': 'Seu perfil',
   'Your profile: {name}': 'Seu perfil: {name}',

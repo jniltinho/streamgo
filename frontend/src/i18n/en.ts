@@ -94,6 +94,8 @@ const catalog: Catalog = {
   Remove: 'Remove',
   Backstage: 'Backstage',
   'Everyone in the studio': 'Everyone in the studio',
+  'Name tags': 'Name tags',
+  "Show each person's name on the program": "Show each person's name on the program",
   Settings: 'Settings',
   'Your profile': 'Your profile',
   'Your profile: {name}': 'Your profile: {name}',

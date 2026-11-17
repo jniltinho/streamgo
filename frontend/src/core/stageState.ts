@@ -20,6 +20,8 @@ export interface StageState {
   banner: { id: string; text: string } | null
   logo: string | null
   accent: string
+  /** the name tags are taken off the tiles; false when the server does not say */
+  hide_names: boolean
 }
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
@@ -51,7 +53,16 @@ export function parseStage(raw: unknown): StageState | null {
     if (!isObj(banner) || typeof banner.id !== 'string' || typeof banner.text !== 'string') return null
     b = { id: banner.id, text: banner.text }
   }
-  return { v, on_air, layout: layout as Layout, sources: parsed, banner: b, logo, accent }
+  return {
+    v,
+    on_air,
+    layout: layout as Layout,
+    sources: parsed,
+    banner: b,
+    logo,
+    accent,
+    hide_names: raw.hide_names === true,
+  }
 }
 
 // StageFeed keeps the newest stage state seen from any channel (room metadata, API answers).

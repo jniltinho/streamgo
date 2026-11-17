@@ -43,6 +43,8 @@ type State struct {
 	Banner  *Banner  `json:"banner"`
 	Logo    *string  `json:"logo"`
 	Accent  string   `json:"accent"`
+	// HideNames takes the name tags off the tiles; a state stored before it existed shows them.
+	HideNames bool `json:"hide_names"`
 }
 
 // Default is the stage state of a new broadcast.

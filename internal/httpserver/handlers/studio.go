@@ -54,8 +54,8 @@ func stageAnswer(c *echo.Context) func(stage.State, error) error {
 	}
 }
 
-// decodePatch reads a stage patch: any of layout, sources, banner_id (null hides the banner)
-// and accent; any other field, logo included, is refused.
+// decodePatch reads a stage patch: any of layout, sources, banner_id (null hides the banner),
+// accent and hide_names; any other field, logo included, is refused.
 func decodePatch(body io.Reader) (studio.Patch, error) {
 	var raw map[string]json.RawMessage
 	if err := json.NewDecoder(body).Decode(&raw); err != nil || raw == nil {
@@ -74,6 +74,11 @@ func decodePatch(body io.Reader) (studio.Patch, error) {
 			err = json.Unmarshal(v, &p.Accent)
 			if p.Accent == nil {
 				err = core.Invalid(k, "The accent must be a #rrggbb colour.")
+			}
+		case "hide_names":
+			err = json.Unmarshal(v, &p.HideNames)
+			if p.HideNames == nil {
+				err = core.Invalid(k, "Must be true or false.")
 			}
 		case "sources":
 			err = json.Unmarshal(v, &p.Sources)

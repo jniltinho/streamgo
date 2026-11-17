@@ -13,6 +13,7 @@ const state = (v: number, extra: object = {}) => ({
   banner: { id: '01JB', text: 'Q3 roadmap' },
   logo: '/assets/9f3c.png',
   accent: '#3d41cf',
+  hide_names: false,
   ...extra,
 })
 

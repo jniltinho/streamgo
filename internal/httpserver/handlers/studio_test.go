@@ -162,7 +162,7 @@ func TestPatchStageRoute(t *testing.T) {
 	want(t, rec, 200, "")
 	var raw map[string]map[string]any
 	_ = json.Unmarshal(rec.Body.Bytes(), &raw)
-	for _, k := range []string{"v", "on_air", "layout", "sources", "banner", "logo", "accent"} {
+	for _, k := range []string{"v", "on_air", "layout", "sources", "banner", "logo", "accent", "hide_names"} {
 		if _, ok := raw["stage"][k]; !ok {
 			t.Fatalf("stage without %q: %s", k, rec.Body.String())
 		}
@@ -171,12 +171,20 @@ func TestPatchStageRoute(t *testing.T) {
 	if s.V != 2 || len(s.Sources) != 2 || s.Layout != "spotlight" {
 		t.Fatalf("stage %+v", s)
 	}
+	// "Name tags off": the patch hides them, and nothing else changes
+	rec = patch("u1", `{"hide_names":true}`)
+	want(t, rec, 200, "")
+	if s = decode[stageBody](t, rec).Stage; !s.HideNames || s.V != 3 || len(s.Sources) != 2 || s.Layout != "spotlight" {
+		t.Fatalf("hide names: %+v", s)
+	}
 
 	for body, field := range map[string]string{
 		`{"logo":"/assets/x.png"}`:                   "logo",
 		`{"layout":"mosaic"}`:                        "layout",
 		`{"layout":null}`:                            "layout",
 		`{"accent":"#abc"}`:                          "accent",
+		`{"hide_names":"yes"}`:                       "hide_names",
+		`{"hide_names":null}`:                        "hide_names",
 		`{"banner_id":"nope"}`:                       "banner_id",
 		`{"sources":[{"p":"guest-x","k":"camera"}]}`: "sources",
 		`{"sources":[{"p":"host-u1","k":"camera"},{"p":"host-u1","k":"camera"}]}`: "sources",
@@ -198,7 +206,7 @@ func TestPatchStageRoute(t *testing.T) {
 	// removing a guest answers the new stage
 	rec = h.do(t, call{method: "DELETE", path: "/api/v1/broadcasts/b1/participants/" + rafael.Identity, user: "u1"})
 	want(t, rec, 200, "")
-	if s := decode[stageBody](t, rec).Stage; len(s.Sources) != 1 || s.V != 3 {
+	if s := decode[stageBody](t, rec).Stage; len(s.Sources) != 1 || s.V != 4 || !s.HideNames {
 		t.Fatalf("after removal %+v", s)
 	}
 	wantField(t, h.do(t, call{method: "DELETE", path: "/api/v1/broadcasts/b1/participants/host-u1", user: "u1"}), "identity")

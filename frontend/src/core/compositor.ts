@@ -250,7 +250,7 @@ export class Compositor {
     if (!stage) return
     const accent = stage.accent || DEFAULT_ACCENT
     const placed = layoutRects(stage.layout, this.onStage(), W, H)
-    for (const { source, rect } of placed) this.drawTile(source, rect, accent)
+    for (const { source, rect } of placed) this.drawTile(source, rect, accent, !stage.hide_names)
 
     const logo = this.logo?.img
     if (logo?.complete && logo.naturalWidth > 0) {
@@ -262,7 +262,7 @@ export class Compositor {
     if (stage.banner) this.drawBanner(stage.banner.text, accent)
   }
 
-  private drawTile(s: StageSource, r: Rect, accent: string) {
+  private drawTile(s: StageSource, r: Rect, accent: string, tag: boolean) {
     const g = this.g
     const H = this.canvas.height
     const name = this.sources.find((x) => x.identity === s.p)?.name ?? ''
@@ -292,7 +292,7 @@ export class Compositor {
       g.textBaseline = 'middle'
       g.fillText(initials(name), r.x + r.w / 2, r.y + r.h / 2)
     }
-    if (name) {
+    if (name && tag) {
       const fs = Math.max(10, Math.round(Math.min(H * 0.026, r.h * 0.08)))
       const pad = fs * 0.5
       g.font = `600 ${fs}px ${FONT}`

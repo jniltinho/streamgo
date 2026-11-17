@@ -18,6 +18,7 @@ type Patch struct {
 	BannerSet bool
 	BannerID  *string
 	Accent    *string
+	HideNames *bool
 }
 
 // PatchStage applies the owner's patch. Every source must be the owner's or an unremoved
@@ -32,6 +33,9 @@ func (s *Service) PatchStage(ctx context.Context, userID, broadcastID string, p 
 		}
 		if p.Accent != nil {
 			st.Accent = *p.Accent
+		}
+		if p.HideNames != nil {
+			st.HideNames = *p.HideNames
 		}
 		if p.Sources != nil {
 			for _, src := range *p.Sources {

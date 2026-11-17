@@ -198,6 +198,7 @@ export interface StagePatch {
   sources?: { p: string; k: string }[]
   banner_id?: string | null
   accent?: string
+  hide_names?: boolean
 }
 
 /** the answer of every route that changes the stage */

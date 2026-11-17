@@ -16,7 +16,7 @@ import (
 
 // DefaultStage is the stage state of a new broadcast (design D1). The studio package owns its
 // format; this package only stores it and returns it.
-const DefaultStage = `{"v":1,"on_air":false,"layout":"grid","sources":[],"banner":null,"logo":null,"accent":"#3d41cf"}`
+const DefaultStage = `{"v":1,"on_air":false,"layout":"grid","sources":[],"banner":null,"logo":null,"accent":"#3d41cf","hide_names":false}`
 
 // MaxTitle is the longest broadcast title, in characters.
 const MaxTitle = 120

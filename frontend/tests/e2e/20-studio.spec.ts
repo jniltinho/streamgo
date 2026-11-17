@@ -452,6 +452,30 @@ test.describe('owner studio', () => {
   })
 })
 
+// "Name tags": the Brand tab takes the name tags off the program and puts them back; the guest's view follows.
+test('Name tags: shown by default, hidden and shown again from the Brand tab', async ({ browser }) => {
+  const ctx = await ownerContext(browser)
+  const b = await newBroadcast(ctx, 'Name tags')
+  const studio = await openStudio(ctx, b.id)
+  await studio.getByRole('button', { name: 'Add to stage: Ana Souza' }).click()
+  await expect(card(studio, 'Ana Souza')).toHaveAttribute('data-on-stage', 'true')
+  // one source fills the program: its tag is the dark box at the bottom left, over the green fake camera; the point
+  // is inside the box, between its accent bar and the name, at 720p and at 1080p. The fake camera is bright
+  // green in that corner (about 250), and about 95 under the box
+  const tag = async () => (await pixel(studio, 0.0185, 0.958))[1]!
+  await expect.poll(tag).toBeLessThan(130)
+  await studio.getByRole('tab', { name: 'Brand' }).click()
+  const box = studio.locator('[data-name-tags]')
+  await expect(box).toBeChecked()
+  await box.uncheck()
+  await expect.poll(tag).toBeGreaterThan(200)
+  const detail = (await api(ctx, 'GET', `/broadcasts/${b.id}`)) as { stage: { hide_names: boolean } }
+  expect(detail.stage.hide_names).toBe(true)
+  await box.check()
+  await expect.poll(tag).toBeLessThan(130)
+  await ctx.close()
+})
+
 // "Speaking": Chrome's fake microphone beeps for a fraction of a second, which the media server does not always
 // take for speech, so this guest's microphone is a steady tone made in the page.
 test('Speaking: the microphone mark of a card follows a steady voice and its silence', async ({ browser }) => {

@@ -13,7 +13,7 @@ import (
 )
 
 // The broadcasts package creates new broadcasts with this document; the default must match it.
-const newBroadcastStage = `{"v":1,"on_air":false,"layout":"grid","sources":[],"banner":null,"logo":null,"accent":"#3d41cf"}`
+const newBroadcastStage = `{"v":1,"on_air":false,"layout":"grid","sources":[],"banner":null,"logo":null,"accent":"#3d41cf","hide_names":false}`
 
 func TestDefaultMatchesNewBroadcast(t *testing.T) {
 	t.Parallel()

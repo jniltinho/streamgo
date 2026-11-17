@@ -678,6 +678,7 @@ export const useStudio = defineStore('studio', () => {
   const setLayout = (layout: Layout) => patchStage({ layout })
   const showBanner = (id: string | null) => patchStage({ banner_id: id })
   const setAccent = (accent: string) => patchStage({ accent })
+  const setNameTags = (show: boolean) => patchStage({ hide_names: !show })
   const removeGuest = (who: string) =>
     answer(api<StageAnswer>('DELETE', `${base()}/participants/${encodeURIComponent(who)}`))
 
@@ -778,6 +779,7 @@ export const useStudio = defineStore('studio', () => {
     setLayout,
     showBanner,
     setAccent,
+    setNameTags,
     removeGuest,
     loadBanners,
     addBanner,

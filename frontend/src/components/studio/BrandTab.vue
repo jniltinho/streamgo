@@ -62,6 +62,18 @@ async function upload() {
     </label>
   </div>
 
+  <h3 class="lbl">{{ t('Name tags') }}</h3>
+  <label class="studio-item mb-4 flex cursor-pointer items-center gap-2">
+    <input
+      type="checkbox"
+      :checked="!studio.stage?.hide_names"
+      :disabled="busy"
+      data-name-tags
+      @change="act(() => studio.setNameTags(($event.target as HTMLInputElement).checked))"
+    />
+    <span class="min-w-0 flex-1 text-sm">{{ t("Show each person's name on the program") }}</span>
+  </label>
+
   <h3 class="lbl">{{ t('Logo') }}</h3>
   <div class="studio-item flex items-center gap-3">
     <img v-if="studio.stage?.logo" :src="studio.stage.logo" :alt="t('Logo')" class="size-10 object-contain" data-logo />

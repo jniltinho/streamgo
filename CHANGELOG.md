@@ -13,6 +13,8 @@ are the section of that version.
   change their name, role and password, and disable or enable them on the new **Users** page; the command line gains
   `streamgo user add --admin` and `streamgo user admin <email> [--revoke]`. Every user changes their own password in
   Settings → Profile.
+- **Name tags on or off** — the Brand tab of the studio has a switch that takes each person's name off the
+  program and puts it back; the guests' view follows.
 - **Output quality per broadcast** — the owner picks 720p, 1080p or 1440p (QHD) in the studio's Destinations tab
   while the broadcast is offline; the program canvas, a shared screen and the transcoder follow. The operator sets
   the highest one with `output.max_resolution` (default `1080p`); `output.resolution` stays the default of new

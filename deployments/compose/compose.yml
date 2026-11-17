@@ -10,9 +10,9 @@
 #   LIVEKIT_UDP_PORT      7882/udp   LiveKit's media over UDP
 #   MEDIAMTX_WEBRTC_PORT  8189       MediaMTX's WebRTC media, UDP and TCP
 # The media ports are published on the same number inside and outside, because the servers advertise them.
-# NODE_IP is the address LiveKit and MediaMTX advertise to browsers: 127.0.0.1 serves a browser on this host.
-# Firefox reaches 127.0.0.1 only after the site was allowed to use the camera: for Firefox on this host, or any
-# browser on the network, set NODE_IP to this host's network address (NODE_IP=192.168.1.2 make up).
+# NODE_IP is the address LiveKit and MediaMTX advertise to browsers. make up and make dev set it to this host's
+# network address unless the environment or .env does. The default here, 127.0.0.1, serves a browser on this host
+# only, and Firefox reaches it only after the site was allowed to use the camera.
 # MediaMTX's WHIP (8889), RTSP (8554) and API (9997) listeners stay on the Compose network.
 name: streamgo
 

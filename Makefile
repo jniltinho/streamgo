@@ -90,7 +90,12 @@ DB          ?= sqlite
 DBS         := sqlite mariadb postgres
 COMPOSE_DIR := deployments/compose
 COMPOSE      = docker compose --env-file .env -f $(COMPOSE_DIR)/compose.yml $(if $(filter sqlite,$(DB)),,-f $(COMPOSE_DIR)/compose.$(DB).yml)
-STACK_ENV    = VERSION=$(VERSION) COMMIT=$(COMMIT) BUILDTIME=$(BUILDTIME)
+# Unless the environment or .env sets NODE_IP, make up and make dev advertise this host's network address (the
+# source of its default route): it serves every browser on this host and on the network. Without a network it is
+# 127.0.0.1, which Firefox does not reach before the site may use the camera.
+LAN_IP       = $(shell ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')
+NODE_ENV     = $(if $(NODE_IP)$(shell grep -qs '^NODE_IP=' .env && echo set),,NODE_IP=$(or $(LAN_IP),127.0.0.1))
+STACK_ENV    = VERSION=$(VERSION) COMMIT=$(COMMIT) BUILDTIME=$(BUILDTIME) $(NODE_ENV)
 
 check-db:
 	@$(if $(filter $(DB),$(DBS)),true,{ echo "DB must be one of: $(DBS) (got '$(DB)')"; exit 1; })
@@ -98,6 +103,7 @@ check-db:
 up: check-db init ## Start StreamGo, LiveKit and MediaMTX (DB=sqlite|mariadb|postgres) on http://localhost:8080
 	$(STACK_ENV) $(COMPOSE) up -d --build --wait
 	@echo "StreamGo is up: http://localhost:$$($(COMPOSE) port streamgo 8080 | sed 's/.*://')"
+	@$(if $(NODE_ENV),echo "Media address: $(patsubst NODE_IP=%,%,$(NODE_ENV)) (run make up again after the network changes; NODE_IP sets another)",true)
 
 down: check-db ## Stop the stack (volumes are kept; add V=1 to delete them)
 	$(COMPOSE) down $(if $(V),-v,)

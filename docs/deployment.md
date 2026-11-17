@@ -92,9 +92,11 @@ reach them directly.
 
 ## Advertised addresses behind NAT
 
-LiveKit and MediaMTX tell each browser the address and port to send media to. Both advertise `NODE_IP`, which is
-`127.0.0.1` by default and only serves a browser on the same machine. On a server, set it to the address browsers
-reach, the public IP when the host is behind NAT:
+LiveKit and MediaMTX tell each browser the address and port to send media to. Both advertise `NODE_IP`. `make up` sets
+it to the host's network address (the source of its default route) unless the environment or `.env` sets it; a
+plain `docker compose up` uses `127.0.0.1`, which only serves a browser on the same machine (and Firefox only after
+the site was allowed to use the camera). On a server, set it to the address browsers reach, the public IP when the
+host is behind NAT:
 
 ```bash
 NODE_IP=203.0.113.10

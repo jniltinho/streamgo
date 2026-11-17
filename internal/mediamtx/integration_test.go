@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -225,22 +224,29 @@ func checkFormat(t *testing.T, url string) {
 	if !video || !audio {
 		t.Fatalf("format %+v", info.Streams)
 	}
-	out := probe(t, "-read_intervals", "%+9", "-select_streams", "v:0", "-skip_frame", "nokey",
-		"-show_entries", "frame=pts_time", "-of", "csv=p=0", url)
-	var times []float64
+	// Keyframes every 2 s are counted in frames, not read from timestamps: a reader of a live RTSP stream
+	// re-bases its timestamps when the stream's clock reference arrives, which showed on a slow runner as one
+	// interval of 1.75 s between exact 2 s ones. At the 30 fps asserted above, 2 s are 60 frames.
+	out := probe(t, "-read_intervals", "%+9", "-select_streams", "v:0",
+		"-show_entries", "frame=key_frame", "-of", "csv=p=0", url)
+	var gops []int // frames from each keyframe to the next
+	last := -1
+	n := 0
 	for line := range strings.FieldsSeq(string(out)) {
-		if f, err := strconv.ParseFloat(strings.TrimSuffix(line, ","), 64); err == nil {
-			times = append(times, f)
+		if strings.HasPrefix(line, "1") {
+			if last >= 0 {
+				gops = append(gops, n-last)
+			}
+			last = n
 		}
+		n++
 	}
-	if len(times) < 4 {
-		t.Fatalf("keyframes at %v", times)
+	if len(gops) < 3 {
+		t.Fatalf("%d frames read, keyframe distances %v", n, gops)
 	}
-	// From the second keyframe on: a reader that joins a live stream may place the first one before the
-	// stream's clock reference arrives, which showed as a first interval of 1.84 s on a slow runner.
-	for i := 2; i < len(times); i++ {
-		if d := times[i] - times[i-1]; math.Abs(d-2) > 0.05 {
-			t.Fatalf("keyframes %v s apart (%v)", d, times)
+	for _, g := range gops {
+		if g != 60 {
+			t.Fatalf("keyframes %d frames apart, want 60 (%v)", g, gops)
 		}
 	}
 }

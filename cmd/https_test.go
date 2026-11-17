@@ -29,6 +29,13 @@ func fakeLiveKit(t *testing.T) {
 	t.Setenv("STREAMGO_LIVEKIT_API_URL", lk.URL)
 	t.Setenv("STREAMGO_LIVEKIT_API_KEY", "test-key")
 	t.Setenv("STREAMGO_LIVEKIT_API_SECRET", "test-secret-test-secret-test-secret")
+	// and MediaMTX's control API (readiness, the orphan-ingest step) with no paths
+	mtx := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"itemCount":0,"pageCount":0,"items":[]}`))
+	}))
+	t.Cleanup(mtx.Close)
+	t.Setenv("STREAMGO_MEDIAMTX_API_URL", mtx.URL)
 }
 
 // runHTTPS starts the server, waits until it answers HTTPS as host (trusting only roots), and returns the

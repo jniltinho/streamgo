@@ -112,10 +112,7 @@ func writeFile(dir, name string, data []byte) error {
 	if werr == nil {
 		werr = cerr
 	}
-	if werr == nil {
-		werr = os.Chmod(f.Name(), 0o640)
-	}
-	if werr == nil {
+	if werr == nil { // CreateTemp made it 0600: only the server reads it
 		werr = os.Rename(f.Name(), filepath.Join(dir, name))
 	}
 	if werr != nil {

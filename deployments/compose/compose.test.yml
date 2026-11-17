@@ -1,4 +1,4 @@
-# Throwaway databases for make test-db (project "streamgo-test"). No published ports: the tools container joins
+# Throwaway databases and LiveKit for make test-db (project "streamgo-test"). No published ports: the tools container joins
 # the project's network. Data lives in tmpfs: nothing persists. The credentials are test fixtures only.
 # Portions adapted from MeetHub (MIT): deployments/compose/compose.test.yml
 name: streamgo-test

@@ -1,0 +1,28 @@
+# make up DB=postgres: PostgreSQL instead of SQLite. The password comes from STREAMGO_DATABASE_PASSWORD in .env.
+# Portions adapted from MeetHub (MIT): deployments/compose/compose.postgres.yml
+services:
+  streamgo:
+    environment:
+      STREAMGO_DATABASE_DRIVER: postgres
+      STREAMGO_DATABASE_DSN: postgres://streamgo:${STREAMGO_DATABASE_PASSWORD:?run make init}@postgres:5432/streamgo?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine@sha256:d3244e8ce3f165ee3c93d9c4a4b1d0fe48b3a89e2287b717fdcbbde92d405065
+    environment:
+      POSTGRES_DB: streamgo
+      POSTGRES_USER: streamgo
+      POSTGRES_PASSWORD: ${STREAMGO_DATABASE_PASSWORD:?run make init}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streamgo -d streamgo"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

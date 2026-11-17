@@ -1,0 +1,50 @@
+# MediaMTX for the Compose stack (design D3): it receives the program by WHIP from StreamGo only and serves it to
+# ffmpeg over RTSP. Only RTSP, WebRTC and the control API are on; every listener except the WebRTC media port stays
+# on the Compose network. The settings were proven in the media spike (docs/spike-media-path.md).
+#
+# compose.yml sets from .env, never here: the user's name and password (MTX_AUTHINTERNALUSERS_0_USER and _PASS), the
+# advertised address (MTX_WEBRTCADDITIONALHOSTS) and the WebRTC media port (MTX_WEBRTCLOCALUDPADDRESS and
+# MTX_WEBRTCLOCALTCPADDRESS).
+logLevel: info
+
+# One internal user, the only one: StreamGo publishes by WHIP and calls the API with it, ffmpeg reads and writes.
+authMethod: internal
+authInternalUsers:
+  - user: streamgo
+    pass: ""
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: api
+
+api: true
+apiAddress: :9997
+metrics: false
+pprof: false
+playback: false
+
+rtsp: true
+rtspTransports: [tcp]
+rtspEncryption: "no"
+rtspAddress: :8554
+
+rtmp: false
+hls: false
+srt: false
+moq: false
+
+webrtc: true
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+# advertise only the configured address: the container's own address is not reachable from browsers
+webrtcIPsFromInterfaces: false
+webrtcAdditionalHosts: [127.0.0.1]
+# no STUN or TURN in this version: the owner reaches the media port directly
+webrtcICEServers2: []
+
+pathDefaults:
+  source: publisher
+paths:
+  all_others:

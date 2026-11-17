@@ -14,6 +14,29 @@ export interface StageAudio {
   local: boolean
 }
 
+/** a participant's audio as the studio sees it: their microphone and their shared screen's audio, when published */
+export interface AudioPeer {
+  identity: string
+  /** the listener themselves */
+  local: boolean
+  mic: MediaStreamTrack | null
+  screenAudio: MediaStreamTrack | null
+}
+
+// stageAudio picks the tracks the mix hears from the stage sources: a camera brings its participant's microphone (also
+// with the camera off), a screen its audio; an absent participant's or a backstage participant's track is left out,
+// and a track is listed once even when its participant has two sources on stage.
+export function stageAudio(sources: readonly { p: string; k: 'camera' | 'screen' }[], peers: readonly AudioPeer[]) {
+  const byId = new Map(peers.map((p) => [p.identity, p]))
+  const out: StageAudio[] = []
+  for (const s of sources) {
+    const p = byId.get(s.p)
+    const track = s.k === 'camera' ? p?.mic : p?.screenAudio
+    if (p && track && !out.some((x) => x.track === track)) out.push({ track, local: p.local })
+  }
+  return out
+}
+
 // The limiter: a DynamicsCompressorNode, which adds a fixed make-up gain that Chromium computes as 0.6 x the gain
 // reduction at full scale (+1.71 dB with the spike's threshold of -3 dB, as measured there). The spike's -3 dB and
 // 100 ms release let six full-level voices peak at 1.14 to 1.19 (tests/e2e/04-core-audio.spec.ts); -6 dB and 250 ms

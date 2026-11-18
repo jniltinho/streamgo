@@ -1,6 +1,9 @@
 /* Portions adapted from MeetHub (MIT): frontend/src/style.css
    The theme base: role contract, shared recipes and the theme imports. MeetHub's chat, meeting, setup-wizard and
    application-shell styles are not copied; lengths that size the layout are in rem (D13), colours are unchanged. */
+/* UI SDK's behaviour CSS goes in this layer (design U1a); declared first so every rule of the app wins over it.
+   Its optional default look (@ui-sdk/core/web.css) is not imported: the Ui* wrappers have their own recipes. */
+@layer ui-sdk;
 @import 'tailwindcss';
 @import './themes/streamgo.css';
 @import './themes/default.css';
@@ -520,13 +523,38 @@
 /* Corner radii (ui-themes spec): subtle and the same in every theme. :where() keeps the specificity at zero, so a
    component may still set its own shape. Heads and feet take the container's inner radius instead of the container
    clipping them: clipping would also cut popovers and focus rings. */
-:where(.btn, .btn-ghost, .btn-danger, .inp, .icon-btn, .theme-tile, .toast-close, .alert-close, .select-pop li) {
+:where(
+  .btn,
+  .btn-ghost,
+  .btn-danger,
+  .inp,
+  .icon-btn,
+  .theme-tile,
+  .toast-close,
+  .alert-close,
+  .select-pop li,
+  .ui-menu-item
+) {
   border-radius: var(--radius-md);
 }
-:where(.card, .pnl, .alert, .toast, .select-pop, .auth-box, .theme-preview, .theme-tip, .tooltip, .stage, .stage-tile) {
+:where(
+  .card,
+  .pnl,
+  .alert,
+  .toast,
+  .select-pop,
+  .auth-box,
+  .theme-preview,
+  .theme-tip,
+  .tooltip,
+  .ui-tooltip,
+  .ui-menu,
+  .stage,
+  .stage-tile
+) {
   border-radius: var(--radius-lg);
 }
-:where(.tag, .logo-plate) {
+:where(.tag, .logo-plate, .ui-meter-track) {
   border-radius: var(--radius-sm);
 }
 :where(.subtab, .cardtab) {
@@ -1143,6 +1171,86 @@ dialog.pnl.closing::backdrop {
   background: var(--color-tooltip);
   border-left: 3px solid var(--color-tooltip-bar);
   box-shadow: var(--shadow-tip);
+}
+
+/* ── UI SDK wrappers (components/ui/Ui*.vue, design U2 of add-studio-interactions): role tokens and rem only. UI
+   SDK renders them unstyled and marks their parts and states (data-slot, data-highlighted, data-checked…). ── */
+/* the tooltip: the tooltip roles, as .theme-tip */
+.ui-tooltip {
+  max-width: 20rem;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--color-on-tooltip);
+  pointer-events: none;
+  background: var(--color-tooltip);
+  border: 0;
+  border-left: 3px solid var(--color-tooltip-bar);
+  box-shadow: var(--shadow-tip);
+}
+/* the menu: the themed select list's look; it scrolls inside itself and never leaves the window */
+.ui-menu {
+  min-width: 12rem;
+  max-width: min(24rem, var(--available-width));
+  max-height: min(20rem, var(--available-height));
+  margin: 0;
+  padding: 0.25rem;
+  overflow-y: auto;
+  font-size: 0.75rem;
+  color: var(--color-on-pop);
+  background: var(--color-field);
+  border: 1px solid var(--color-pop-line);
+  border-top: 3px solid var(--color-accent);
+  box-shadow: var(--shadow-pop);
+}
+.ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.5rem;
+  cursor: pointer;
+  outline: none;
+}
+.ui-menu-item[data-checked] {
+  font-weight: 600;
+}
+.ui-menu-item[data-highlighted] {
+  color: var(--color-on-selection);
+  background: var(--color-selection);
+}
+.ui-menu-check {
+  display: inline-flex;
+  flex: none;
+}
+.ui-menu-check[data-unchecked] {
+  visibility: hidden;
+}
+.ui-menu-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* the arrow beside a control: a narrow ghost button; aria-disabled keeps it focusable for its tooltip */
+.ui-menu-trigger {
+  padding-inline: 0.25rem;
+}
+.ui-menu-trigger[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.5;
+}
+/* the meter: a track in the field roles, filled in the state role */
+.ui-meter-track {
+  width: 3rem;
+  height: 0.5rem;
+  overflow: hidden;
+  background: var(--color-field);
+  border: 1px solid var(--color-field-line);
+}
+.ui-meter-fill {
+  height: 100%;
+  background: var(--color-ok);
 }
 
 @layer components {

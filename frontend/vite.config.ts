@@ -5,6 +5,28 @@ import { defineConfig } from 'vite-plus'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
+// UI SDK (design U1 of add-studio-interactions): only the wrappers under src/components/ui/ and AppModal.vue import
+// it, and only by a component's entry (@ui-sdk/vue/menu), never a package root or the core's internals
+const uiSdkOutside = {
+  paths: ['@ui-sdk/vue', '@ui-sdk/core'].map((name) => ({
+    name,
+    message: 'UI SDK is imported only by src/components/ui/Ui*.vue and AppModal.vue (design U1).',
+  })),
+  patterns: [
+    {
+      group: ['@ui-sdk/**'],
+      message: 'UI SDK is imported only by src/components/ui/Ui*.vue and AppModal.vue (design U1).',
+    },
+  ],
+}
+const uiSdkInWrappers = {
+  paths: ['@ui-sdk/vue', '@ui-sdk/core'].map((name) => ({
+    name,
+    message: 'Import a UI SDK component from its entry, such as @ui-sdk/vue/menu (design U1a).',
+  })),
+  patterns: [{ group: ['@ui-sdk/core/internal/*'], message: 'The core internals of UI SDK are not its API.' }],
+}
+
 // The StreamGo SPA.
 // - vp build → ../web/dist (embedded in the Go binary through go:embed)
 // - vp dev   → proxies /api to the Go server (STREAMGO_API_URL, default http://127.0.0.1:8080)
@@ -34,7 +56,8 @@ export default defineConfig(({ mode }) => ({
     },
   ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  build: { outDir: '../web/dist', emptyOutDir: true },
+  // SIZE_CHECK=1 (make check) writes Vite's manifest for scripts/size-check.mjs, which removes it again
+  build: { outDir: '../web/dist', emptyOutDir: true, manifest: !!process.env.SIZE_CHECK },
   server: { host: '0.0.0.0', port: 5173, proxy: { '/api': { target: apiTarget, changeOrigin: false } } },
   test: {
     environment: 'jsdom',
@@ -53,6 +76,7 @@ export default defineConfig(({ mode }) => ({
         { object: 'window', property: 'confirm' },
         { object: 'window', property: 'prompt' },
       ],
+      'no-restricted-imports': ['error', uiSdkOutside],
     },
     overrides: [
       {
@@ -71,10 +95,15 @@ export default defineConfig(({ mode }) => ({
                   group: ['vue/*', 'pinia/*', 'vue-router/*', '@vue/*'],
                   message: 'src/core must not import the UI framework (layering rule).',
                 },
+                ...uiSdkOutside.patterns,
               ],
             },
           ],
         },
+      },
+      {
+        files: ['src/components/ui/**', 'src/components/AppModal.vue'],
+        rules: { 'no-restricted-imports': ['error', uiSdkInWrappers] },
       },
     ],
   },

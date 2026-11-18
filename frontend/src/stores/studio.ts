@@ -4,8 +4,9 @@
 // the stage canvas and the audio mix. LiveKit, compositor and mix objects stay out of Vue's reactivity (markRaw):
 // the reactive state is rebuilt from the room after each of its events.
 import { defineStore } from 'pinia'
-import { computed, markRaw, ref, shallowRef } from 'vue'
+import { computed, markRaw, ref, shallowRef, watch } from 'vue'
 import {
+  ConnectionState,
   createLocalTracks,
   DisconnectReason,
   type LocalAudioTrack,
@@ -35,6 +36,7 @@ import type {
   StudioSettings,
 } from '@/api/types'
 import { AudioMix, stageAudio } from '@/core/audioMix'
+import { type Cue, CuePlayer, type CuePrefs, loadCuePrefs, saveCuePrefs } from '@/core/cues'
 import { AudioSuspendedError, WhipPublisher, type WhipState } from '@/core/whip'
 import { Compositor, type Source } from '@/core/compositor'
 import { type Layout, StageFeed, type StageSource, type StageState } from '@/core/stageState'
@@ -69,6 +71,40 @@ export interface Person {
 export type Ended = 'left' | 'removed' | 'elsewhere' | 'lost'
 /** what the guest's preview found: devices, the browser refused them, or there are none */
 export type DeviceState = 'checking' | 'ok' | 'denied' | 'none'
+/** how a device switch ended: in use, back on the previous device, or neither could be used (the control is off) */
+export type DeviceSwitch = 'ok' | 'previous' | 'unavailable'
+/** whether the browser may use the microphones or the cameras ('prompt' until asked; 'unknown' without the API) */
+export type DevicePermission = PermissionState | 'unknown'
+
+/** the level below which the microphone meter says "silent" (0 to 1, about -54 dBFS) */
+export const HEARD_LEVEL = 0.1
+
+/** deviceSwitchError is the toast for a device switch that did not end in the chosen device */
+export const deviceSwitchError = (kind: 'audio' | 'video', r: DeviceSwitch) =>
+  kind === 'audio'
+    ? r === 'previous'
+      ? t('The chosen microphone could not be used; the previous one is back.')
+      : t('The microphone is unavailable.')
+    : r === 'previous'
+      ? t('The chosen camera could not be used; the previous one is back.')
+      : t('The camera is unavailable.')
+
+const storage = () => {
+  try {
+    return localStorage
+  } catch {
+    return null
+  }
+}
+
+/** levelOf reads an analyser: the RMS level of its last samples, from -60 dBFS (0) to full scale (1), no easing */
+export function levelOf(analyser: AnalyserNode, data: Float32Array<ArrayBuffer>): number {
+  analyser.getFloatTimeDomainData(data)
+  let sum = 0
+  for (const v of data) sum += v * v
+  const db = 20 * Math.log10(Math.sqrt(sum / data.length) || 1e-9)
+  return Math.min(1, Math.max(0, (db + 60) / 60))
+}
 
 // Cameras go out at 30 fps on every simulcast layer (design D2: LiveKit's presets send 20 and 25 fps on the lower
 // ones); adaptive stream stays off so subscriptions never pause with hidden video elements.
@@ -155,6 +191,12 @@ export const useStudio = defineStore('studio', () => {
   const camId = ref('')
   const banners = ref<Banner[]>([])
   const devices = shallowRef<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] })
+  const permission = shallowRef<{ audio: DevicePermission; video: DevicePermission }>({
+    audio: 'unknown',
+    video: 'unknown',
+  })
+  /** the sound cues' switches, kept in this browser (design U7) */
+  const cuePrefs = ref<CuePrefs>(loadCuePrefs(storage()))
   const preview = shallowRef<LocalTrack[]>([])
   const micLevel = ref(0)
   /** whether this browser can host (go live); computed once per page */
@@ -171,7 +213,10 @@ export const useStudio = defineStore('studio', () => {
   let mix: AudioMix | null = null
   let feed = new StageFeed()
   let poll: ReturnType<typeof setTimeout> | undefined
-  let meter: { ctx: AudioContext; timer: ReturnType<typeof setInterval> } | null = null
+  let meter: { ctx: AudioContext; track: MediaStreamTrack; timer: ReturnType<typeof setInterval> } | null = null
+  let cues: CuePlayer | null = null
+  // joined and left cues are for people arriving after the room's first population, outside a reconnection
+  let presenceCues = false
 
   const onStage = computed(() => stage.value?.sources ?? [])
   const isOnStage = (s: StageSource) => onStage.value.some((x) => x.p === s.p && x.k === s.k)
@@ -189,8 +234,39 @@ export const useStudio = defineStore('studio', () => {
   /** a guest's own place: on stage when any of their sources is */
   const meOnStage = computed(() => onStage.value.some((s) => s.p === identity.value))
 
-  // the AudioContext starts suspended on a new page: the first click or key press anywhere starts it
-  const resumeAudio = () => void mix?.resume().catch(() => {})
+  // the AudioContext starts suspended on a new page: the first click or key press anywhere starts it, and the cue
+  // player's and the meter's with it
+  const resumeAudio = () => {
+    void mix?.resume().catch(() => {})
+    cues?.start()
+    void meter?.ctx.resume().catch(() => {})
+  }
+
+  /** the broadcast is on for this listener: the owner's output not offline, a guest's stage on air */
+  const airborne = () => (role.value === 'owner' ? onAir.value : !!stage.value?.on_air)
+  const cue = (c: Cue) => void cues?.play(c, cuePrefs.value, airborne())
+
+  function setCuePrefs(p: CuePrefs) {
+    cuePrefs.value = { ...p }
+    saveCuePrefs(storage(), cuePrefs.value)
+  }
+
+  // live and ended: an accepted change of the broadcast's state; the state found on arrival plays nothing, and an
+  // interruption plays nothing (a guest sees only on_air, so for a guest an interruption sounds as an end)
+  const airState = computed(() =>
+    role.value === 'owner'
+      ? detail.value?.output.state
+      : stage.value
+        ? stage.value.on_air
+          ? 'live'
+          : 'offline'
+        : undefined,
+  )
+  watch(airState, (now, before) => {
+    if (!now || !before || now === before) return
+    if (now === 'live') cue('live')
+    else if (now === 'offline') cue('ended')
+  })
 
   function applyStage(raw: unknown) {
     if (!feed.accept(raw)) return
@@ -295,8 +371,10 @@ export const useStudio = defineStore('studio', () => {
     m.onStateChange = () => {
       if (mix === m && m.running) void ensurePublishing()
     }
+    cues = markRaw(new CuePlayer())
     document.addEventListener('pointerdown', resumeAudio, true)
     document.addEventListener('keydown', resumeAudio, true)
+    watchDevices()
   }
 
   async function connect(j: Join, publish: { mic: boolean; cam: boolean }) {
@@ -325,6 +403,25 @@ export const useStudio = defineStore('studio', () => {
       refresh()
     })
     r.on(RoomEvent.RoomMetadataChanged, (md) => applyStage(md))
+    // a remote participant arriving or leaving; what LiveKit replays around a reconnection is not one. A
+    // participant unwound before a full reconnection leaves while the room still says connected, so the cue waits
+    // a task to see the room's state.
+    const presence = (c: Cue) => {
+      if (!presenceCues || room !== r || leaving) return
+      setTimeout(() => {
+        if (presenceCues && room === r && !leaving && r.state === ConnectionState.Connected) cue(c)
+      })
+    }
+    r.on(RoomEvent.ParticipantConnected, () => presence('joined'))
+    r.on(RoomEvent.ParticipantDisconnected, () => presence('left'))
+    r.on(RoomEvent.Reconnecting, () => (presenceCues = false))
+    r.on(RoomEvent.SignalReconnecting, () => (presenceCues = false))
+    // the events buffered during the reconnection are emitted right after Reconnected, in the same task
+    r.on(RoomEvent.Reconnected, () => {
+      setTimeout(() => (presenceCues = room === r))
+      syncMeter()
+    })
+    r.on(RoomEvent.LocalTrackPublished, () => syncMeter())
     let connected = false
     r.on(RoomEvent.Disconnected, (reason) => {
       if (!connected || room !== r) return
@@ -356,7 +453,9 @@ export const useStudio = defineStore('studio', () => {
         () => false,
       )
     phase.value = 'joined'
+    presenceCues = true
     refresh()
+    syncMeter()
     void listDevices()
   }
 
@@ -503,6 +602,8 @@ export const useStudio = defineStore('studio', () => {
 
   function cleanup() {
     clearTimeout(poll)
+    presenceCues = false
+    stopMeter()
     void stopPublishing() // the studio closes: another tab, or this one once reconnected, publishes
     room = null
     mix?.setStage([])
@@ -521,13 +622,18 @@ export const useStudio = defineStore('studio', () => {
     clearTimeout(poll)
     void stopPublishing()
     stopPreview()
+    stopMeter()
+    presenceCues = false
     const r = room
     room = null
     void r?.disconnect()
     mix?.close()
     mix = null
+    cues?.close()
+    cues = null
     document.removeEventListener('pointerdown', resumeAudio, true)
     document.removeEventListener('keydown', resumeAudio, true)
+    unwatchDevices()
     people.value = []
     phase.value = 'idle'
   }
@@ -548,11 +654,14 @@ export const useStudio = defineStore('studio', () => {
     if (!room) {
       for (const t of preview.value) if (t.kind === Track.Kind.Audio) await (on ? t.unmute() : t.mute())
       mic.value = on
+      syncMeter()
       return
     }
     await room.localParticipant.setMicrophoneEnabled(on, micId.value ? { deviceId: micId.value } : undefined)
     mic.value = on
     refresh()
+    syncMeter()
+    if (on) void listDevices() // the browser may have just been allowed: the names come with it
   }
 
   async function setCam(on: boolean) {
@@ -565,6 +674,7 @@ export const useStudio = defineStore('studio', () => {
     await room.localParticipant.setCameraEnabled(on, camId.value ? { deviceId: camId.value } : undefined)
     cam.value = on
     refresh()
+    if (on) void listDevices()
   }
 
   async function setSharing(on: boolean) {
@@ -579,26 +689,74 @@ export const useStudio = defineStore('studio', () => {
   }
 
   async function listDevices() {
-    const [audio, video] = await Promise.all([
+    const state = async (name: string): Promise<DevicePermission> => {
+      try {
+        return (await navigator.permissions.query({ name: name as PermissionName })).state
+      } catch {
+        return 'unknown'
+      }
+    }
+    const [audio, video, audioPermission, videoPermission] = await Promise.all([
       Room.getLocalDevices('audioinput', false).catch(() => []),
       Room.getLocalDevices('videoinput', false).catch(() => []),
+      state('microphone'),
+      state('camera'),
     ])
     devices.value = { audio, video }
+    permission.value = { audio: audioPermission, video: videoPermission }
   }
 
-  /** chooseDevice switches the microphone or camera, in the preview before joining or in the room */
-  async function chooseDevice(kind: 'audio' | 'video', id: string) {
-    if (room) {
-      await room.switchActiveDevice(kind === 'audio' ? 'audioinput' : 'videoinput', id)
-    } else {
+  // the lists follow the devices plugged in and out while the studio or the preview is open
+  const onDeviceChange = () => void listDevices()
+  const onVisibility = () => syncMeter()
+  function watchDevices() {
+    navigator.mediaDevices?.addEventListener('devicechange', onDeviceChange)
+    document.addEventListener('visibilitychange', onVisibility)
+  }
+  function unwatchDevices() {
+    navigator.mediaDevices?.removeEventListener('devicechange', onDeviceChange)
+    document.removeEventListener('visibilitychange', onVisibility)
+  }
+
+  // switchTo moves the microphone or the camera to a device ('' is the browser's default); false when the browser
+  // refused it or LiveKit reports it did not take
+  async function switchTo(kind: 'audio' | 'video', id: string): Promise<boolean> {
+    try {
+      if (room) return await room.switchActiveDevice(kind === 'audio' ? 'audioinput' : 'videoinput', id, id !== '')
       const track = preview.value.find((t) => t.kind === kind) as LocalAudioTrack | LocalVideoTrack | undefined
-      await track?.restartTrack({ deviceId: id || undefined })
-      preview.value = [...preview.value]
-      if (kind === 'audio') startMeter()
+      await track?.restartTrack({ deviceId: id ? { exact: id } : undefined })
+      return true
+    } catch {
+      return false
     }
-    if (kind === 'audio') micId.value = id
-    else camId.value = id
+  }
+
+  /**
+   * chooseDevice switches the microphone or the camera (the device menus and the settings' selects), in the preview
+   * before joining or in the room. With the device off, the choice is kept for the next time it is turned on. The
+   * chosen id is kept only once the switch worked; otherwise the previous device is started again, and when that
+   * fails too the control is turned off. The answer says which happened.
+   */
+  async function chooseDevice(kind: 'audio' | 'video', id: string): Promise<DeviceSwitch> {
+    const chosen = kind === 'audio' ? micId : camId
+    const previous = chosen.value
+    let result: DeviceSwitch = 'ok'
+    if (!(await switchTo(kind, id))) result = (await switchTo(kind, previous)) ? 'previous' : 'unavailable'
+    if (result === 'ok') chosen.value = id
+    if (result === 'unavailable') {
+      if (room) {
+        const lp = room.localParticipant
+        await (kind === 'audio' ? lp.setMicrophoneEnabled(false) : lp.setCameraEnabled(false)).catch(() => {})
+      } else {
+        for (const t of preview.value) if (t.kind === kind) await t.mute().catch(() => {})
+      }
+      if (kind === 'audio') mic.value = false
+      else cam.value = false
+    }
+    preview.value = [...preview.value]
     refresh()
+    syncMeter()
+    return result
   }
 
   /** startPreview opens the camera and microphone before a guest joins */
@@ -618,7 +776,8 @@ export const useStudio = defineStore('studio', () => {
         preview.value = tracks.map((t) => markRaw(t))
         mic.value = want.audio
         cam.value = want.video
-        startMeter()
+        watchDevices()
+        syncMeter()
         await listDevices()
         return 'ok'
       } catch (e) {
@@ -627,6 +786,7 @@ export const useStudio = defineStore('studio', () => {
     }
     mic.value = false
     cam.value = false
+    void listDevices()
     return refused ? 'denied' : 'none'
   }
 
@@ -636,30 +796,39 @@ export const useStudio = defineStore('studio', () => {
     preview.value = []
   }
 
-  function startMeter() {
+  // ── the microphone meter (design U4): an analyser on the microphone in use, in the preview and in the room ──
+  /** the local microphone's track now: the preview's before joining, the published one in the room */
+  function micTrack(): MediaStreamTrack | null {
+    if (room) {
+      const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone)
+      return pub?.track && !pub.isMuted ? pub.track.mediaStreamTrack : null
+    }
+    return preview.value.find((x) => x.kind === Track.Kind.Audio && !x.isMuted)?.mediaStreamTrack ?? null
+  }
+
+  /** syncMeter follows the microphone in use: sampling while it is on and the tab shows, bound to its track */
+  function syncMeter() {
+    const track = mic.value && !document.hidden ? micTrack() : null
+    if (!track || track.readyState === 'ended') return stopMeter()
+    if (meter?.track !== track) startMeter(track)
+  }
+
+  // The analyser is connected to no destination: it never reaches the speakers nor the program mix, and stopping
+  // it stops neither the capture nor what is published. 10 readings a second into one reused buffer.
+  function startMeter(track: MediaStreamTrack) {
     stopMeter()
-    const t = preview.value.find((x) => x.kind === Track.Kind.Audio)
-    if (!t) return
     const ctx = new AudioContext()
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 512
-    ctx.createMediaStreamSource(new MediaStream([t.mediaStreamTrack])).connect(analyser)
-    const silent = ctx.createGain() // the graph runs only when it reaches the output: through silence
-    silent.gain.value = 0
-    analyser.connect(silent).connect(ctx.destination)
+    ctx.createMediaStreamSource(new MediaStream([track])).connect(analyser)
     void ctx.resume().catch(() => {})
     const data = new Float32Array(analyser.fftSize)
-    const timer = setInterval(() => {
-      analyser.getFloatTimeDomainData(data)
-      let sum = 0
-      for (const v of data) sum += v * v
-      const db = 20 * Math.log10(Math.sqrt(sum / data.length) || 1e-9)
-      micLevel.value = mic.value ? Math.max(Math.min(1, Math.max(0, (db + 60) / 60)), micLevel.value * 0.85) : 0
-    }, 100)
-    meter = { ctx, timer }
+    const timer = setInterval(() => (micLevel.value = levelOf(analyser, data)), 100)
+    meter = { ctx, track, timer }
   }
 
   function stopMeter() {
+    micLevel.value = 0
     if (!meter) return
     clearInterval(meter.timer)
     void meter.ctx.close().catch(() => {})
@@ -754,7 +923,10 @@ export const useStudio = defineStore('studio', () => {
     banners,
     devices,
     preview,
+    permission,
     micLevel,
+    cuePrefs,
+    setCuePrefs,
     onStage,
     isOnStage,
     stageFull,

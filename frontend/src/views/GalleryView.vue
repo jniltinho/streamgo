@@ -2,10 +2,31 @@
 <script setup lang="ts">
 // Development/test-only page (absent from production builds): buttons, fields, cards, tabs, every toast, alert and
 // dialog kind, the studio marks and the theme picker, for the visual, contrast and radius checks of each theme.
+import { ref } from 'vue'
+import { Settings } from '@lucide/vue'
 import UiAlert from '@/components/ui/UiAlert.vue'
+import UiMenu from '@/components/ui/UiMenu.vue'
+import UiMeter from '@/components/ui/UiMeter.vue'
+import UiTooltip from '@/components/ui/UiTooltip.vue'
 import ThemePicker from '@/components/ThemePicker.vue'
 import { askConfirm, confirmTyped, showAlert } from '@/feedback/dialogs'
 import { toast } from '@/feedback/toasts'
+
+// the UI SDK wrappers: a short menu, a long one (twelve long names), one with nothing to choose
+const cameras = [
+  { value: '', label: 'Default' },
+  { value: 'front', label: 'Front' },
+  { value: 'back', label: 'Back' },
+]
+const camera = ref('')
+const mics = [
+  { value: '', label: 'Default' },
+  ...Array.from({ length: 12 }, (_, i) => ({
+    value: `mic-${i + 1}`,
+    label: `USB Audio Interface ${i + 1} with a very long product name (Analog Stereo Input, Channel ${i + 1})`,
+  })),
+]
+const mic = ref('')
 
 function allToasts() {
   toast.success('Saved successfully.')
@@ -98,6 +119,25 @@ function allToasts() {
         >
       </div>
       <div class="stage grid h-24 place-items-center bg-stage-frame text-on-page">The stage backdrop</div>
+    </div>
+
+    <!-- the UI SDK wrappers (design U2 of add-studio-interactions) -->
+    <div class="card mt-4 flex max-w-xl flex-wrap items-center gap-2 p-2" data-gallery-ui>
+      <UiTooltip text="Device settings">
+        <template #default="{ trigger }">
+          <button v-bind="trigger" type="button" class="btn-ghost" aria-label="Device settings" data-gallery-tip>
+            <Settings class="size-4" aria-hidden="true" />
+          </button>
+        </template>
+      </UiTooltip>
+      <span>Camera</span>
+      <UiMenu label="Choose a camera" :items="cameras" :value="camera" data-gallery-menu="camera" @select="camera = $event" />
+      <span>Microphone</span>
+      <UiMenu label="Choose a microphone" :items="mics" :value="mic" data-gallery-menu="mic" @select="mic = $event" />
+      <span>None</span>
+      <UiMenu label="Choose a speaker" :items="[]" value="" disabled="No speaker found." data-gallery-menu="none" />
+      <UiMeter :value="0.5" label="Microphone level" text="Heard" data-gallery-meter />
+      <output data-gallery-chosen>{{ camera }}|{{ mic }}</output>
     </div>
 
     <div class="mt-4 max-w-3xl" data-gallery-picker>

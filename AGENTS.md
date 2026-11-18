@@ -62,6 +62,11 @@ make check && make test && make test-db && make build && dist/streamgo version
   inline a modal. Modals and themed dialogs open 5 % of the window height below the top (`--dialog-top`).
 - No page scrollbar: the document never scrolls; a long list scrolls inside its own region.
 - The theme and the language live in `PreferencesModal.vue` (a tab each); pages do not carry their own controls.
+- UI SDK (`@ui-sdk/vue`, `@ui-sdk/core`, one exact version) is used only through the `Ui*` wrappers in
+  `frontend/src/components/ui/` and `AppModal.vue` (a lint rule enforces it). Before writing or changing one, restore
+  its agent skill (`npx skills@latest experimental_install`, from `skills-lock.json`) and read it
+  (`.claude/skills/ui-sdk/SKILL.md`), then `frontend/node_modules/@ui-sdk/vue/docs/llms.txt` and only the pages you
+  need: the installed docs and `.d.ts` types are the API. Upgrading it follows `docs/README.md`.
 
 ## ffmpeg
 

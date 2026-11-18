@@ -137,7 +137,7 @@ or in `.env`. [Deployment](deployment.md) has the details.
 ### Check and test
 
 ```bash
-make check          # gofmt, go vet, golangci-lint (with the layering rule), govulncheck, frontend check and build
+make check          # gofmt, go vet, golangci-lint (with the layering rule), govulncheck, frontend check, build and size check
 make test           # Go tests with -race on SQLite, frontend unit tests
 make test-db        # Go tests on SQLite, MariaDB and PostgreSQL, with LiveKit, MediaMTX and ffmpeg (throwaway containers)
 make test-package   # build the release files and install the .deb and .rpm in clean distribution containers
@@ -146,5 +146,29 @@ make test-allinone  # build and smoke test the all-in-one image
 ```
 
 The studio's browser suite (`frontend/tests/e2e/20-studio.spec.ts`) runs against a running stack; its header says
-how. Releases are cut from a tag: the Packages workflow builds and publishes the files, and the image workflow
+how.
+
+### UI SDK in the web app
+
+The studio's device menus, its tooltips and the microphone meter are built on
+[UI SDK](https://github.com/vercel-labs/ui) (`@ui-sdk/vue` and `@ui-sdk/core`, Apache-2.0): unstyled components that
+bring the keyboard, focus and screen-reader behaviour, styled by StreamGo's own recipes on the theme roles. It is a
+young library (a beta), so it is held at one exact version and used only inside the wrappers of
+`frontend/src/components/ui/` (`UiMenu`, `UiTooltip`, `UiMeter`) and `AppModal.vue`; a lint rule fails
+`make check` on an import anywhere else. Its default stylesheet is not used.
+
+An upgrade is one commit, never a version bump alone:
+
+1. both packages to the same new exact version: `npm install --save-exact @ui-sdk/vue@X @ui-sdk/core@X` in
+   `frontend/`, with `package-lock.json`; read its changelog (https://ui-sdk.dev/docs/core/changelog) and the
+   installed docs (`frontend/node_modules/@ui-sdk/vue/docs/llms.txt`);
+2. the wrappers adjusted to what changed, and the version in `THIRD_PARTY`;
+3. `make check` and `make test`, the browser suites (`02-themes`, `07-ui-wrappers`, `10-app-pages` and the studio
+   suite on a stack);
+4. the size numbers: `make check` prints the gzip sizes of the entry and of the studio and guest routes and fails
+   above their ceilings, which are in `frontend/scripts/size-check.mjs`; a growth that is wanted raises them there,
+   10 % above the new measure, in the same commit.
+
+A new UI SDK component enters the same way: a `Ui*.vue` wrapper, a recipe on the role tokens, an entry in the test
+gallery and its contrast recipes in `frontend/src/themes/matrix.json`. Releases are cut from a tag: the Packages workflow builds and publishes the files, and the image workflow
 pushes the all-in-one image.

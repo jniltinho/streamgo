@@ -2,32 +2,32 @@
 // oscillator and a gain envelope; no audio file), played on the listener's own device. The player has an
 // AudioContext of its own, connected to the device's output only: it shares no node with the program mix
 // (core/audioMix.ts), so a cue is never wired into the program. Speakers or a shared screen can still carry one into
-// a microphone, which is why cues are silent during a broadcast unless the listener asks for them.
+// a microphone, which is why cues are silent while the program is on air unless the listener asks for them.
 
-export type Cue = 'joined' | 'left' | 'live' | 'ended'
+export type Cue = 'joined' | 'left' | 'onAir' | 'offAir'
 
 /** the listener's choices, kept in this browser (they belong to the device, not to the account) */
 export interface CuePrefs {
   /** cues at all (on by default) */
   sounds: boolean
-  /** cues while a broadcast is starting, live or interrupted (off by default) */
-  duringBroadcast: boolean
+  /** cues while the program is on air, stage.on_air (off by default) */
+  whileOnAir: boolean
 }
 
-export const DEFAULT_CUE_PREFS: Readonly<CuePrefs> = { sounds: true, duringBroadcast: false }
+export const DEFAULT_CUE_PREFS: Readonly<CuePrefs> = { sounds: true, whileOnAir: false }
 export const CUE_PREFS_KEY = 'streamgo.cues'
 /** no cue lasts longer, in seconds, and none is louder */
 export const CUE_SECONDS = 0.25
 export const CUE_PEAK = 0.15
-/** at most one joined or left cue in this many milliseconds: the first plays, the others are dropped */
+/** a joined or left cue plays only when this many milliseconds have passed since the last one played */
 export const PRESENCE_GAP_MS = 1000
 
 // each cue: two notes (Hz) glided from the first to the second
 const TONES: Record<Cue, [number, number]> = {
   joined: [660, 880],
   left: [880, 587],
-  live: [784, 1175],
-  ended: [698, 466],
+  onAir: [784, 1175],
+  offAir: [698, 466],
 }
 
 /** loadCuePrefs reads the choices; storage that is blocked, empty or holds something else gives the defaults */
@@ -35,8 +35,8 @@ export function loadCuePrefs(storage: Pick<Storage, 'getItem'> | null): CuePrefs
   try {
     const v: unknown = JSON.parse(storage?.getItem(CUE_PREFS_KEY) ?? 'null')
     if (v && typeof v === 'object') {
-      const { sounds, duringBroadcast } = v as Record<string, unknown>
-      if (typeof sounds === 'boolean' && typeof duringBroadcast === 'boolean') return { sounds, duringBroadcast }
+      const { sounds, whileOnAir } = v as Record<string, unknown>
+      if (typeof sounds === 'boolean' && typeof whileOnAir === 'boolean') return { sounds, whileOnAir }
     }
   } catch {
     /* blocked or not JSON */
@@ -87,12 +87,12 @@ export class CuePlayer {
   }
 
   /**
-   * play plays a cue when the listener wants it: sounds on, and during a broadcast only with duringBroadcast on. A
-   * context that is not running drops it (nothing is queued). Joined and left cues share a window: the first in
-   * a second plays, the others in that second are dropped. It reports whether the cue was played.
+   * play plays a cue when the listener wants it: sounds on, and while the program is on air only with whileOnAir
+   * on. A context that is not running drops it (nothing is queued). A joined or left cue plays only when a second
+   * has passed since the last joined or left cue played. It reports whether the cue was played.
    */
   play(cue: Cue, prefs: CuePrefs, onAir: boolean): boolean {
-    if (!prefs.sounds || (onAir && !prefs.duringBroadcast)) return false
+    if (!prefs.sounds || (onAir && !prefs.whileOnAir)) return false
     const ctx = this.ctx
     if (!ctx || ctx.state !== 'running') return false
     const presence = cue === 'joined' || cue === 'left'

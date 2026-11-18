@@ -174,7 +174,6 @@ const catalog: Catalog = {
   '{width}x{height} at 30 fps; uses up to {mbps} Mbit/s of your upload.':
     '{width}x{height} a 30 fps; usa até {mbps} Mbit/s do seu upload.',
   'Some platforms accept at most 1080p.': 'Algumas plataformas aceitam no máximo 1080p.',
-  'That device could not be used.': 'Não foi possível usar esse dispositivo.',
   Microphone: 'Microfone',
   Default: 'Padrão',
   Done: 'Concluir',
@@ -336,6 +335,32 @@ const catalog: Catalog = {
   'error.internal': 'Algo deu errado no servidor.',
   'error.unavailable': 'O serviço está indisponível. Tente novamente em instantes.',
   'error.network': 'Não foi possível contatar o servidor.',
+  // add-studio-interactions: device menus, the meter, the sound cues
+  'Microphone {n}': 'Microfone {n}',
+  'Camera {n}': 'Câmera {n}',
+  'Choose a microphone': 'Escolher um microfone',
+  'Choose a camera': 'Escolher uma câmera',
+  'The browser is not allowed to use the microphone.': 'O navegador não tem permissão para usar o microfone.',
+  'The browser is not allowed to use the camera.': 'O navegador não tem permissão para usar a câmera.',
+  'No microphone found.': 'Nenhum microfone encontrado.',
+  'No camera found.': 'Nenhuma câmera encontrada.',
+  'Turn the microphone on once to list the microphones.': 'Ligue o microfone uma vez para listar os microfones.',
+  'Turn the camera on once to list the cameras.': 'Ligue a câmera uma vez para listar as câmeras.',
+  'The chosen microphone could not be used; the previous one is back.':
+    'Não foi possível usar o microfone escolhido; o anterior voltou.',
+  'The microphone is unavailable.': 'O microfone está indisponível.',
+  'The chosen camera could not be used; the previous one is back.':
+    'Não foi possível usar a câmera escolhida; a anterior voltou.',
+  'The camera is unavailable.': 'A câmera está indisponível.',
+  Heard: 'Ouvido',
+  Silent: 'Silêncio',
+  Sounds: 'Sons',
+  'On this browser': 'Neste navegador',
+  'Play a sound when someone joins or leaves, and when the program goes on or off air':
+    'Tocar um som quando alguém entra ou sai, e quando o programa entra ou sai do ar',
+  'Sounds while on air': 'Sons enquanto no ar',
+  'A sound may be heard in the program through your speakers or a shared screen. Use headphones.':
+    'Um som pode ser ouvido no programa pelos seus alto-falantes ou por uma tela compartilhada. Use fones de ouvido.',
 }
 
 export default catalog

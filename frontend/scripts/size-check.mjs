@@ -7,7 +7,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 
-const CEILINGS = { entry: 0, studio: 0, guest: 0 }
+// measured on 2026-11-18 with UI SDK 0.1.0-beta.10 (entry 98733, studio 307538, guest 304177; before UI SDK 95845,
+// 255463 and 252181), plus 10 %
+const CEILINGS = { entry: 108606, studio: 338292, guest: 334595 }
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '../../web/dist')
 const manifest = JSON.parse(readFileSync(join(dist, '.vite/manifest.json'), 'utf8'))

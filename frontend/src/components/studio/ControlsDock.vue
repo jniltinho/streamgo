@@ -46,9 +46,13 @@ function unavailable(kind: 'audio' | 'video'): string {
   if (studio.devices[kind].some((d) => d.deviceId)) return ''
   const mic = kind === 'audio'
   if (studio.permission[kind] === 'denied')
-    return mic ? t('The browser is not allowed to use the microphone.') : t('The browser is not allowed to use the camera.')
+    return mic
+      ? t('The browser is not allowed to use the microphone.')
+      : t('The browser is not allowed to use the camera.')
   if (!studio.devices[kind].length) return mic ? t('No microphone found.') : t('No camera found.')
-  return mic ? t('Turn the microphone on once to list the microphones.') : t('Turn the camera on once to list the cameras.')
+  return mic
+    ? t('Turn the microphone on once to list the microphones.')
+    : t('Turn the camera on once to list the cameras.')
 }
 
 async function choose(kind: 'audio' | 'video', id: string) {
@@ -61,7 +65,12 @@ async function choose(kind: 'audio' | 'video', id: string) {
   <div class="card studio-box" role="toolbar" :aria-label="t('Your controls')">
     <span class="dock-group">
       <button type="button" class="btn-ghost" :aria-pressed="studio.mic" data-control="mic" @click="toggleMic">
-        <component :is="studio.mic ? Mic : MicOff" :key="String(studio.mic)" class="size-4 dock-icon" aria-hidden="true" />
+        <component
+          :is="studio.mic ? Mic : MicOff"
+          :key="String(studio.mic)"
+          class="size-4 dock-icon"
+          aria-hidden="true"
+        />
         {{ t('Mic') }}
       </button>
       <UiMenu
@@ -77,12 +86,18 @@ async function choose(kind: 'audio' | 'video', id: string) {
         :value="studio.mic ? studio.micLevel : 0"
         :label="t('Microphone level')"
         :text="studio.mic && studio.micLevel >= HEARD_LEVEL ? t('Heard') : t('Silent')"
+        vertical
         data-mic-meter
       />
     </span>
     <span class="dock-group">
       <button type="button" class="btn-ghost" :aria-pressed="studio.cam" data-control="camera" @click="toggleCam">
-        <component :is="studio.cam ? Video : VideoOff" :key="String(studio.cam)" class="size-4 dock-icon" aria-hidden="true" />
+        <component
+          :is="studio.cam ? Video : VideoOff"
+          :key="String(studio.cam)"
+          class="size-4 dock-icon"
+          aria-hidden="true"
+        />
         {{ t('Camera') }}
       </button>
       <UiMenu

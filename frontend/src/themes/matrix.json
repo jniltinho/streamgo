@@ -1,5 +1,5 @@
 {
-  "comment": "Portions adapted from MeetHub (MIT): frontend/src/themes/matrix.json. Contrast recipes (theme-base): text role over the background roles where it appears (layers top→bottom). size: normal 4.5:1, large/ui 3:1. pending: the pairs a theme may still fail (empty since phase B of openspec/changes/theme-base); the test fails unless this list is exactly the failing set. aaa: themes held to enhanced contrast (WCAG 1.4.6: normal text 7:1, large 4.5:1; components 1.4.11 3:1). aaaOnly: a recipe only the aaa themes are held to (the selected segment, the solid login focus ring). segmentedOnly: only where the tabs are a segmented control (--subtabs-gap and --subtab-inset-top 0: Crystal), whose fill is the only mark of the selected tab; folder tabs (High contrast) mark it with the bar on top instead. StreamGo adds the feedback recipes MeetHub kept in its browser test (toast/info, alert/*, field-error) and the studio recipes (studio/*).",
+  "comment": "Portions adapted from MeetHub (MIT): frontend/src/themes/matrix.json. Contrast recipes (theme-base): text role over the background roles where it appears (layers top→bottom). size: normal 4.5:1, large/ui 3:1. pending: the pairs a theme may still fail (empty since phase B of openspec/changes/theme-base); the test fails unless this list is exactly the failing set. aaa: themes held to enhanced contrast (WCAG 1.4.6: normal text 7:1, large 4.5:1; components 1.4.11 3:1). aaaOnly: a recipe only the aaa themes are held to (the selected segment, the solid login focus ring). segmentedOnly: only where the tabs are a segmented control (--subtabs-gap and --subtab-inset-top 0: Crystal), whose fill is the only mark of the selected tab; folder tabs (High contrast) mark it with the bar on top instead. StreamGo adds the feedback recipes MeetHub kept in its browser test (toast/info, alert/*, field-error) and the studio recipes (studio/*). add-studio-interactions adds the UI SDK wrappers (menu/*, meter/*; the tooltip is the tooltip recipe).",
   "recipes": [
     {
       "id": "text/page",
@@ -731,6 +731,30 @@
       "fg": "fg-muted",
       "bg": ["dialog-face", "dialog-foot"],
       "size": "normal"
+    },
+    {
+      "id": "menu/item",
+      "fg": "on-pop",
+      "bg": ["field"],
+      "size": "normal"
+    },
+    {
+      "id": "menu/highlighted",
+      "fg": "on-selection",
+      "bg": ["selection"],
+      "size": "normal"
+    },
+    {
+      "id": "meter/fill",
+      "fg": "ok",
+      "bg": ["field"],
+      "size": "ui"
+    },
+    {
+      "id": "meter/track",
+      "fg": "fg-muted",
+      "bg": ["surface"],
+      "size": "ui"
     }
   ],
   "pending": {},

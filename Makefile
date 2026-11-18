@@ -76,11 +76,11 @@ tools: ## Build the tools image (Go + gcc, golangci-lint, govulncheck, Node, ffm
 	@docker volume create streamgo-cache >/dev/null
 	@docker run --rm -v streamgo-cache:/cache $(TOOLS_IMAGE) sh -c 'mkdir -p /cache/home && chmod -R 1777 /cache'
 
-check: tools ## gofmt, go vet, golangci-lint (with the layering rule), govulncheck, frontend check and build
+check: tools ## gofmt, go vet, golangci-lint (with the layering rule), govulncheck, frontend check, build and size check
 	$(call TOOLS_RUN,,set -e; \
 	  test -z "$$(gofmt -l $$($(GO_FILES)))" || { gofmt -l $$($(GO_FILES)); echo "gofmt: the files above need formatting"; exit 1; }; \
 	  go vet ./...; golangci-lint run ./...; govulncheck ./...; \
-	  $(NPM_CI); npm run check; npm run build)
+	  $(NPM_CI); npm run check; SIZE_CHECK=1 npm run build; node scripts/size-check.mjs)
 
 check-go: tools ## The Go half of check: gofmt, go vet, golangci-lint, govulncheck (no frontend install)
 	$(call TOOLS_RUN,,set -e; \

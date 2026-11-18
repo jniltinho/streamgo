@@ -3,7 +3,7 @@
 // Development/test-only page (absent from production builds): buttons, fields, cards, tabs, every toast, alert and
 // dialog kind, the studio marks and the theme picker, for the visual, contrast and radius checks of each theme.
 import { ref } from 'vue'
-import { Settings } from '@lucide/vue'
+import { Mic, MicAudioLines, MicOff, Settings } from '@lucide/vue'
 import UiAlert from '@/components/ui/UiAlert.vue'
 import UiMenu from '@/components/ui/UiMenu.vue'
 import UiMeter from '@/components/ui/UiMeter.vue'
@@ -27,6 +27,8 @@ const mics = [
   })),
 ]
 const mic = ref('')
+// the state motion (design U6): a dock icon that changes with its pressed state, the speaking mark, the live mark
+const pressed = ref(true)
 
 function allToasts() {
   toast.success('Saved successfully.')
@@ -131,13 +133,29 @@ function allToasts() {
         </template>
       </UiTooltip>
       <span>Camera</span>
-      <UiMenu label="Choose a camera" :items="cameras" :value="camera" data-gallery-menu="camera" @select="camera = $event" />
+      <UiMenu
+        label="Choose a camera"
+        :items="cameras"
+        :value="camera"
+        data-gallery-menu="camera"
+        @select="camera = $event"
+      />
       <span>Microphone</span>
       <UiMenu label="Choose a microphone" :items="mics" :value="mic" data-gallery-menu="mic" @select="mic = $event" />
       <span>None</span>
       <UiMenu label="Choose a speaker" :items="[]" value="" disabled="No speaker found." data-gallery-menu="none" />
       <UiMeter :value="0.5" label="Microphone level" text="Heard" data-gallery-meter />
       <output data-gallery-chosen>{{ camera }}|{{ mic }}</output>
+    </div>
+    <div class="card mt-4 flex max-w-xl items-center gap-3 p-2" data-gallery-motion>
+      <button type="button" class="btn-ghost" :aria-pressed="pressed" data-gallery-toggle @click="pressed = !pressed">
+        <component :is="pressed ? Mic : MicOff" :key="String(pressed)" class="dock-icon size-4" aria-hidden="true" />
+        Mic
+      </button>
+      <MicAudioLines class="speaking-mark size-4 text-ok" role="img" aria-label="Speaking" data-gallery-speaking />
+      <span class="studio-chip on-air" data-gallery-live
+        ><span class="studio-dot status-dot bg-on-air" aria-hidden="true" />Live</span
+      >
     </div>
 
     <div class="mt-4 max-w-3xl" data-gallery-picker>

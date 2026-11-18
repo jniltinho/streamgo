@@ -1234,23 +1234,96 @@ dialog.pnl.closing::backdrop {
 }
 /* the arrow beside a control: a narrow ghost button; aria-disabled keeps it focusable for its tooltip */
 .ui-menu-trigger {
-  padding-inline: 0.25rem;
+  padding-inline: 0.125rem;
 }
 .ui-menu-trigger[aria-disabled='true'] {
   cursor: default;
   opacity: 0.5;
 }
-/* the meter: a track in the field roles, filled in the state role */
+/* ── the studio's state motion (design U6): decorative, transform and opacity only, never with reduced motion or
+   in flat mode (the static marks stay) ── */
+/* (declared only where motion is allowed: under reduced motion or in flat mode the rules do not exist, also when
+   that starts while an effect runs) */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-flat='true']) {
+    /* a dock control's icon when its pressed state changes (the icon is a new element then) */
+    .dock-icon {
+      animation: dock-flip 0.2s ease-out;
+    }
+    /* the bars of the speaking mark move while the person is heard */
+    .speaking-mark path:nth-child(n + 4):nth-child(-n + 7) {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: speaking-bar 0.6s ease-in-out infinite alternate;
+    }
+    .speaking-mark path:nth-child(5),
+    .speaking-mark path:nth-child(7) {
+      animation-delay: -0.3s;
+    }
+    /* the live mark pulses */
+    .studio-chip.on-air .studio-dot {
+      animation: on-air-pulse 1.6s ease-in-out infinite;
+    }
+  }
+}
+@keyframes dock-flip {
+  from {
+    opacity: 0.3;
+    transform: scale(0.6) rotate(-12deg);
+  }
+}
+@keyframes speaking-bar {
+  to {
+    transform: scaleY(0.4);
+  }
+}
+@keyframes on-air-pulse {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+/* the dock's device groups: a control, its device arrow and, for the microphone, its meter; the dock is a little
+   tighter than other button rows, so the arrows and the meter fit where the controls alone did (1280x720) */
+.studio-box[role='toolbar'] {
+  --button-px: 0.5rem;
+  gap: 0.375rem;
+}
+.dock-group {
+  display: inline-flex;
+  align-items: center;
+}
+.dock-group > .ui-meter {
+  margin-inline: 0.25rem;
+}
+
+/* the meter: a track in the field roles, filled in the state role; a parent may widen it (flex-1) */
+.ui-meter {
+  display: flex;
+  align-items: center;
+}
 .ui-meter-track {
-  width: 3rem;
+  flex: 1;
+  min-width: 3rem;
   height: 0.5rem;
   overflow: hidden;
   background: var(--color-field);
-  border: 1px solid var(--color-field-line);
+  border: 1px solid var(--color-fg-muted); /* the field line is too faint on some surfaces (classic-gray) */
 }
 .ui-meter-fill {
   height: 100%;
   background: var(--color-ok);
+}
+/* standing up (the dock): filled from the bottom, from the reading UI SDK puts in --meter-value */
+.ui-meter.vertical .ui-meter-track {
+  flex: none;
+  width: 0.5rem;
+  min-width: 0;
+  height: 1.25rem;
+  background: linear-gradient(to top, var(--color-ok) var(--meter-value), var(--color-field) 0);
+}
+.ui-meter.vertical .ui-meter-fill {
+  display: none;
 }
 
 @layer components {

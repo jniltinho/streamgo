@@ -5,6 +5,7 @@
 import { computed, ref } from 'vue'
 import { MicAudioLines, Mic, MicOff, MonitorUp, UserMinus, UserPlus, Video, VideoOff } from '@lucide/vue'
 import InviteModal from '@/components/studio/InviteModal.vue'
+import UiTooltip from '@/components/ui/UiTooltip.vue'
 import SourcePreview from '@/components/studio/SourcePreview.vue'
 import { initials } from '@/core/compositor'
 import type { StageSource } from '@/core/stageState'
@@ -38,6 +39,7 @@ const cards = computed<Card[]>(() =>
     .map((c) => ({ ...c, track: owner.value || c.person.local ? studio.videoTrack(c.source) : null })),
 )
 
+const micMark = (p: Person) => (!p.mic ? t('Microphone off') : p.speaking ? t('Speaking') : t('Microphone on'))
 const label = (c: Card) => (c.source.k === 'screen' ? t("{name}'s screen", { name: c.person.name }) : c.person.name)
 const role = (c: Card) =>
   c.source.k === 'screen' ? t('Screen share') : c.person.host ? t('Host') : c.person.local ? t('You') : t('Guest')
@@ -136,31 +138,48 @@ async function removeGuest(p: Person) {
         </template>
         <span class="ml-auto flex items-center gap-1.5 text-fg-muted">
           <template v-if="c.source.k === 'camera'">
-            <component
-              :is="!c.person.mic ? MicOff : c.person.speaking ? MicAudioLines : Mic"
-              class="size-4"
-              :class="{ 'text-ok': c.person.mic && c.person.speaking }"
-              role="img"
-              :aria-label="!c.person.mic ? t('Microphone off') : c.person.speaking ? t('Speaking') : t('Microphone on')"
-              :data-speaking="c.person.mic && c.person.speaking"
-            />
-            <component
-              :is="c.person.cam ? Video : VideoOff"
-              class="size-4"
-              role="img"
-              :aria-label="c.person.cam ? t('Camera on') : t('Camera off')"
-            />
+            <UiTooltip :text="micMark(c.person)">
+              <template #default="{ trigger }">
+                <component
+                  :is="!c.person.mic ? MicOff : c.person.speaking ? MicAudioLines : Mic"
+                  v-bind="trigger"
+                  class="size-4"
+                  :class="{ 'text-ok speaking-mark': c.person.mic && c.person.speaking }"
+                  role="img"
+                  :aria-label="micMark(c.person)"
+                  :data-speaking="c.person.mic && c.person.speaking"
+                />
+              </template>
+            </UiTooltip>
+            <UiTooltip :text="c.person.cam ? t('Camera on') : t('Camera off')">
+              <template #default="{ trigger }">
+                <component
+                  :is="c.person.cam ? Video : VideoOff"
+                  v-bind="trigger"
+                  class="size-4"
+                  role="img"
+                  :aria-label="c.person.cam ? t('Camera on') : t('Camera off')"
+                />
+              </template>
+            </UiTooltip>
           </template>
-          <button
+          <UiTooltip
             v-if="owner && !c.person.host && c.source.k === 'camera'"
-            type="button"
-            class="icon-btn"
-            :aria-label="t('Remove {name} from the studio', { name: c.person.name })"
-            :title="t('Remove from the studio')"
-            @click="removeGuest(c.person)"
+            :text="t('Remove from the studio')"
+            describes
           >
-            <UserMinus class="size-4" aria-hidden="true" />
-          </button>
+            <template #default="{ trigger }">
+              <button
+                v-bind="trigger"
+                type="button"
+                class="icon-btn"
+                :aria-label="t('Remove {name} from the studio', { name: c.person.name })"
+                @click="removeGuest(c.person)"
+              >
+                <UserMinus class="size-4" aria-hidden="true" />
+              </button>
+            </template>
+          </UiTooltip>
         </span>
       </div>
     </li>

@@ -30,7 +30,9 @@ const emit = defineEmits<{ select: [value: string]; open: [] }>()
     <MenuContent class="ui-menu" side="top" align="start" :side-offset="4" :collision-padding="8" :aria-label="label">
       <MenuRadioGroup :value="value" @value-change="(v: string) => emit('select', v)">
         <MenuRadioItem v-for="i in items" :key="i.value" :value="i.value" close-on-select class="ui-menu-item">
-          <MenuItemIndicator class="ui-menu-check" keep-mounted><Check class="size-3.5" aria-hidden="true" /></MenuItemIndicator>
+          <MenuItemIndicator class="ui-menu-check" keep-mounted
+            ><Check class="size-3.5" aria-hidden="true"
+          /></MenuItemIndicator>
           <span class="ui-menu-text">{{ i.label }}</span>
         </MenuRadioItem>
       </MenuRadioGroup>

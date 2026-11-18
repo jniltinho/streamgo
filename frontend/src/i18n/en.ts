@@ -173,7 +173,6 @@ const catalog: Catalog = {
   '{width}x{height} at 30 fps; uses up to {mbps} Mbit/s of your upload.':
     '{width}x{height} at 30 fps; uses up to {mbps} Mbit/s of your upload.',
   'Some platforms accept at most 1080p.': 'Some platforms accept at most 1080p.',
-  'That device could not be used.': 'That device could not be used.',
   Microphone: 'Microphone',
   Default: 'Default',
   Done: 'Done',
@@ -336,6 +335,32 @@ const catalog: Catalog = {
   'error.internal': 'Something went wrong on the server.',
   'error.unavailable': 'The service is unavailable. Try again shortly.',
   'error.network': 'The server could not be reached.',
+  // add-studio-interactions: device menus, the meter, the sound cues
+  'Microphone {n}': 'Microphone {n}',
+  'Camera {n}': 'Camera {n}',
+  'Choose a microphone': 'Choose a microphone',
+  'Choose a camera': 'Choose a camera',
+  'The browser is not allowed to use the microphone.': 'The browser is not allowed to use the microphone.',
+  'The browser is not allowed to use the camera.': 'The browser is not allowed to use the camera.',
+  'No microphone found.': 'No microphone found.',
+  'No camera found.': 'No camera found.',
+  'Turn the microphone on once to list the microphones.': 'Turn the microphone on once to list the microphones.',
+  'Turn the camera on once to list the cameras.': 'Turn the camera on once to list the cameras.',
+  'The chosen microphone could not be used; the previous one is back.':
+    'The chosen microphone could not be used; the previous one is back.',
+  'The microphone is unavailable.': 'The microphone is unavailable.',
+  'The chosen camera could not be used; the previous one is back.':
+    'The chosen camera could not be used; the previous one is back.',
+  'The camera is unavailable.': 'The camera is unavailable.',
+  Heard: 'Heard',
+  Silent: 'Silent',
+  Sounds: 'Sounds',
+  'On this browser': 'On this browser',
+  'Play a sound when someone joins or leaves, and when the program goes on or off air':
+    'Play a sound when someone joins or leaves, and when the program goes on or off air',
+  'Sounds while on air': 'Sounds while on air',
+  'A sound may be heard in the program through your speakers or a shared screen. Use headphones.':
+    'A sound may be heard in the program through your speakers or a shared screen. Use headphones.',
 }
 
 export default catalog

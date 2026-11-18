@@ -6,7 +6,27 @@ are the section of that version.
 
 ## [Unreleased]
 
-—
+### Added
+
+- **Device menus in the studio** — an arrow beside Mic and Camera lists the microphones or the cameras, Default
+  first, and switches at once, for the host and for guests; with nothing to choose (no device, permission refused)
+  the arrow says why. A device that cannot be used puts the previous one back, in the menus and in Device settings
+  alike, and a toast says so; when neither works the control turns off.
+- **A microphone meter** beside Mic, before joining and in the studio: it shows the level your microphone picks
+  up and says "heard" or "silent" to a screen reader. It stops while the microphone is off or the tab is hidden.
+- **Sound cues** — a short tone, made in the browser, when someone joins or leaves the backstage and when the
+  program goes on air or off air. Cues are silent while the program is on air, for everyone, unless "Sounds while on
+  air" is turned on (headphones recommended); both switches are in Device settings, kept in the browser.
+- **Themed tooltips** on Device settings, the device arrows, the layout thumbnails and the marks of a backstage
+  card, on hover and on keyboard focus, in place of the browser's own.
+- **Motion** — the dock's icons turn when they change, the speaking mark moves and the live mark pulses; none of it
+  with "reduce motion" or the flat look.
+
+### Changed
+
+- The web app uses UI SDK (https://github.com/vercel-labs/ui, Apache-2.0, 0.1.0-beta.10) for the menus, tooltips
+  and the meter, inside its own wrappers; `make check` now also fails when the app's entry or the studio and guest
+  pages grow past a stated size.
 
 ## [0.4.0] — 2026-11-18
 

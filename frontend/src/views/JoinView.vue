@@ -13,9 +13,10 @@ import DevicePickers from '@/components/studio/DevicePickers.vue'
 import StudioHeader from '@/components/studio/StudioHeader.vue'
 import StudioStage from '@/components/studio/StudioStage.vue'
 import UiAlert from '@/components/ui/UiAlert.vue'
+import UiMeter from '@/components/ui/UiMeter.vue'
 import { api, ApiError } from '@/api/client'
 import type { Invite } from '@/api/types'
-import { type DeviceState, isFull, studioError, useStudio } from '@/stores/studio'
+import { type DeviceState, HEARD_LEVEL, isFull, studioError, useStudio } from '@/stores/studio'
 import { t } from '@/i18n'
 
 const studio = useStudio()
@@ -218,7 +219,13 @@ async function again() {
           >
             <component :is="studio.cam ? Video : VideoOff" class="size-4" aria-hidden="true" /> {{ t('Camera') }}
           </button>
-          <meter class="h-2 flex-1" min="0" max="1" :value="studio.micLevel" :aria-label="t('Microphone level')" />
+          <UiMeter
+            class="flex-1"
+            :value="studio.mic ? studio.micLevel : 0"
+            :label="t('Microphone level')"
+            :text="studio.mic && studio.micLevel >= HEARD_LEVEL ? t('Heard') : t('Silent')"
+            data-mic-meter
+          />
         </div>
         <DevicePickers v-if="deviceState === 'ok'" />
 

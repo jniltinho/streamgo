@@ -6,7 +6,9 @@
 //     npx playwright test 20-studio
 // Owner and guests are separate browser contexts with Chrome's fake camera and microphone. Skipped without the stack.
 import AxeBuilder from '@axe-core/playwright'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { themeCatalog } from '../../src/themes/catalog'
 
@@ -744,5 +746,342 @@ test.describe('Guest join page', () => {
     await expect(page.locator('[data-control=camera]')).toHaveAttribute('aria-pressed', 'false')
     await g.close()
     await owner.close()
+  })
+})
+
+// ── add-studio-interactions: device menus, tooltips, the meter and the sound cues in a real room ────────────────
+
+// A steady 440 Hz tone at half of full scale as every fake microphone of this part (a WAV Chrome loops): Chrome's
+// own beeps are too short to hold a level, and a tone made in the page with Web Audio reaches no other audio context.
+const toneFile = join(tmpdir(), 'streamgo-e2e-tone-440.wav')
+{
+  const rate = 48_000
+  const pcm = Buffer.alloc(rate * 2)
+  // four syllables a second, each a tone at half of full scale on its own pitch: a constant tone is taken for
+  // noise by the browser's noise suppression and comes out of the capture at a tenth of its level
+  for (let i = 0; i < rate; i++) {
+    const syllable = Math.floor(i / (rate / 4))
+    const on = i % (rate / 4) < rate * 0.18
+    const f = [440, 330, 550, 390][syllable]!
+    pcm.writeInt16LE(on ? Math.round(0.5 * 32767 * Math.sin((2 * Math.PI * f * i) / rate)) : 0, i * 2)
+  }
+  const head = Buffer.alloc(44)
+  head.write('RIFF', 0)
+  head.writeUInt32LE(36 + pcm.length, 4)
+  head.write('WAVEfmt ', 8)
+  head.writeUInt32LE(16, 16)
+  head.writeUInt16LE(1, 20)
+  head.writeUInt16LE(1, 22)
+  head.writeUInt32LE(rate, 24)
+  head.writeUInt32LE(rate * 2, 28)
+  head.writeUInt16LE(2, 32)
+  head.writeUInt16LE(16, 34)
+  head.write('data', 36)
+  head.writeUInt32LE(pcm.length, 40)
+  writeFileSync(toneFile, Buffer.concat([head, pcm]))
+}
+
+// audioProbe counts the cue player's tones (window.__cues: oscillators made by createOscillator, which neither the
+// mix nor the meter calls) and taps every MediaStreamAudioDestination, the program bus among them, with an analyser
+// in the same context (window.__taps), so the program's output can be measured.
+function audioProbe() {
+  const w = window as unknown as { __cues: number; __taps: AnalyserNode[] }
+  w.__cues = 0
+  w.__taps = []
+  const osc = AudioContext.prototype.createOscillator
+  AudioContext.prototype.createOscillator = function () {
+    w.__cues++
+    return osc.call(this)
+  }
+  const connect = AudioNode.prototype.connect as (this: AudioNode, ...a: unknown[]) => unknown
+  const tapOf = new WeakMap<AudioNode, AnalyserNode>()
+  AudioNode.prototype.connect = function (this: AudioNode, ...a: unknown[]) {
+    const to = a[0]
+    if (to instanceof MediaStreamAudioDestinationNode) {
+      let tap = tapOf.get(to)
+      if (!tap) {
+        tap = to.context.createAnalyser()
+        tapOf.set(to, tap)
+        w.__taps.push(tap)
+      }
+      connect.call(this, tap)
+    }
+    return connect.apply(this, a)
+  } as typeof AudioNode.prototype.connect
+}
+
+/** the loudest sample on any program tap during `ms` */
+const programPeak = (page: Page, ms: number) =>
+  page.evaluate(async (ms) => {
+    const w = window as unknown as { __taps: AnalyserNode[] }
+    let peak = 0
+    const end = performance.now() + ms
+    while (performance.now() < end) {
+      for (const a of w.__taps) {
+        const d = new Float32Array(a.fftSize)
+        a.getFloatTimeDomainData(d)
+        for (const v of d) peak = Math.max(peak, Math.abs(v))
+      }
+      await new Promise((r) => setTimeout(r, 20))
+    }
+    return peak
+  }, ms)
+const cues = (page: Page) => page.evaluate(() => (window as unknown as { __cues: number }).__cues)
+const resetCues = (page: Page) => page.evaluate(() => ((window as unknown as { __cues: number }).__cues = 0))
+
+test.describe('Studio interactions', () => {
+  // a browser of its own, whose fake microphones play the tone (launch options cannot change inside a group)
+  let browser: Browser
+  let ctx: BrowserContext
+  let studio: Page
+  let b: { id: string; invite_url: string }
+
+  test.beforeAll(async ({ playwright }) => {
+    browser = await playwright.chromium.launch({
+      channel: 'chrome',
+      args: [
+        '--use-fake-ui-for-media-stream',
+        '--use-fake-device-for-media-stream',
+        `--use-file-for-fake-audio-capture=${toneFile}`,
+      ],
+    })
+    ctx = await ownerContext(browser)
+    await ctx.addInitScript(audioProbe)
+    b = await newBroadcast(ctx, 'Interactions')
+    studio = await openStudio(ctx, b.id)
+  })
+  test.afterAll(async () => {
+    await ctx?.close()
+    await browser?.close()
+  })
+
+  const micMenu = (page: Page) => page.locator('[data-device-menu=audio]')
+  const camMenu = (page: Page) => page.locator('[data-device-menu=video]')
+
+  test('Choose another microphone: the menu closes, focus is on the arrow, the menu and the select agree', async () => {
+    await micMenu(studio).click()
+    const items = studio.getByRole('menuitemradio')
+    await expect(items.first()).toHaveText('Default')
+    await expect(items.first()).toHaveAttribute('aria-checked', 'true')
+    // the browser has given permission: the real names, not numbers
+    const names = await items.allTextContents()
+    expect(names.length).toBeGreaterThanOrEqual(3)
+    expect(names.slice(1).some((n) => /^Microphone \d+$/.test(n.trim()))).toBe(false)
+    const second = names[2]!.trim()
+    await items.nth(2).click()
+    await expect(studio.getByRole('menu')).toHaveCount(0)
+    await expect(micMenu(studio)).toBeFocused()
+    await expect(studio.locator('[data-control=mic]')).toHaveAttribute('aria-pressed', 'true')
+    await micMenu(studio).click()
+    await expect(studio.getByRole('menuitemradio', { name: second })).toHaveAttribute('aria-checked', 'true')
+    await studio.keyboard.press('Escape')
+    await studio.getByRole('button', { name: 'Device settings' }).click()
+    const select = studio.getByLabel('Microphone', { exact: true })
+    expect(await select.evaluate((s: HTMLSelectElement) => s.selectedOptions[0]!.textContent!.trim())).toBe(second)
+    await studio.getByRole('button', { name: 'Done' }).click()
+    await expect(studio.locator('.toast')).toHaveCount(0)
+  })
+
+  test('Keyboard on the camera arrow: Enter opens on Default, Escape closes and changes nothing', async () => {
+    await camMenu(studio).focus()
+    await studio.keyboard.press('Enter')
+    await expect(studio.getByRole('menuitemradio', { name: 'Default' })).toBeFocused()
+    await studio.keyboard.press('ArrowDown')
+    await studio.keyboard.press('Escape')
+    await expect(studio.getByRole('menu')).toHaveCount(0)
+    await expect(camMenu(studio)).toBeFocused()
+    await studio.keyboard.press('Enter')
+    await expect(studio.getByRole('menuitemradio', { name: 'Default' })).toHaveAttribute('aria-checked', 'true')
+    await studio.keyboard.press('Escape')
+  })
+
+  test('Chosen while off: the camera stays off and turning it on uses the chosen one', async () => {
+    await studio.locator('[data-control=camera]').click()
+    await expect(studio.locator('[data-control=camera]')).toHaveAttribute('aria-pressed', 'false')
+    await camMenu(studio).click()
+    const items = studio.getByRole('menuitemradio')
+    const last = (await items.allTextContents()).at(-1)!.trim()
+    await items.last().click()
+    await expect(studio.locator('[data-control=camera]')).toHaveAttribute('aria-pressed', 'false')
+    await studio.locator('[data-control=camera]').click()
+    await expect(studio.locator('[data-control=camera]')).toHaveAttribute('aria-pressed', 'true')
+    await camMenu(studio).click()
+    await expect(studio.getByRole('menuitemradio', { name: last })).toHaveAttribute('aria-checked', 'true')
+    await studio.keyboard.press('Escape')
+  })
+
+  test('Microphone meter: Heard with a tone at half of full scale, empty and silent when off', async () => {
+    const meter = studio.getByRole('meter', { name: 'Microphone level' })
+    await studio.locator('body').click({ position: { x: 5, y: 5 } }) // the audio starts with a click
+    await expect.poll(() => meter.getAttribute('aria-valuenow').then(Number), { timeout: 5000 }).toBeGreaterThan(25)
+    await expect(meter).toHaveAttribute('aria-valuetext', 'Heard')
+    await studio.locator('[data-control=mic]').click()
+    await expect(meter).toHaveAttribute('aria-valuenow', '0')
+    await expect(meter).toHaveAttribute('aria-valuetext', 'Silent')
+    await studio.locator('[data-control=mic]').click()
+    await expect(meter).toHaveAttribute('aria-valuetext', 'Heard')
+  })
+
+  test('Tooltips: Device settings on focus, a layout thumbnail on hover; buttons with text and reasons have none', async () => {
+    const settings = studio.getByRole('button', { name: 'Device settings' })
+    await expect(settings).not.toHaveAttribute('title')
+    await tabTo(studio, settings)
+    await expect(studio.getByRole('tooltip', { name: 'Device settings' })).toBeVisible()
+    await studio.keyboard.press('Escape')
+    await expect(studio.getByRole('tooltip', { name: 'Device settings' })).toBeHidden()
+    const thumb = studio.locator('[data-layout=spotlight]')
+    await expect(thumb).not.toHaveAttribute('title')
+    await thumb.hover()
+    await expect(studio.getByRole('tooltip', { name: 'Spotlight' })).toBeVisible({ timeout: 2000 })
+    await studio.mouse.move(5, 5)
+    await expect(studio.getByRole('tooltip', { name: 'Spotlight' })).toBeHidden()
+    for (const sel of ['[data-control=mic]', '[data-control=camera]', '[data-control=share]'])
+      expect(await studio.locator(sel).getAttribute('aria-labelledby')).toBeNull()
+    await expect(card(studio, 'Ana Souza').getByRole('img', { name: /Microphone|Speaking/ })).toBeVisible()
+  })
+
+  test('Sound cues: a guest’s join is heard once by the owner and not by the guest; the program is unchanged', async () => {
+    // the program bus is silent with an empty stage; it is measured while the cue plays
+    await studio.locator('body').click({ position: { x: 5, y: 5 } })
+    await resetCues(studio)
+    expect(await programPeak(studio, 300)).toBe(0)
+    const guest = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: 'dark' })
+    await guest.addInitScript(audioProbe)
+    const page = await guest.newPage()
+    await page.goto(b.invite_url)
+    await page.getByLabel('Your name').fill('Dora Som')
+    await page.getByRole('button', { name: 'Enter studio' }).click()
+    const peak = programPeak(studio, 2500)
+    await expect(card(studio, 'Dora Som')).toBeVisible({ timeout: 20_000 })
+    expect(await peak).toBe(0)
+    expect(await cues(studio)).toBe(1)
+    expect(await cues(page)).toBe(0)
+    // the taps do measure the program: with the host on stage it carries the tone
+    await studio.getByRole('button', { name: 'Add to stage: Ana Souza' }).click()
+    await expect.poll(() => programPeak(studio, 300), { timeout: 5000 }).toBeGreaterThan(0.1)
+    await studio.getByRole('button', { name: 'Take off the stage: Ana Souza' }).click()
+    // the guest's menus and meter work as the owner's
+    await page.locator('[data-device-menu=audio]').click()
+    await expect(page.getByRole('menuitemradio').first()).toHaveText('Default')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('meter', { name: 'Microphone level' })).toHaveAttribute('aria-valuetext', 'Heard', {
+      timeout: 5000,
+    })
+    await guest.close()
+    await expect(card(studio, 'Dora Som')).toHaveCount(0, { timeout: 20_000 })
+    await studio.waitForTimeout(500)
+    expect(await cues(studio)).toBe(2) // the leave cue
+  })
+
+  test('Sounds turned off in Device settings: no cue, also after a reload', async () => {
+    await studio.getByRole('button', { name: 'Device settings' }).click()
+    const sounds = studio.locator('[data-sounds-on]')
+    await expect(sounds).toBeChecked()
+    await expect(studio.locator('[data-sounds-on-air]')).not.toBeChecked()
+    await sounds.uncheck()
+    await studio.getByRole('button', { name: 'Done' }).click()
+    await studio.reload()
+    await expect(studio.locator('[data-card]').first()).toBeVisible({ timeout: 20_000 })
+    await studio.locator('body').click({ position: { x: 5, y: 5 } })
+    await resetCues(studio)
+    const guest = await guestJoins(browser, b.invite_url, 'Eva Mudo')
+    await expect(card(studio, 'Eva Mudo')).toBeVisible({ timeout: 20_000 })
+    await studio.waitForTimeout(1000)
+    expect(await cues(studio)).toBe(0)
+    await guest.ctx.close()
+    await studio.getByRole('button', { name: 'Device settings' }).click()
+    await studio.locator('[data-sounds-on]').check()
+    await studio.getByRole('button', { name: 'Done' }).click()
+  })
+
+  test('In every theme: a menu open, a tooltip shown and the meter running meet the contrast rules', async () => {
+    await expect(studio.locator('.toast')).toHaveCount(0, { timeout: 15_000 })
+    await micMenu(studio).focus()
+    await studio.keyboard.press('Enter')
+    await studio.keyboard.press('ArrowDown')
+    await studio.getByRole('button', { name: 'Device settings' }).hover()
+    await expect(studio.getByRole('tooltip', { name: 'Device settings' })).toBeVisible({ timeout: 2000 })
+    await expect(studio.getByRole('menu')).toBeVisible()
+    const failures: string[] = []
+    for (const theme of themeCatalog) {
+      await setTheme(studio, theme.id)
+      const r = await new AxeBuilder({ page: studio }).analyze()
+      for (const v of r.violations) for (const n of v.nodes) failures.push(`${theme.id}: ${v.id} ${n.target}`)
+    }
+    await setTheme(studio, 'streamgo-dark')
+    await studio.keyboard.press('Escape')
+    expect(failures).toEqual([])
+  })
+
+  for (const [name, viewport, touch] of [
+    ['1280x720', { width: 1280, height: 720 }, false],
+    ['an ultrawide window', { width: 3440, height: 1440 }, false],
+    ['a narrow touch window', { width: 412, height: 860 }, true],
+  ] as const)
+    test(`The open menu in ${name}: inside the window, no page scroll`, async () => {
+      const g = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch, colorScheme: 'dark' })
+      const page = await g.newPage()
+      await page.goto(b.invite_url)
+      await page.getByLabel('Your name').fill(`Guest ${viewport.width}`)
+      await page.getByRole('button', { name: 'Enter studio' }).click()
+      await expect(place(page)).toBeVisible({ timeout: 20_000 })
+      const arrow = page.locator('[data-device-menu=audio]')
+      if (touch) await arrow.tap()
+      else await arrow.click()
+      const menu = page.getByRole('menu')
+      await expect(menu).toBeVisible()
+      const fit = await menu.evaluate((e) => {
+        const r = e.getBoundingClientRect()
+        const d = document.documentElement
+        return {
+          inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5,
+          page: d.scrollHeight <= d.clientHeight && d.scrollWidth <= d.clientWidth,
+        }
+      })
+      expect(fit).toEqual({ inside: true, page: true })
+      await g.close()
+    })
+
+  test('1280x720: the dock with its arrows and meter still fits its row beside the layout picker', async () => {
+    const c = await ownerContext(browser, { width: 1280, height: 720 })
+    const page = await openStudio(c, b.id)
+    const fit = await page.evaluate(() => {
+      const row = document.querySelector('.studio-row')!
+      const dock = document.querySelector('[role=toolbar]')!
+      return [row.scrollWidth <= row.clientWidth, dock.scrollWidth <= dock.clientWidth]
+    })
+    expect(fit).toEqual([true, true])
+    await c.close()
+  })
+
+  test('screenshots of the interactions at 1440x810 in three themes', async () => {
+    test.skip(!shots, 'E2E_SHOTS not set')
+    mkdirSync(shots, { recursive: true })
+    const c = await ownerContext(browser, { width: 1440, height: 810 })
+    await c.addInitScript(audioProbe)
+    const page = await openStudio(c, b.id)
+    await page.locator('body').click({ position: { x: 5, y: 5 } })
+    const dock = page.locator('[role=toolbar]')
+    for (const theme of ['streamgo-dark', 'macos', 'classic-gray']) {
+      await setTheme(page, theme)
+      await page.locator('[data-device-menu=audio]').click()
+      await page.keyboard.press('ArrowDown')
+      await page.waitForTimeout(300)
+      await page.screenshot({ path: `${shots}/dock-menu-${theme}.png` })
+      await page.keyboard.press('Escape')
+      await tabTo(page, page.getByRole('button', { name: 'Device settings' }))
+      await expect(page.getByRole('tooltip', { name: 'Device settings' })).toBeVisible()
+      await page.screenshot({ path: `${shots}/dock-tooltip-${theme}.png` })
+      await page.locator('body').click({ position: { x: 5, y: 5 } })
+      await expect(page.getByRole('meter', { name: 'Microphone level' })).toHaveAttribute('aria-valuetext', 'Heard')
+      await dock.screenshot({ path: `${shots}/dock-meter-${theme}.png` })
+      await page.screenshot({ path: `${shots}/meter-${theme}.png` })
+      await page.getByRole('button', { name: 'Device settings' }).click()
+      await expect(page.locator('[data-sounds]')).toBeVisible()
+      await page.waitForTimeout(400) // the dialog's entry
+      await page.screenshot({ path: `${shots}/sounds-${theme}.png` })
+      await page.getByRole('button', { name: 'Done' }).click()
+    }
+    await c.close()
   })
 })

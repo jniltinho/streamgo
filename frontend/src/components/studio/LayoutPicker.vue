@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The six layouts as a radio group; each thumbnail is drawn by the layout function itself.
 import { ref } from 'vue'
+import UiTooltip from '@/components/ui/UiTooltip.vue'
 import { layoutRects } from '@/core/layout'
 import { LAYOUTS, type Layout } from '@/core/stageState'
 import { studioError, useStudio } from '@/stores/studio'
@@ -50,33 +51,35 @@ function key(e: KeyboardEvent, i: number) {
   <div class="card studio-box">
     <span id="layout-label" class="px-2 text-xs">{{ t('Layout') }}</span>
     <div ref="group" class="flex gap-1" role="radiogroup" aria-labelledby="layout-label">
-      <button
-        v-for="(l, i) in LAYOUTS"
-        :key="l"
-        type="button"
-        class="studio-layout"
-        role="radio"
-        :aria-checked="current() === l"
-        :tabindex="current() === l ? 0 : -1"
-        :aria-label="name(l)"
-        :title="name(l)"
-        :data-layout="l"
-        @click="pick(l)"
-        @keydown="key($event, i)"
-      >
-        <span class="studio-thumb" aria-hidden="true">
-          <span
-            v-for="(r, j) in thumbs[l]"
-            :key="j"
-            :style="{
-              left: `${(r.x / 160) * 100}%`,
-              top: `${(r.y / 90) * 100}%`,
-              width: `${(r.w / 160) * 100}%`,
-              height: `${(r.h / 90) * 100}%`,
-            }"
-          />
-        </span>
-      </button>
+      <UiTooltip v-for="(l, i) in LAYOUTS" :key="l" :text="name(l)">
+        <template #default="{ trigger }">
+          <button
+            v-bind="trigger"
+            type="button"
+            class="studio-layout"
+            role="radio"
+            :aria-checked="current() === l"
+            :tabindex="current() === l ? 0 : -1"
+            :aria-label="name(l)"
+            :data-layout="l"
+            @click="pick(l)"
+            @keydown="key($event, i)"
+          >
+            <span class="studio-thumb" aria-hidden="true">
+              <span
+                v-for="(r, j) in thumbs[l]"
+                :key="j"
+                :style="{
+                  left: `${(r.x / 160) * 100}%`,
+                  top: `${(r.y / 90) * 100}%`,
+                  width: `${(r.w / 160) * 100}%`,
+                  height: `${(r.h / 90) * 100}%`,
+                }"
+              />
+            </span>
+          </button>
+        </template>
+      </UiTooltip>
     </div>
   </div>
 </template>

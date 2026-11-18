@@ -76,8 +76,8 @@ export type DeviceSwitch = 'ok' | 'previous' | 'unavailable'
 /** whether the browser may use the microphones or the cameras ('prompt' until asked; 'unknown' without the API) */
 export type DevicePermission = PermissionState | 'unknown'
 
-/** the level below which the microphone meter says "silent" (0 to 1, about -54 dBFS) */
-export const HEARD_LEVEL = 0.1
+/** the level below which the microphone meter says "silent" (the RMS of the samples, 0 to 1) */
+export const HEARD_LEVEL = 0.05
 
 /** deviceSwitchError is the toast for a device switch that did not end in the chosen device */
 export const deviceSwitchError = (kind: 'audio' | 'video', r: DeviceSwitch) =>
@@ -97,13 +97,12 @@ const storage = () => {
   }
 }
 
-/** levelOf reads an analyser: the RMS level of its last samples, from -60 dBFS (0) to full scale (1), no easing */
+/** levelOf reads an analyser: the root mean square of its last samples, from 0 to 1, without easing */
 export function levelOf(analyser: AnalyserNode, data: Float32Array<ArrayBuffer>): number {
   analyser.getFloatTimeDomainData(data)
   let sum = 0
   for (const v of data) sum += v * v
-  const db = 20 * Math.log10(Math.sqrt(sum / data.length) || 1e-9)
-  return Math.min(1, Math.max(0, (db + 60) / 60))
+  return Math.min(1, Math.sqrt(sum / data.length))
 }
 
 // Cameras go out at 30 fps on every simulcast layer (design D2: LiveKit's presets send 20 and 25 fps on the lower
@@ -242,31 +241,24 @@ export const useStudio = defineStore('studio', () => {
     void meter?.ctx.resume().catch(() => {})
   }
 
-  /** the broadcast is on for this listener: the owner's output not offline, a guest's stage on air */
-  const airborne = () => (role.value === 'owner' ? onAir.value : !!stage.value?.on_air)
-  const cue = (c: Cue) => void cues?.play(c, cuePrefs.value, airborne())
+  // stage.on_air is the one state every participant sees: true while the program flows (design U7)
+  const cue = (c: Cue) => void cues?.play(c, cuePrefs.value, !!stage.value?.on_air)
 
   function setCuePrefs(p: CuePrefs) {
     cuePrefs.value = { ...p }
     saveCuePrefs(storage(), cuePrefs.value)
   }
 
-  // live and ended: an accepted change of the broadcast's state; the state found on arrival plays nothing, and an
-  // interruption plays nothing (a guest sees only on_air, so for a guest an interruption sounds as an end)
-  const airState = computed(() =>
-    role.value === 'owner'
-      ? detail.value?.output.state
-      : stage.value
-        ? stage.value.on_air
-          ? 'live'
-          : 'offline'
-        : undefined,
+  // on air and off air: a change of stage.on_air after the first stage state; the state found on arrival plays
+  // nothing. An interruption also turns it off: the program stopped, which is what the off-air cue says.
+  watch(
+    () => stage.value?.on_air,
+    (now, before) => {
+      if (now === undefined || before === undefined || now === before) return
+      cue(now ? 'onAir' : 'offAir')
+    },
+    { flush: 'sync' }, // two changes in one task are two cues' worth of state, not none
   )
-  watch(airState, (now, before) => {
-    if (!now || !before || now === before) return
-    if (now === 'live') cue('live')
-    else if (now === 'offline') cue('ended')
-  })
 
   function applyStage(raw: unknown) {
     if (!feed.accept(raw)) return

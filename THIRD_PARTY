@@ -42,6 +42,12 @@ copies in third_party/fonts are embedded in the executable for `streamgo license
   Open Sans        OFL-1.1   https://github.com/googlefonts/opensans            Copyright 2020 The Open Sans Project Authors
   Ubuntu           UFL-1.0   https://design.ubuntu.com/font                     Copyright 2010-2011 Canonical Ltd.
 
+The web app embedded in the streamgo binary also bundles UI SDK (the npm packages @ui-sdk/vue and @ui-sdk/core,
+unmodified, minified into the app's JavaScript), by Vercel Labs, under the Apache License 2.0, whose text is
+below:
+
+  UI SDK 0.1.0-beta.10   Apache-2.0   https://github.com/vercel-labs/ui
+
 
 ====================================================================================================
 LiveKit server: Apache License 2.0

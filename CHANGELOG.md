@@ -23,10 +23,16 @@ are the section of that version.
   desktop behind the page, a low dialog title with the red close button, dialogs in the XP face colour, lighter
   button shadows, sentence-case labels and a blue field focus. Every theme now paints the two headers with its
   header colours, and tables stand on a surface of their own with the theme's shadow.
+- **The Classic gray (98) theme, closer to Windows 98** — the app is a maximised window (gray pages under the
+  navy-to-blue title bar) and the teal desktop shows behind the sign-in box; dialogs have a low caption with a
+  raised gray close button, only the default button keeps a black frame, fields and tables are white and sunken
+  (tables under raised column heads), check boxes are white with a black tick, and every toast has the navy
+  caption.
 
 ### Fixed
 
 - **The information toast has its own colour** — it was painted with the success colours in every theme.
+- **The close button of a toast shows its keyboard focus** — the mark was black on the toast's coloured title.
 
 ## [0.2.0] — 2026-11-17
 

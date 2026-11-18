@@ -136,8 +136,37 @@ test.describe('every theme', () => {
   // ui-themes "Carried-over themes look the same": every role token as MeetHub's theme of the same id resolves it.
   // The owner asked for the XP theme to be refined: its page is the XP desktop (a sky and a hill), the text that
   // stands on it is darker for it, and a field's focus is blue. Those roles, and only those, differ.
+  // The 98 theme was then brought closer to Windows 98: the gray face of a maximised window as the page and the teal
+  // desktop behind the sign-in box, the brighter title bar, buttons without a frame (only the default button has
+  // one), sunken white fields and lists, pale state fills, navy captions on every toast.
   const refined: Record<string, string[]> = {
     'classic-blue': ['fg-muted', 'fg-subtle', 'link', 'link-hover', 'page', 'field-focus'],
+    'classic-gray': [
+      'fg-muted',
+      'page',
+      'row-alt',
+      'row-hover',
+      'field-line',
+      'action-2-line',
+      'action-2-hover-line',
+      'err-soft',
+      'ok-soft',
+      'warn-soft',
+      'header',
+      'nav-on',
+      'dialog-head',
+      'login-page',
+      'on-login-box-muted',
+      'toast-ok',
+      'toast-err',
+      'toast-warn',
+      'toast-info',
+      'on-toast-info',
+      'scroll-thumb',
+      'scroll-track',
+      'login-box-line',
+      'info-soft',
+    ],
   }
   // StreamGo's own themes (the streamgo pair, macOS, Mac OS Retro, Ubuntu and the OBS Studio pair) have no MeetHub
   // counterpart: they are left out of the comparison.

@@ -28,6 +28,20 @@ test('toasts: four kinds, errors announced assertively, close button', async ({ 
   await expect(page.locator('.toast')).toHaveCount(3)
 })
 
+test("a toast's close button shows its focus mark in the colour of its cross", async ({ page }) => {
+  // opened from the keyboard, so the focus that follows is a visible one
+  await page.locator('[data-open=toasts]').focus()
+  await page.keyboard.press('Enter')
+  const close = page.locator('.toast.err').getByRole('button', { name: 'Close' })
+  await close.focus()
+  const mark = await close.evaluate((el) => {
+    const c = getComputedStyle(el)
+    return { style: c.outlineStyle, outline: c.outlineColor, ink: c.color }
+  })
+  expect(mark.style).toBe('solid')
+  expect(mark.outline).toBe(mark.ink)
+})
+
 test('confirm dialog: modal, safe focus, Escape cancels and focus returns', async ({ page }) => {
   const opener = page.locator('[data-open=confirm]')
   await opener.focus()

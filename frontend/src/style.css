@@ -341,6 +341,17 @@
   --button-px: 0.75rem;
   --toolbar-gap: 0.5rem;
   --toolbar-mb: 0.75rem;
+  /* a table's own ground, frame, cell lines and outer shadow: a theme may make it a list view (white, sunken) */
+  --color-table: var(--color-surface);
+  --table-frame: var(--color-line); /* up to four colours, one per side (a relief) */
+  --table-line: var(--color-line);
+  --shadow-table: var(--shadow-card);
+  /* a field's border: up to four colours, one per side, where the border is part of a relief */
+  --field-line-colors: var(--color-field-line);
+  /* a ticked check box or radio: its fill, its frame and its mark */
+  --color-check-on: var(--color-action);
+  --color-check-on-line: var(--color-action);
+  --color-on-check: var(--color-on-action);
   --th-px: 0.5rem;
   --th-py: 0.375rem;
   --td-px: 0.5rem;
@@ -649,6 +660,7 @@ body {
   }
   .inp {
     @apply h-(--control-h) w-full border border-field-line bg-field px-(--input-px) text-(length:--control-text) text-on-field shadow-(--shadow-field) outline-none focus:border-field-focus focus:shadow-(--shadow-field-focus) transition-[border-color,box-shadow] duration-150;
+    border-color: var(--field-line-colors);
   }
   /* in this layer, after .inp: its horizontal padding would otherwise win over the base layer's room for the arrow */
   select.inp {
@@ -670,14 +682,15 @@ body {
   .grid-t {
     /* a surface of its own, with the theme's card shadow for some volume: a table also stands directly on the page,
        whose pattern must not show through */
-    @apply w-full border-collapse border border-line bg-surface text-[0.75rem] text-fg shadow-(--shadow-card);
+    @apply w-full border-collapse border border-line bg-(--color-table) text-[0.75rem] text-fg shadow-(--shadow-table);
+    border-color: var(--table-frame);
   }
   .grid-t th {
     @apply sticky top-0 z-10 bg-table-head bg-(image:--bg-table-head) px-(--th-px) py-(--th-py) text-left font-semibold whitespace-nowrap text-on-table-head shadow-(--shadow-table-head);
     height: var(--table-head-h);
   }
   .grid-t td {
-    @apply border-t border-line px-(--td-px) py-(--td-py) align-middle;
+    @apply border-t border-(--table-line) px-(--td-px) py-(--td-py) align-middle;
   }
   .grid-t tbody tr:nth-child(even) {
     @apply bg-row-alt;
@@ -740,6 +753,7 @@ body {
   --shadow-card-hover: none;
   --shadow-field: none;
   --shadow-table-head: none;
+  --shadow-table: none;
   --shadow-app: none;
   --shadow-tabs: none;
   --shadow-login-box: none;
@@ -1057,15 +1071,15 @@ dialog.pnl.closing::backdrop {
   }
   input[type='checkbox']:checked,
   input[type='radio']:checked {
-    background: var(--color-action);
-    border-color: var(--color-action);
+    background: var(--color-check-on);
+    border-color: var(--color-check-on-line);
   }
   input[type='checkbox']:checked::after {
     content: '';
     width: 0.5rem;
     height: 0.3125rem;
     margin-top: -0.125rem;
-    border: solid var(--color-on-action);
+    border: solid var(--color-on-check);
     border-width: 0 0 2px 2px;
     transform: rotate(-45deg);
   }
@@ -1073,7 +1087,7 @@ dialog.pnl.closing::backdrop {
     content: '';
     width: 0.375rem;
     height: 0.375rem;
-    background: var(--color-on-action);
+    background: var(--color-on-check);
   }
   input[type='checkbox']:disabled,
   input[type='radio']:disabled {
@@ -1133,6 +1147,10 @@ dialog.pnl.closing::backdrop {
   .toast-close:hover,
   .toast-close:focus-visible {
     opacity: 1;
+  }
+  /* the focus mark must show on the toast's coloured title, as the cross does */
+  .toast-close:focus-visible {
+    outline-color: currentcolor;
   }
   .alert {
     --a-bg: var(--color-info-soft);

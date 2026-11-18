@@ -35,6 +35,14 @@ labels and looks, and StreamGo's own `macos`, `macos-retro`, `ubuntu`, `obs-dark
   a surface of their own with the theme's shadow, and its role tokens equal MeetHub's except the page, the text
   roles that stand on it, the links and the field focus
 
+#### Scenario: The refined 98 theme
+- **WHEN** the Classic gray (98) theme is applied
+- **THEN** the app is a maximised window: its pages are the gray face under the navy-to-blue title bar that the
+  app's and the studio's header are, and the teal desktop shows behind the sign-in box; only the primary button
+  has the black frame of a default button, fields are white and sunken, tables are a white sunken list under
+  raised column heads, a dialog has a low caption with a raised gray close button, every toast has the navy
+  caption, and its role tokens equal MeetHub's except the roles that refinement changes
+
 #### Scenario: The macOS theme
 - **WHEN** the macOS theme is applied
 - **THEN** the header is a light unified toolbar with dark text, actions and selection are the system blue darkened

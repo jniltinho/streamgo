@@ -341,27 +341,30 @@
   --login-logo-light-ink: none;
 }
 
-/* Classic gray (Windows 98): face #c0c0c0 with 3D relief, title bar #000080 → #1060a8, light teal desktop */
+/* Classic gray (Windows 98): the app is a maximised window, its pages the #c0c0c0 face under the navy-to-blue
+   title bar; the teal desktop shows behind the sign-in box. 3D relief in the four system colours (#dfdfdf, #fff,
+   #808080, #000), a gray raised close button, sunken white fields and lists, black text. The desktop and the bright
+   end of the title bar are a shade off the originals (#008080, #1084d0) so text keeps its contrast. */
 :root[data-theme='classic-gray'] {
   --color-fg: #000000;
   --color-on-page: #000000;
   --color-fg-strong: #000080;
-  --color-fg-muted: #404040;
+  --color-fg-muted: #000000; /* 98 has no gray text; a hint also stands on the desktop of the sign-in page */
   --color-fg-subtle: #404040;
   --color-link: #0000ff;
   --color-link-hover: #000080;
-  --color-page: #7fbfbf;
+  --color-page: #c0c0c0;
   --color-page-dots: rgba(0, 0, 0, 0.25);
   --color-surface: #c0c0c0;
   --color-surface-2: #c8c8c8;
   --color-surface-3: #dfdfdf;
-  --color-row-alt: #cacaca;
-  --color-row-hover: #dfdfdf;
+  --color-row-alt: #ffffff;
+  --color-row-hover: #e4e4e4;
   --color-line: #808080;
   --color-line-soft: #a8a8a8;
   --color-field: #ffffff;
   --color-on-field: #000000;
-  --color-field-line: #000000;
+  --color-field-line: #808080;
   --color-field-focus: #000080;
   --color-check-line: #000000;
   --color-autofill: #000000;
@@ -371,8 +374,8 @@
   --color-on-action: #000000;
   --color-action-2: #c0c0c0;
   --color-action-2-top: #c0c0c0;
-  --color-action-2-line: #000000;
-  --color-action-2-hover-line: #000000;
+  --color-action-2-line: #c0c0c0; /* only the default button has the black frame */
+  --color-action-2-hover-line: #c0c0c0;
   --color-on-action-2: #000000;
   --color-danger: #800000;
   --color-danger-top: #800000;
@@ -400,19 +403,19 @@
   --color-on-strong-fill: #ffffff;
   --color-on-toast: #ffffff;
   --color-on-toast-warn: #ffffff;
-  --color-err-soft: #b8a9a9;
+  --color-err-soft: #ffe1e1;
   --color-on-err-soft: #600000;
   --color-neutral-fill: #5a5a5a;
   --color-strong-fill: #000080;
-  --color-ok-soft: #a9b3a9;
+  --color-ok-soft: #e1ffe1;
   --color-on-ok-soft: #003c00;
-  --color-warn-soft: #c8c8a9;
+  --color-warn-soft: #ffffe1; /* the tooltip's yellow */
   --color-on-warn-soft: #453a00;
-  --color-toast-ok: #005000;
-  --color-toast-err: #800000;
-  --color-toast-warn: #5c4d00;
+  --color-toast-ok: #000080; /* a message box: every caption is the navy one, the icon tells the state */
+  --color-toast-err: #000080;
+  --color-toast-warn: #000080;
   --color-header-top: #000080;
-  --color-header: #1060a8;
+  --color-header: #1078c4;
   --color-on-header: #ffffff;
   --color-on-header-muted: #ffffff;
   --color-on-header-subtle: #ffffff;
@@ -437,7 +440,7 @@
   --color-footer-bar: #808080;
   --color-on-footer: #000000;
   --color-footer-strong: #000080;
-  --color-nav-on: #1060a8;
+  --color-nav-on: #1078c4;
   --color-on-nav-on: #ffffff;
   --color-nav-on-line: #808080;
   --color-card-head-top: #dfdfdf;
@@ -449,8 +452,9 @@
   --color-on-table-head: #000000;
   --color-dialog-line: #c0c0c0;
   --color-on-dialog: #000000;
+  --color-dialog-foot: #c0c0c0;
   --color-dialog-head-top: #000080;
-  --color-dialog-head: #1060a8;
+  --color-dialog-head: #1078c4;
   --color-dialog-head-bar: #000080;
   --color-on-dialog-head: #ffffff;
   --color-backdrop: rgba(0, 0, 0, 0.4);
@@ -481,22 +485,22 @@
   --color-decor-warn: #ffff00;
   --color-decor-muted: #808080;
   --color-decor-strong: #000080;
-  --color-scroll-thumb: #000000;
-  --color-scroll-track: #c8c8c8;
-  --color-login-page: #7fbfbf;
+  --color-scroll-thumb: #767676;
+  --color-scroll-track: #dfdfdf;
+  --color-login-page: #008484;
   --color-login-box: #c0c0c0;
-  --color-login-box-line: #000000;
+  --color-login-box-line: #c0c0c0;
   --color-login-box-bar: #000080;
   --color-on-login-box: #000000;
   --color-on-login-box-strong: #000000;
-  --color-on-login-box-muted: #404040;
+  --color-on-login-box-muted: #000000;
   --color-on-login-box-faint: #404040;
   --color-login-title: #000080;
   --color-login-field-line: #000000;
   --color-login-focus: rgba(0, 0, 0, 0.4);
   --color-logo-plate: #f4f5f5;
-  --bg-page: radial-gradient(var(--color-page-dots) 1px, transparent 1px);
-  --bg-header: linear-gradient(to right in oklab, var(--color-header-top) 0%, var(--color-header) 100%);
+  --bg-page: none;
+  --bg-header: linear-gradient(to right, var(--color-header-top) 0%, var(--color-header) 100%);
   --bg-tabs: none;
   --bg-tab-on: none;
   --bg-action: none;
@@ -506,7 +510,7 @@
   --bg-brand-action: none;
   --bg-table-head: none;
   --bg-card-head: none;
-  --bg-dialog-head: linear-gradient(to right in oklab, var(--color-dialog-head-top) 0%, var(--color-dialog-head) 100%);
+  --bg-dialog-head: linear-gradient(to right, var(--color-dialog-head-top) 0%, var(--color-dialog-head) 100%);
   --bg-dialog-foot: none;
   --bg-footer: none;
   /* status bar of a 98 window: an etched line on top, each item in a sunken pane */
@@ -520,12 +524,18 @@
   --shadow-btn-2: var(--bevel-raised), 0 1px 2px rgba(0, 0, 0, 0);
   --shadow-brand-action: var(--bevel-raised), 0 1px 2px rgba(0, 0, 0, 0);
   --shadow-btn-danger: var(--bevel-raised), 0 1px 2px rgba(0, 0, 0, 0);
-  --shadow-field-focus: 0 0 0 2px rgba(0, 0, 128, 0.25);
+  --shadow-field-focus: inset 1px 1px #000, inset -1px -1px #dfdfdf;
   --shadow-invalid: 0 0 0 2px rgba(128, 0, 0, 0.25);
   --shadow-card: var(--bevel-raised), 0 1px 3px rgba(0, 0, 0, 0);
-  --shadow-field: var(--bevel-sunken);
+  /* a sunken field: the border is the outer pair of the relief (shadow above and left, highlight below and right) */
+  --field-line-colors: #808080 #ffffff #ffffff #808080;
+  --shadow-field: inset 1px 1px #000, inset -1px -1px #dfdfdf;
+  --color-check-on: #ffffff;
+  --color-check-on-line: #000000;
+  --color-on-check: #000000;
   --shadow-table-head: var(--bevel-raised);
-  --shadow-dialog: var(--bevel-raised);
+  /* a window's frame: the relief outside the two pixels of face colour (the dialog's border) */
+  --shadow-dialog: -1px -1px 0 #fff, 1px 1px 0 #808080, -2px -2px 0 #dfdfdf, 2px 2px 0 #000;
   --shadow-pop: 0 6px 16px rgba(0, 0, 0, 0);
   --shadow-tip: 0 3px 10px rgba(0, 0, 0, 0);
   --shadow-app: var(--bevel-raised);
@@ -534,7 +544,7 @@
   --shadow-subtab-on: inset 1px 1px #fff, inset -1px 0 #000, inset -2px 0 #808080;
   --shadow-card-hover: var(--bevel-raised);
   --shadow-nav-on: inset 3px 0 0 #000080;
-  --shadow-login-box: var(--bevel-raised);
+  --shadow-login-box: var(--shadow-dialog);
   /* the bundled Inter, as in the XP theme */
   --font-sans: 'Inter', sans-serif;
   --font-size-base: 0.75rem;
@@ -550,27 +560,46 @@
   --tab-inset-top: 0.1875rem;
   --tabs-pad: 0px;
   --subtabs-line-w: 1px;
-  --subtabs-gap: 0.125rem;
+  --subtabs-gap: 0rem;
   --subtabs-pad: 0px;
   --shadow-subtab: inset 1px 1px #fff, inset -1px 0 #000, inset -2px 0 #808080;
   --subtab-inset-top: 0.1875rem;
   --subtab-on-overlap: 1px;
   --cardtabs-pad: 0.25rem;
-  --cardtabs-gap: 0.125rem;
+  --cardtabs-gap: 0rem;
   --shadow-cardtab: inset 1px 1px #fff, inset -1px 0 #000, inset -2px 0 #808080;
   --shadow-cardtab-on: inset 1px 1px #fff, inset -1px 0 #000, inset -2px 0 #808080;
   --cardtab-inset-top: 0.1875rem;
   --cardtab-on-overlap: 1px;
   --cardtab-bar-w: 0px;
   --cardtab-transform: none;
-  --placeholder-color: var(--color-fg-muted);
   --preview-logo-dark-ink: block;
   --preview-logo-light-ink: none;
   --dialog-line-w: 2px;
-  --dialog-head-bar-w: 3px;
-  --dialog-head-size: 0.8125rem;
-  --dialog-head-pad: 0.25rem 0.3125rem 0.25rem 0.5rem;
-  --dialog-x-size: 1.25rem;
+  --dialog-head-bar-w: 0px;
+  --dialog-head-size: 0.75rem;
+  --dialog-head-pad: 0.0625rem 0.125rem 0.0625rem 0.25rem;
+  /* the caption's close button: a small raised button in the face colour with a black cross */
+  --dialog-x-size: 1rem;
+  --dialog-x-line: 0 solid transparent;
+  --dialog-x-bg: #c0c0c0;
+  --dialog-x-bg-hover: #c0c0c0;
+  --dialog-x-ink: #000000;
+  --dialog-x-ink-hover: #000000;
+  --dialog-x-shadow: var(--bevel-raised);
+  --header-line: #c0c0c0;
+  --lbl-transform: none;
+  --lbl-tracking: normal;
+  /* a list view: a white sunken box with light grid lines under raised column heads */
+  --color-table: #ffffff;
+  --table-line: #dfdfdf;
+  --table-frame: #000000 #dfdfdf #dfdfdf #000000;
+  --shadow-table: -1px -1px 0 #808080, 1px 1px 0 #fff;
+  /* an information toast or alert is a small window: the caption's navy, the pale blue of a selection */
+  --color-toast-info: #000080;
+  --color-on-toast-info: #ffffff;
+  --color-info-soft: #e1e1ff;
+  --placeholder-color: #5a5a5a;
   --toast-head-mix: 100%;
   --toast-line-w: 2px;
   --toast-bar-w: 2px;

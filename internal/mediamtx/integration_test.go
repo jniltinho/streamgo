@@ -64,9 +64,8 @@ func TestLiveOutput(t *testing.T) {
 	t.Log("go live: the program arrives")
 	pub := s.publish(b, "vp8")
 	s.waitState(b, broadcast.Live, 20*time.Second)
-	if !s.onAir(b) {
-		t.Fatal("not on air")
-	}
+	// the on-air flag is written by a command the state change emits, a moment after the state itself
+	s.waitFor(5*time.Second, "the stage to be on air", func() bool { return s.onAir(b) })
 	for _, d := range []string{dA, dB, dS} {
 		s.waitStatus(b, d, destination.Live, 15*time.Second)
 	}
@@ -127,8 +126,9 @@ func TestLiveOutput(t *testing.T) {
 	t.Log("program lost and back")
 	stopPublisher(pub)
 	s.waitState(b, broadcast.Interrupted, 10*time.Second)
-	if s.onAir(b) || s.output(b).Deadline.IsZero() {
-		t.Fatalf("interrupted: %+v on air %v", s.output(b), s.onAir(b))
+	s.waitFor(5*time.Second, "the stage to be off air", func() bool { return !s.onAir(b) })
+	if s.output(b).Deadline.IsZero() {
+		t.Fatalf("interrupted: %+v", s.output(b))
 	}
 	s.waitFor(5*time.Second, "the relays to stop", func() bool { return len(ffmpegPIDs("/live/")) == 0 })
 	pub = s.publish(b, "h264")

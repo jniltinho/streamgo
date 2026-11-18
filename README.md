@@ -135,7 +135,7 @@ What to plan around in the current version:
 
 - **The host needs a desktop Chromium-based browser** (Chrome, Edge, Brave). The program is composed in the host's
   browser, so the broadcast depends on that tab staying open; it resumes when the tab is back within two minutes
-  (the default). Guests can use any current browser; the automated browser tests run in Chrome.
+  (the default). Guests were tested in Chrome and Firefox.
 - **Guests on other machines need HTTPS**: browsers allow the camera and the microphone only on `https://` or on
   `localhost`. StreamGo can serve HTTPS itself, with a self-signed certificate or yours.
 - **The media ports must be reachable** from the networks of the host and the guests (7881/tcp, 7882/udp and

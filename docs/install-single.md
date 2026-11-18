@@ -22,10 +22,14 @@ The single file is published from release 0.4.0 on. The examples use Debian or U
 ## 1. ffmpeg from the distribution
 
 StreamGo needs an ffmpeg with the libx264 and aac encoders, the h264, vp8 and opus decoders, RTSP, RTMP and RTMPS.
-On Debian and Ubuntu:
+On Debian and Ubuntu, with `curl` and the CA certificates the download below needs (a minimal system has neither):
 
 ```bash
-apt install ffmpeg
+apt update
+```
+
+```bash
+apt install ffmpeg curl ca-certificates
 ```
 
 On the RHEL family, the distribution's own repositories have no ffmpeg with libx264: use RPM Fusion's, as
@@ -79,10 +83,16 @@ It must be on a file system that allows running programs: `up` stops with a mess
 `--data-dir` when it is mounted that way (as `/tmp` often is).
 
 `up` runs programs from the data directory, so it is strict about who can change it: the directory must belong to
-the user that runs `up` and be writable by that user only, no directory above it may be writable by everyone
-(a sticky directory such as `/tmp` is accepted), and `streamgo.env` must be a regular file of that user. A wrong
-mode on your own `streamgo.env` is set back to 0600; anything else stops the start with a message that names the
-path.
+the user that runs `up` and be writable by that user only, every directory above it (and every directory a symbolic
+link on the way leads through) must belong to that user or to root and may not be writable by everyone (a sticky
+directory such as `/tmp` is accepted), and `streamgo.env` must be a regular file of that user. A wrong mode on your
+own `streamgo.env` is set back to 0600; anything else stops the start with a message that names the path.
+
+A directory above the data directory that its **group** can write is accepted, because distributions that give each
+user a private group create directories that way. It is a trust you give: the members of that group can rename the
+data directory away and put another in its place, and so replace the programs `up` runs, just as they could replace
+the `streamgo` executable in a directory they can write. Under `/var/lib/streamgo`, as here, no such group exists;
+elsewhere, keep those directories to groups whose members you would trust with the server.
 
 ## 4. The first start
 
@@ -244,9 +254,17 @@ systemctl daemon-reload
 systemctl enable --now streamgo
 ```
 
+The readiness check, for the self-signed example of [section 7](#7-https) (HTTPS on port 8080 for
+`studio.example.com`):
+
 ```bash
-curl http://localhost:8080/readyz
+curl --cacert /var/lib/streamgo/data/tls/selfsigned.crt --resolve studio.example.com:8080:127.0.0.1 https://studio.example.com:8080/readyz
 ```
+
+`--cacert` trusts the certificate StreamGo generated, and `--resolve` sends the request to this host under the name
+the certificate carries. `curl -k https://localhost:8080/readyz` skips the certificate check instead. With a
+certificate you bring, leave `--cacert` out; behind a reverse proxy, or without HTTPS, the check is
+`curl http://localhost:8080/readyz`.
 
 The logs of the three programs are in the journal (`journalctl -u streamgo`); the lines of the media servers carry
 a `component` of `livekit` or `mediamtx`.

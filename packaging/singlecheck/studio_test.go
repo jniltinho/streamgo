@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -219,8 +220,20 @@ func probe(ctx context.Context, rtsp, secret string) (string, error) {
 	return strings.ReplaceAll(strings.TrimSpace(string(out)), secret, "***"), err
 }
 
+// sinkFrames is the last frame count of the sink's -progress file: 0 until it decoded one.
+func sinkFrames(path string) int {
+	b, _ := os.ReadFile(path) //nolint:gosec // the test's own file
+	m := regexp.MustCompile(`(?m)^frame=(\d+)$`).FindAllSubmatch(b, -1)
+	if len(m) == 0 {
+		return 0
+	}
+	n, _ := strconv.Atoi(string(m[len(m)-1][1]))
+	return n
+}
+
 // TestStudio: a client joins the broadcast's room with a token of the server, and a WHIP publish sent through
-// StreamGo is readable at MediaMTX's RTSP address. The broadcast then goes live to a local RTMP sink.
+// StreamGo is readable at MediaMTX's RTSP address. The broadcast then goes live to a local RTMP sink: its relay is
+// live and the sink decodes frames.
 func TestStudio(t *testing.T) {
 	e := readEnv(t)
 	jar, _ := cookiejar.New(nil)
@@ -248,7 +261,15 @@ func TestStudio(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	listen := exec.CommandContext(ctx, "ffmpeg", "-nostdin", "-loglevel", "error", "-listen", "1", "-i", e.sink+"/smoke-key", "-f", "null", "-")
+	sinkDir := t.TempDir()
+	progress := filepath.Join(sinkDir, "sink.progress") // the frames the sink decoded
+	listen := exec.CommandContext(ctx, "ffmpeg", "-nostdin", "-loglevel", "warning", "-listen", "1", "-i", e.sink+"/smoke-key",
+		"-progress", progress, "-map", "0:v", "-f", "null", "-") // video: the Opus silence the check sends gives no audio to decode
+	sinkLog, err := os.Create(filepath.Join(sinkDir, "sink.log")) //nolint:gosec // the test's own file
+	if err != nil {
+		t.Fatal(err)
+	}
+	listen.Stdout, listen.Stderr = sinkLog, sinkLog
 	if err := listen.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -284,19 +305,31 @@ func TestStudio(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 
+	// live: the broadcast, its relay to the sink (whose ffmpeg's output time advances) and frames the sink decoded
 	for start := time.Now(); ; time.Sleep(time.Second) {
 		var got struct {
-			Output struct{ State, Reason string }
+			Output       struct{ State, Reason string }
+			Destinations []struct{ ID, Status, Error string }
 		}
 		c.json(http.StatusOK, http.MethodGet, "/api/v1/broadcasts/"+b.ID, nil, &got)
-		if got.Output.State == "live" {
-			t.Logf("the broadcast is live to the RTMP sink after %s", time.Since(start).Round(time.Second))
+		relay := "absent"
+		for _, x := range got.Destinations {
+			if x.ID == d.ID {
+				relay = strings.TrimSpace(x.Status + " " + x.Error)
+			}
+		}
+		frames := sinkFrames(progress)
+		if got.Output.State == "live" && relay == "live" && frames > 0 {
+			t.Logf("the broadcast is live and the RTMP sink decoded %d frames after %s", frames, time.Since(start).Round(time.Second))
 			break
 		}
 		if time.Since(start) > 45*time.Second {
-			t.Fatalf("the broadcast did not go live: %s %s", got.Output.State, got.Output.Reason)
+			b, _ := os.ReadFile(sinkLog.Name())
+			p, _ := os.ReadFile(progress) //nolint:gosec // the test's own file
+			t.Fatalf("not live to the RTMP sink: broadcast %s %s, relay %s, %d frames at the sink\nthe sink's log:\n%.4000s\nits progress:\n%.2000s",
+				got.Output.State, got.Output.Reason, relay, frames, b, p)
 		}
 	}
 	c.json(http.StatusOK, http.MethodDelete, "/api/v1/broadcasts/"+b.ID+"/live", nil, nil)
-	fmt.Println("studio: join, WHIP through StreamGo, RTSP read and live to RTMP all passed")
+	fmt.Println("studio: join, WHIP through StreamGo, RTSP read, the relay live and frames at the RTMP sink all passed")
 }

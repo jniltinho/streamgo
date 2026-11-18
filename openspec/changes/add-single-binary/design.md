@@ -80,7 +80,8 @@ when it is missing, differs or is not a regular file; a correct file with a wron
 Cleanup removes only files in that directory whose name is one of the two programs with another digest.
 
 Programs are run from the data directory, so `up` refuses one that somebody else could replace: the directory
-and every directory above it (as written and with links resolved) must belong to the user or to root, the
+and every directory met while its path is resolved, those a symbolic link leads through included, must belong to
+the user or to root, the
 directory itself may be written by its owner only, and no directory above it by everyone unless it is sticky. A
 directory above it that its group can write is accepted, because distributions with a private group per user
 create every directory that way; a member of that group could then replace the data directory, as they could
@@ -223,13 +224,20 @@ below 1024.
 
 `make single` builds `dist/streamgo-single` (the executable packed with UPX, then the payload) and
 `packaging/build.sh` writes the small archive. The Packages workflow gathers every file of the release in one directory, writes `SHA256SUMS` after the
-last build, and decides that a release is complete by its expected file names, not by a count of four.
+last build, and decides that a release is complete by its expected file names, not by a count of four. Only the
+publish job of a `vX.Y.Z` tag may write to the repository (`packaging/publish-release.sh`): a release that lacks
+files gets them first, each checked once uploaded, and only then a new `SHA256SUMS`, uploaded as
+`SHA256SUMS.next` and renamed after it was checked, so the release always has a manifest; a file it already has
+must match the manifest it already has, else the job stops for a person to look; a draft left by an earlier run
+gets the six files of this build and is then published.
 
 The single file is smoke tested in a clean Debian container with the distribution's ffmpeg, as an unprivileged
 user, from a script that stays alive to observe: `up` becomes ready, an account signs in, a browserless client
-joins a room and a WHIP publish reaches RTSP, a second start keeps the secret key, an upgrade from the previous
-release's single file keeps the account and an encrypted destination, and after SIGKILL of the parent the two
-child process groups are gone within 5 s.
+joins a room and a WHIP publish reaches RTSP, the broadcast's relay to an RTMP sink is live and the sink decodes
+frames, a second start keeps the secret key (a saved destination is moved without its key, which opens the stored
+one), an upgrade from the previous release's single file keeps the account and an encrypted destination (moved the
+same way), and after SIGKILL of the parent the two child process groups are gone within 5 s. `streamgo version`
+must succeed and report the version the build was given.
 
 The Packages workflow already runs on every push to `main`: it builds the single file and runs its smoke test
 there too, so the payload path is exercised before a release, not only at the tag.

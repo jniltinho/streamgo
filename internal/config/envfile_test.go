@@ -257,6 +257,12 @@ func TestAnEnvFileThatIsNotSafe(t *testing.T) {
 				t.Fatal(err)
 			}
 		}, ""},
+		"larger than the limit": {func(t *testing.T, path string) {
+			big := "STREAMGO_MEDIAMTX_SECRET=" + value + strings.Repeat("x", config.MaxEnvFile) + "\n"
+			if err := os.WriteFile(path, []byte(big), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}, "larger than"},
 	} {
 		for how, run := range map[string]func(string) error{"load": load, "first start": ensure} {
 			t.Run(name+" at "+how, func(t *testing.T) {
@@ -353,6 +359,27 @@ func TestADataDirectoryOthersCanReplace(t *testing.T) {
 	}
 	if err := config.CheckPrivateDir(filepath.Join(shared, "data")); err == nil {
 		t.Error("a link in a directory others can write to")
+	}
+	// data-link -> <shared3>/bridge -> private-data: the written path and the resolved one are private, the
+	// directory the link passes through is not
+	shared3 := mk(t, 0o777, base, "shared3")
+	private := mk(t, 0o700, base, "private-data")
+	if err := os.Symlink(private, filepath.Join(shared3, "bridge")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(shared3, "bridge"), filepath.Join(base, "data-link")); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.CheckPrivateDir(filepath.Join(base, "data-link")); err == nil || !strings.Contains(err.Error(), "shared3") {
+		t.Errorf("a link through a directory others can write to: %v", err)
+	}
+	// a relative link, and .. after a link: resolved from where the link leads, all private
+	if err := os.Symlink("ok", filepath.Join(base, "rel")); err != nil {
+		t.Fatal(err)
+	}
+	mk(t, 0o700, base, "ok", "inner")
+	if err := config.CheckPrivateDir(filepath.Join(base, "rel", "inner", "..")); err != nil {
+		t.Errorf("a relative link: %v", err)
 	}
 }
 

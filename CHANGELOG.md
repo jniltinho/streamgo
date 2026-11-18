@@ -41,8 +41,13 @@ are the section of that version.
   file and the StreamGo-only archive.
 - **A release has six files** — the `.deb`, the `.rpm`, the `.tar.gz`, the single file, the StreamGo-only archive
   and `SHA256SUMS`, which lists the five. The single file is smoke tested in a clean Debian container before every
-  release and on every push to `main`: it becomes ready, a client joins a studio room, a WHIP publish reaches
-  MediaMTX, the secret key survives a restart, and its media servers stop when it is killed.
+  release and on every push to `main`: it reports its version, becomes ready, a client joins a studio room, a WHIP
+  publish reaches MediaMTX, the broadcast reaches an RTMP sink, a saved destination still opens after a restart
+  and an upgrade, and its media servers stop when it is killed. Completing a release that lacks files never leaves
+  it without `SHA256SUMS`: the new one is uploaded as `SHA256SUMS.next` and renamed once checked, and a file the
+  release already has that does not match its `SHA256SUMS` stops the publication.
+- **Only `vX.Y.Z` tags are released**, and `make` refuses a `VERSION` or `COMMIT` with characters other than
+  letters, digits, `.`, `_` and `-`.
 
 Nothing changes for the packages, the Compose stack or the all-in-one image.
 

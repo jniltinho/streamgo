@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -56,7 +57,7 @@ const (
 // Options configure a Group.
 type Options struct {
 	Logger       *slog.Logger
-	Secrets      []string      // values replaced in every line before it is logged or kept
+	Secrets      []string      // values replaced in every line before it is logged or kept, as JSON strings too
 	ReadyTimeout time.Duration // zero: 30 s
 	StopTimeout  time.Duration // SIGTERM to SIGKILL; zero: 10 s
 	Backoff      Backoff       // zero: DefaultBackoff()
@@ -71,7 +72,8 @@ type Group struct {
 	launcher chan struct{} // closed when the launcher returned
 	quiet    chan struct{} // closed when restarts are disabled: shutdown began
 	monitors sync.WaitGroup
-	loggers  sync.WaitGroup // the goroutines that log the output of each run
+	loggers  sync.WaitGroup   // the goroutines that log: the output of each run and the notes
+	notes    chan slog.Record // the supervisor's own messages: sent without waiting, logged by one goroutine
 
 	mu        sync.Mutex
 	noRestart bool // no process is started any more; quiet is closed
@@ -112,8 +114,21 @@ func Start(ctx context.Context, opts Options, children []Child) (*Group, error) 
 	if opts.Backoff == (Backoff{}) {
 		opts.Backoff = DefaultBackoff()
 	}
-	g := &Group{opts: opts, launches: make(chan launch), launcher: make(chan struct{}), quiet: make(chan struct{})}
+	opts.Secrets = withEncoded(opts.Secrets)
+	g := &Group{opts: opts, launches: make(chan launch), launcher: make(chan struct{}), quiet: make(chan struct{}),
+		notes: make(chan slog.Record, LogQueue)}
 	go g.launch()
+	g.loggers.Add(1)
+	logCtx := context.WithoutCancel(ctx) // the notes of the shutdown come after ctx ended
+	go func() {
+		defer g.loggers.Done()
+		h := g.opts.Logger.Handler()
+		for r := range g.notes {
+			if h.Enabled(logCtx, r.Level) {
+				_ = h.Handle(logCtx, r)
+			}
+		}
+	}()
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -210,7 +225,7 @@ func (g *Group) run(c *child) (<-chan error, error) {
 		_ = r.Close()
 		exited <- err
 	}()
-	g.opts.Logger.Info("media server started", "component", c.Name, "pid", cmd.Process.Pid)
+	g.note(slog.LevelInfo, "media server started", "component", c.Name, "pid", cmd.Process.Pid)
 	return exited, nil
 }
 
@@ -225,7 +240,7 @@ func (g *Group) supervise(c *child, exited <-chan error) {
 			return
 		}
 		delay = g.opts.Backoff.Next(delay, time.Since(started))
-		g.opts.Logger.Warn("media server exited: starting it again", "component", c.Name, "error", err, "delay", delay.String())
+		g.note(slog.LevelWarn, "media server exited: starting it again", "component", c.Name, "error", err, "delay", delay.String())
 		select {
 		case <-g.quiet:
 			return
@@ -236,7 +251,7 @@ func (g *Group) supervise(c *child, exited <-chan error) {
 			if g.restartsDisabled() {
 				return
 			}
-			g.opts.Logger.Error("media server did not start", "component", c.Name, "error", err)
+			g.note(slog.LevelError, "media server did not start", "component", c.Name, "error", err)
 			failed := make(chan error, 1)
 			failed <- err
 			exited = failed
@@ -292,7 +307,8 @@ func (g *Group) ready(ctx context.Context) error {
 }
 
 // Stop ends supervision: no more restarts, SIGTERM to the process group of each child, SIGKILL to those still
-// there after the stop timeout, and every child waited for. The launcher's thread ends last.
+// there after the stop timeout, and every child waited for. The launcher's thread ends last. Nothing of it waits on
+// the logger: the lines still on their way are given at most the stop timeout more, then left behind.
 func (g *Group) Stop() {
 	g.mu.Lock()
 	first := !g.stopped
@@ -312,14 +328,34 @@ func (g *Group) Stop() {
 	select {
 	case <-done:
 	case <-time.After(g.opts.StopTimeout):
-		g.opts.Logger.Warn("media servers did not stop in time: killing them", "timeout", g.opts.StopTimeout.String())
 		g.signal(syscall.SIGKILL)
+		g.note(slog.LevelWarn, "media servers did not stop in time: killed them", "timeout", g.opts.StopTimeout.String())
 		<-done
 	}
 	close(g.launches)
 	<-g.launcher
-	g.loggers.Wait()
-	g.opts.Logger.Info("media servers stopped")
+	g.note(slog.LevelInfo, "media servers stopped")
+	close(g.notes) // nothing notes any more: the monitors and the launcher returned
+	logged := make(chan struct{})
+	go func() {
+		g.loggers.Wait()
+		close(logged)
+	}()
+	select {
+	case <-logged:
+	case <-time.After(g.opts.StopTimeout):
+	}
+}
+
+// note is a message of the supervisor, stamped now and handed to the logger without waiting: dropped when the
+// queue is full.
+func (g *Group) note(level slog.Level, msg string, args ...any) {
+	r := slog.NewRecord(time.Now(), level, msg, 0)
+	r.Add(args...)
+	select {
+	case g.notes <- r:
+	default:
+	}
 }
 
 // signal sends sig to the process group of every running child.
@@ -408,6 +444,19 @@ func (g *Group) deliver(c *child, lines <-chan logLine) {
 		}
 		g.opts.Logger.Info(l.text, "component", c.Name)
 	}
+}
+
+// withEncoded is secrets with the form each takes inside a JSON string, as LIVEKIT_KEYS hands it to LiveKit (the
+// encoding escapes &, <, >, " and \), where that form differs.
+func withEncoded(secrets []string) []string {
+	out := append([]string(nil), secrets...)
+	for _, s := range secrets {
+		b, err := json.Marshal(s)
+		if err == nil && string(b[1:len(b)-1]) != s {
+			out = append(out, string(b[1:len(b)-1]))
+		}
+	}
+	return out
 }
 
 func (g *Group) redact(s string) string { return redactPrefix(s, g.opts.Secrets, len(s)) }

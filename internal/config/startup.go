@@ -28,31 +28,63 @@ func CheckDataDir(dir string) error {
 	return os.Remove(name)
 }
 
-// CheckPrivateDir refuses dir when a user other than this one (and root) could replace it or what it holds: dir
-// and each directory above it, as written and with its links resolved, must belong to this user or to root; dir
-// itself may be written by its owner only, and no directory above it by everyone unless it has the sticky bit
-// (as /tmp), which forbids replacing another's entry. A directory above it that its group can write is accepted:
-// distributions with a private group per user create every directory that way (umask 002).
+// CheckPrivateDir refuses dir when a user other than this one (and root) could replace it or what it holds. The path
+// is resolved one name at a time, the way the kernel does, and every directory met on the way is checked, those a
+// link leads through included: each must belong to this user or to root, and none may be written by everyone unless
+// it has the sticky bit (as /tmp), which forbids replacing another's entry. dir itself, once resolved, may be written
+// by its owner only. A directory above it that its group can write is accepted: distributions with a private group
+// per user create every directory that way (umask 002); the members of that group could replace dir.
 func CheckPrivateDir(dir string) error {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return fmt.Errorf("--data-dir: %w", err)
+	abs := dir // not cleaned: a .. after a link leads where the kernel takes it
+	if !filepath.IsAbs(dir) {
+		wd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("--data-dir: %w", err)
+		}
+		abs = wd + "/" + dir
 	}
-	real, err := filepath.EvalSymlinks(abs)
-	if err != nil {
-		return fmt.Errorf("--data-dir: %w", err)
+	isSlash := func(r rune) bool { return r == '/' }
+	cur, rest, links := "/", strings.FieldsFunc(abs, isSlash), 0
+	if err := privateDir(cur, false); err != nil {
+		return err
 	}
-	for _, p := range []string{abs, real} {
-		for d := p; ; d = filepath.Dir(d) {
-			if err := privateDir(d, d == p); err != nil {
+	for len(rest) > 0 {
+		name := rest[0]
+		rest = rest[1:]
+		switch name {
+		case ".":
+			continue
+		case "..":
+			cur = filepath.Dir(cur) // cur has no link in it: its parent was checked on the way
+			continue
+		}
+		next := filepath.Join(cur, name)
+		st, err := os.Lstat(next)
+		if err != nil {
+			return fmt.Errorf("--data-dir: %w", err)
+		}
+		if st.Mode()&fs.ModeSymlink != 0 { // replaceable only by who can write cur, checked
+			if links++; links > 40 {
+				return fmt.Errorf("--data-dir: %s: too many links", dir)
+			}
+			target, err := os.Readlink(next)
+			if err != nil {
+				return fmt.Errorf("--data-dir: %w", err)
+			}
+			if filepath.IsAbs(target) {
+				cur = "/"
+			}
+			rest = append(strings.FieldsFunc(target, isSlash), rest...)
+			continue
+		}
+		if len(rest) > 0 { // the last is checked below, as the data directory
+			if err := privateDir(next, false); err != nil {
 				return err
 			}
-			if d == filepath.Dir(d) {
-				break
-			}
 		}
+		cur = next
 	}
-	return nil
+	return privateDir(cur, true)
 }
 
 func privateDir(d string, last bool) error {
@@ -60,8 +92,8 @@ func privateDir(d string, last bool) error {
 	if err != nil {
 		return fmt.Errorf("--data-dir: %w", err)
 	}
-	if st.Mode()&fs.ModeSymlink != 0 { // its target is checked as the resolved path
-		return nil
+	if !st.IsDir() {
+		return fmt.Errorf("--data-dir: %s is not a directory", d)
 	}
 	if sys, ok := st.Sys().(*syscall.Stat_t); ok && sys.Uid != 0 && int(sys.Uid) != os.Geteuid() {
 		return fmt.Errorf("--data-dir: %s belongs to another user (uid %d), who could replace the data directory: choose one of your own", d, sys.Uid)

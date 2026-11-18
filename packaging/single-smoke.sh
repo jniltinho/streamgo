@@ -1,35 +1,43 @@
 #!/bin/sh
 # Smoke test of the single file (make test-single; the Packages workflow runs it before a release; design B12).
-# usage: single-smoke.sh <single file> [<packages directory>]
+# usage: single-smoke.sh <single file> <version> [<packages directory>]
+#   <version> is the VERSION it was built with, as `streamgo version` reports it (make: $(VERSION); the workflow:
+#   the tag, or the commit)
 #
 # In a clean debian:13-slim container with the distribution's ffmpeg, run with --init (tini is PID 1 and reaps
 # orphans, so a killed process does not linger as a zombie: a zombie would count as NOT gone), as the unprivileged
 # user "studio", with this script as the observer that stays alive (every probe is a docker exec beside `up`):
-#   1. `streamgo version` answers in under 1 s and writes no file anywhere in the container
+#   1. `streamgo version` succeeds, reports <version>, answers in under 1 s and writes no file anywhere in the
+#      container
 #   2. `streamgo up` in an empty directory becomes ready (/readyz 200, database, livekit and mediamtx ok); an account
 #      made with `streamgo user add --password-stdin` in the same directory signs in
 #   3. "A working studio" (packaging/singlecheck, built with go test -c in the tools image and run in the container):
 #      a LiveKit client (server-sdk-go) joins the broadcast's room with a token of the server, through StreamGo's
 #      /livekit/ proxy; a WHIP publish (pion, VP8 and Opus) sent through StreamGo is read back with ffprobe at
-#      MediaMTX's RTSP address; the broadcast goes live to an RTMP sink (ffmpeg -listen) in the container. No
-#      browser and no media from LiveKit: the client joins and publishes nothing there.
+#      MediaMTX's RTSP address; the broadcast goes live to an RTMP sink (ffmpeg -listen) in the container: its relay
+#      to the sink is live and the sink decodes frames. No browser and no media from LiveKit: the client joins and
+#      publishes nothing there.
 #   4. SIGTERM stops `up` with exit status 0; a second start keeps streamgo.env byte for byte (its digest is
-#      compared, never printed), the account signs in again and the destination saved before is still listed
+#      compared, never printed), the account signs in again and the destination saved before can be moved to another
+#      address without sending its key (which opens its stored, encrypted key: only the key of the first start can)
 #   5. "The parent is killed": after SIGKILL of `up`, the two child processes and their process groups are gone
 #      within 5 s
 #   6. a single file with its payload altered, and one cut short, exits 1 saying it is damaged and starts no child
-#   7. "Smaller than the archive": with a packages directory holding the .tar.gz of the same version, the single file
-#      is smaller (the Dockerfile's single stage also checks it against the .tar.gz of the three programs it packs)
+#   7. "Smaller than the archive": with a packages directory, the single file is smaller than the .tar.gz of
+#      <version> there, which must exist (the Dockerfile's single stage also checks it against the .tar.gz of the three
+#      programs it packs)
 #   8. "Upgrade": with SMOKE_PREVIOUS_SINGLE (the previous release's single file), that file makes a data directory
 #      with an account and a destination, and this one starts on it: the account signs in, the destination is
-#      listed with its key and streamgo.env is unchanged. Without it the step is skipped, saying why. The
-#      destination's stream key is checked only as "stored and listed" (the API never returns a key).
+#      listed with its key and can be moved without sending it, and streamgo.env is unchanged. Without it the step is
+#      skipped, saying why.
 # Nothing is published on the host. The container, the image and the work directory are removed afterwards, also
 # on failure. Needs Docker and the tools image (make tools).
 set -eu
 
-single=$(cd "$(dirname "${1:?usage: single-smoke.sh <single file> [<packages directory>]}")" && pwd)/$(basename "$1")
-packages=${2:-}
+usage="usage: single-smoke.sh <single file> <version> [<packages directory>]"
+single=$(cd "$(dirname "${1:?$usage}")" && pwd)/$(basename "$1")
+expected=${2:?$usage}
+packages=${3:-}
 repo=$(cd "$(dirname "$0")/.." && pwd)
 name="streamgo-probe-single-$$"
 image="streamgo-probe-single:$$"
@@ -65,9 +73,10 @@ docker exec "$name" chmod 755 /usr/local/bin/streamgo /usr/local/bin/single-chec
 
 # ── 1. version: fast, and nothing written ──
 docker exec "$name" touch /tmp/.marker
-t=$(in_box sh -c 's=$(date +%s%N); streamgo version >/tmp/version.out; e=$(date +%s%N); echo $(((e - s) / 1000000))') ||
+t=$(in_box sh -c 's=$(date +%s%N); streamgo version >/tmp/version.out || exit 1; e=$(date +%s%N); echo $(((e - s) / 1000000))') ||
   fail "streamgo version failed"
 version=$(docker exec "$name" cat /tmp/version.out)
+[ "$(echo "$version" | cut -d' ' -f2)" = "$expected" ] || fail "streamgo version reports '$version', not $expected"
 written=$(docker exec "$name" sh -c 'find / -xdev \( -path /proc -o -path /sys -o -path /dev \) -prune -o -type f -newer /tmp/.marker -print | grep -vx /tmp/version.out' || true)
 [ -z "$written" ] || fail "streamgo version wrote: $written"
 [ "$t" -lt 1000 ] || fail "streamgo version took $t ms"
@@ -118,6 +127,12 @@ api() { # <method> <path> [<json>]
     ${3:+--data "$3"} "http://127.0.0.1:8080$2"
 }
 env_digest() { docker exec "$name" sha256sum "/home/studio/$1/data/streamgo.env" | cut -d' ' -f1; }
+move_destination() { # <step>: a new address without the key: the server opens the stored key, sealed with the secret key
+  id=$(api GET /api/v1/destinations | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+  [ -n "$id" ] || fail "$1: no destination is listed"
+  api PATCH "/api/v1/destinations/$id" '{"address":"rtmp://127.0.0.1:19350/moved"}' >/dev/null ||
+    fail "$1: the destination saved before cannot be moved: its stored key does not open"
+}
 
 start_up studio
 wait_ready
@@ -143,7 +158,8 @@ wait_ready
 [ "$(env_digest studio)" = "$before" ] || fail "streamgo.env changed on the second start"
 signin
 [ "$(api GET /api/v1/destinations | grep -o '"has_key":true' | wc -l)" = 1 ] || fail "the destination is gone after the second start"
-echo "smoke: SIGTERM exits 0; a second start keeps streamgo.env, the account and the destination"
+move_destination "the second start"
+echo "smoke: SIGTERM exits 0; a second start keeps streamgo.env, the account and the destination, whose key still opens"
 
 # ── 5. the parent is killed ──
 pid=$(up_pid) || fail "no up process"
@@ -177,16 +193,16 @@ for f in altered short; do
 done
 
 # ── 7. smaller than the archive ──
-v=$(echo "$version" | cut -d' ' -f2)
-case "$v" in v[0-9]*.[0-9]*.[0-9]*) v="${v#v}" ;; *) v="0.0.0+$v" ;; esac
+case "$expected" in v[0-9]*.[0-9]*.[0-9]*) v="${expected#v}" ;; *) v="0.0.0+$expected" ;; esac # as packaging/build.sh
 v=$(printf '%s' "$v" | tr -- '-' '.')
-archive="$packages/streamgo_${v}_linux_amd64.tar.gz"
-if [ -n "$packages" ] && [ -f "$archive" ]; then
+if [ -n "$packages" ]; then
+  archive="$packages/streamgo_${v}_linux_amd64.tar.gz"
+  [ -f "$archive" ] || fail "$packages has no $(basename "$archive"): build the packages of $expected (make package)"
   s=$(stat -c %s "$single") a=$(stat -c %s "$archive")
   [ "$s" -lt "$a" ] || fail "the single file ($s bytes) is not smaller than $(basename "$archive") ($a bytes)"
   echo "smoke: the single file ($s bytes) is smaller than $(basename "$archive") ($a bytes)"
 else
-  echo "smoke: size against the .tar.gz skipped: no streamgo_${v}_linux_amd64.tar.gz in '${packages:-no packages directory given}' (make package); the Dockerfile's single stage checked it against the three programs"
+  echo "smoke: size against the .tar.gz skipped: no packages directory given (make package); the Dockerfile's single stage checked it against the three programs"
 fi
 
 # ── 8. upgrade ──
@@ -208,8 +224,9 @@ else
   signin
   [ "$(env_digest upgrade)" = "$before" ] || fail "upgrade: streamgo.env changed"
   api GET /api/v1/destinations | grep -q '"has_key":true' || fail "upgrade: the destination is gone"
+  move_destination upgrade
   stop_up upgrade
-  echo "smoke: upgrade from $(docker exec "$name" streamgo-previous version | cut -d' ' -f2): the account signs in, the destination is kept, streamgo.env unchanged"
+  echo "smoke: upgrade from $(docker exec "$name" streamgo-previous version | cut -d' ' -f2): the account signs in, the destination is kept and its key opens, streamgo.env unchanged"
 fi
 
 echo "smoke: the single file passed"

@@ -104,8 +104,18 @@ func OpenEnvFile(path string) ([]byte, error) {
 			return nil, fmt.Errorf("%s can be read by other users (mode %v) and cannot be made 0600: %w", path, st.Mode().Perm(), err)
 		}
 	}
-	return io.ReadAll(io.LimitReader(f, 1<<20))
+	data, err := io.ReadAll(io.LimitReader(f, MaxEnvFile+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > MaxEnvFile {
+		return nil, fmt.Errorf("%s is larger than %d bytes: it is not the env file up writes", path, MaxEnvFile)
+	}
+	return data, nil
 }
+
+// MaxEnvFile is the size of the largest env file read.
+const MaxEnvFile = 1 << 20
 
 // The variables EnsureEnvFile stores, with how each is generated: the same values as packaging/init-env.sh.
 var firstStartVars = []struct {

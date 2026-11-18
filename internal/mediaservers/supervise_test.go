@@ -192,6 +192,53 @@ func TestASlowLogDoesNotBlockAServer(t *testing.T) {
 	waitFor(t, 10*time.Second, "the flood written", func() bool { _, err := os.Stat(flooded); return err == nil })
 }
 
+// stuckHandler is a log destination that blocks on every record until released.
+type stuckHandler struct {
+	slog.Handler
+	release chan struct{}
+}
+
+func (h stuckHandler) Handle(ctx context.Context, r slog.Record) error {
+	<-h.release
+	return h.Handler.Handle(ctx, r)
+}
+
+// TestAStopWhileTheLogIsStuck: nothing of Stop waits on the logger. The log never accepts a line and a server
+// ignores SIGTERM: it is killed after the stop timeout and Stop returns.
+func TestAStopWhileTheLogIsStuck(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	mediatest.SetModes(t, s.home, mediatest.LiveKit, "hang")
+	opts := s.options()
+	opts.StopTimeout = 300 * time.Millisecond
+	release := make(chan struct{})
+	opts.Logger = slog.New(stuckHandler{Handler: slog.NewJSONHandler(s.logs, nil), release: release})
+	t.Cleanup(func() { close(release) }) // lets the goroutines left behind end
+	children := s.children(t)
+	children[0].Ready = nil
+	g, err := mediaservers.Start(context.Background(), opts, children)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, 5*time.Second, "livekit running", func() bool { return len(s.pids(mediatest.LiveKit)) == 1 })
+	pid := s.pids(mediatest.LiveKit)[0]
+	stopped := make(chan struct{})
+	began := time.Now()
+	go func() {
+		g.Stop()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Stop waits on the logger")
+	}
+	t.Logf("stopped in %v", time.Since(began))
+	if !gone(pid) {
+		t.Fatal("livekit, which ignores SIGTERM, is still there")
+	}
+}
+
 func TestAStopDuringADelay(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -430,6 +477,39 @@ func TestCredentialsStayOutOfSight(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), `keys: {"streamgo":"[redacted]"} pass: `) {
 		t.Errorf("the tail is not in the message:\n%s", err)
+	}
+}
+
+// TestEncodedCredentialsStayOutOfSight: a secret with characters JSON escapes reaches LiveKit escaped in
+// LIVEKIT_KEYS; a server that prints that variable shows neither form of it in the log or the failure message.
+func TestEncodedCredentialsStayOutOfSight(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	secret := `lk&"\<secret>-0123456789` // made up
+	s.setup.Credentials.LiveKitSecret = secret
+	mediatest.SetModes(t, s.home, mediatest.LiveKit, "secret")
+	opts := s.options()
+	opts.ReadyTimeout = time.Second
+	opts.Secrets = []string{secret, testCreds.MediaMTXPass}
+	_, err := mediaservers.Start(context.Background(), opts, s.children(t))
+	if err == nil {
+		t.Fatal("it started")
+	}
+	encoded, _ := json.Marshal(secret)
+	everything := err.Error() + s.logs.String()
+	for line := range strings.Lines(s.logs.String()) { // the messages as logged, the log's own escaping undone
+		var e struct{ Msg string }
+		if json.Unmarshal([]byte(line), &e) == nil {
+			everything += "\n" + e.Msg
+		}
+	}
+	for _, f := range []string{secret, string(encoded[1 : len(encoded)-1]), "secret>-0123456789", "secret\\u003e-0123456789"} {
+		if strings.Contains(everything, f) {
+			t.Error("a form of the secret is visible")
+		}
+	}
+	if !strings.Contains(err.Error(), `keys: {"streamgo":"[redacted]"}`) {
+		t.Error("the tail is not in the message")
 	}
 }
 

@@ -151,8 +151,13 @@ leave a media server running after it exits.
 - **THEN** the StreamGo server stops first, then the two media servers, `up` exits 0, and the process group of each
   child is gone when it exits
 
+#### Scenario: A stop while the log is stuck
+- **GIVEN** a log destination that accepts no line, and a media server that ignores SIGTERM
+- **WHEN** `up` stops
+- **THEN** the media server is killed after the stop timeout and `up` exits; no signal or wait waits on the log
+
 #### Scenario: The parent is killed
-- **GIVEN** a running `up` and an observer process that stays alive
+- **GIVEN** a running `up`, one of whose media servers was started again, and an observer process that stays alive
 - **WHEN** the `up` process is killed with SIGKILL
 - **THEN** the two child processes it started are gone within 5 s
 
@@ -211,7 +216,8 @@ line, a generated file or a log.
 #### Scenario: Credentials stay out of sight
 - **WHEN** `up` starts, a media server fails with its credentials in its output, and `up` exits
 - **THEN** the LiveKit secret, the MediaMTX password and the secret key appear in no line of the log or of the
-  failure message, in no command line of a child and in no file under `<data_dir>/media/`
+  failure message, neither as they are nor as the JSON string `LIVEKIT_KEYS` carries them (where `&`, `<`, `>`,
+  `"` and `\` are escaped), in no command line of a child and in no file under `<data_dir>/media/`
 
 ### Requirement: First-start secrets
 `up` SHALL create the secret key and the credentials the three programs share in `<data_dir>/streamgo.env` on the

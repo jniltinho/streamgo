@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"github.com/jniltinho/streamgo/internal/config"
+	"github.com/jniltinho/streamgo/internal/mediaservers"
 	"github.com/jniltinho/streamgo/internal/mediaservers/mediatest"
 	"github.com/jniltinho/streamgo/internal/tlsutil"
 	"github.com/jniltinho/streamgo/internal/tlsutil/tlstest"
@@ -457,6 +459,18 @@ func TestUpLifecycle(t *testing.T) {
 		// ready on the flag's address (above), not the environment's
 	})
 	t.Run("The parent is killed", func(t *testing.T) {
+		// after a restart: the parent-death signal of a child started again holds too
+		records := mediatest.Records(e.home, mediatest.LiveKit)
+		if err := syscall.Kill(records[len(records)-1].Pid, syscall.SIGKILL); err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.Now().Add(10 * time.Second)
+		for len(mediatest.Records(e.home, mediatest.LiveKit)) != len(records)+1 {
+			if time.Now().After(deadline) {
+				t.Fatal("livekit was not started again")
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
 		all := childPids(e.home) // the earlier ones are gone already
 		if err := second.cmd.Process.Signal(syscall.SIGKILL); err != nil {
 			t.Fatal(err)
@@ -475,6 +489,34 @@ func TestUpAsRoot(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir("."); len(entries) != 0 {
 		t.Fatalf("created %v", entries)
+	}
+}
+
+// TestUpAPayloadWithoutPinnedDigests is "A payload without pinned digests": a test binary has no pins, so a file
+// with a payload is refused before the data directory, the lock or the secrets exist.
+func TestUpAPayloadWithoutPinnedDigests(t *testing.T) {
+	noSecretsInProcess(t)
+	e := newUpEnv(t)
+	e.setInProcess(t)
+	t.Chdir(t.TempDir())
+	exe := filepath.Join(t.TempDir(), "streamgo")
+	var trailer strings.Builder
+	for _, name := range []string{mediaservers.LiveKit, mediaservers.MediaMTX} {
+		fmt.Fprintf(&trailer, "%s v1 %s 1 4\n", name, strings.Repeat("ab", 32))
+	}
+	file := "base-of-the-executable" + trailer.String() + fmt.Sprintf("%016d%s", trailer.Len(), mediaservers.Mark)
+	if err := os.WriteFile(exe, []byte(file), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dataDir := filepath.Join(t.TempDir(), "data")
+	var out, errOut bytes.Buffer
+	c := &cli{in: strings.NewReader(""), out: &out, errOut: &errOut, executable: exe}
+	if code := runCLI(c, append([]string{"up", "--data-dir", dataDir}, mediaFlags(t)...)); code != 1 ||
+		!strings.Contains(errOut.String(), "no SHA-256 of livekit-server") {
+		t.Fatalf("exit %d, %q", code, errOut.String())
+	}
+	if _, err := os.Stat(dataDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the data directory: %v", err)
 	}
 }
 

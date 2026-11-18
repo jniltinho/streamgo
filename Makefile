@@ -8,8 +8,14 @@ BUILDTIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 PLATFORM  := linux/amd64
 DIST      := dist
 
+# The three are inserted into shell recipes: quoted there, and refused here when they hold anything else than these
+# characters (a tag such as v0.4.0;id;# is a valid Git tag name).
+only = $(if $(findstring ',$($(1)))$(shell printf '%s' '$($(1))' | tr -d '$(2)'),$(error $(1) may hold only $(2): '$($(1))'))
+$(call only,VERSION,A-Za-z0-9._-)
+$(call only,COMMIT,A-Za-z0-9._-)
+$(call only,BUILDTIME,A-Za-z0-9._:+-)
 BUILD_ARGS := --platform $(PLATFORM) \
-	--build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILDTIME=$(BUILDTIME)
+	--build-arg 'VERSION=$(VERSION)' --build-arg 'COMMIT=$(COMMIT)' --build-arg 'BUILDTIME=$(BUILDTIME)'
 
 .PHONY: all help build single test-single image init clean tools check check-go test test-go test-db check-db up down logs dev
 
@@ -26,9 +32,10 @@ single: ## Build dist/streamgo-single: the executable packed with UPX, LiveKit a
 	docker build $(BUILD_ARGS) --target single-export --output type=local,dest=$(DIST) .
 	@ls -l $(DIST)/streamgo-single
 
-# with dist/packages of the same version (make package), it also checks the single file is smaller than the .tar.gz
+# with dist/packages (make package of the same version: its .tar.gz must be there), it also checks the single file is
+# smaller than the .tar.gz
 test-single: single tools ## Smoke test the single file in a clean Debian: ready, sign-in, a studio, the key kept, SIGKILL, damage
-	packaging/single-smoke.sh $(DIST)/streamgo-single $(wildcard $(DIST)/packages)
+	packaging/single-smoke.sh $(DIST)/streamgo-single '$(VERSION)' $(wildcard $(DIST)/packages)
 
 IMAGE ?= streamgo
 image: ## Build the runtime image $(IMAGE):$(VERSION) (non-root, with ffmpeg)

@@ -181,6 +181,13 @@ func (c *cli) runUp(ctx context.Context, fl *pflag.FlagSet, f upFlags) error {
 	if dataDir == "" {
 		return errors.New("--data-dir: must not be empty")
 	}
+	finder, err := c.finder(dataDir)
+	if err != nil {
+		return err
+	}
+	if err := finder.Check(); err != nil { // a payload that cannot run: nothing written
+		return err
+	}
 	if err := os.MkdirAll(dataDir, 0o750); err != nil {
 		return fmt.Errorf("--data-dir: %w", err)
 	}
@@ -240,7 +247,7 @@ func (c *cli) runUp(ctx context.Context, fl *pflag.FlagSet, f upFlags) error {
 	}); err != nil {
 		return err
 	}
-	group, err := c.startMedia(ctx, cfg, ports)
+	group, err := c.startMedia(ctx, cfg, ports, finder)
 	if err != nil {
 		return err
 	}
@@ -266,7 +273,24 @@ func internalPorts(ctx context.Context, cfg *config.Config) (mediaservers.Ports,
 }
 
 // startMedia chooses, configures and starts the two media servers and waits until both answer.
-func (c *cli) startMedia(ctx context.Context, cfg *config.Config, ports mediaservers.Ports) (*mediaservers.Group, error) {
+// finder is where up looks for the media servers.
+func (c *cli) finder(dataDir string) (mediaservers.Finder, error) {
+	exe := c.executable
+	if exe == "" {
+		var err error
+		if exe, err = os.Executable(); err != nil {
+			return mediaservers.Finder{}, fmt.Errorf("find the own executable: %w", err)
+		}
+	}
+	return mediaservers.Finder{
+		Executable: exe,
+		DataDir:    dataDir,
+		Pinned:     map[string]string{mediaservers.LiveKit: buildinfo.LiveKitSHA256, mediaservers.MediaMTX: buildinfo.MediaMTXSHA256},
+		Download:   "the single file of a release (streamgo_X.Y.Z_linux_amd64)",
+	}, nil
+}
+
+func (c *cli) startMedia(ctx context.Context, cfg *config.Config, ports mediaservers.Ports, finder mediaservers.Finder) (*mediaservers.Group, error) {
 	logger := c.logger()
 	nodeIP := cfg.Media.NodeIP
 	if nodeIP == "" {
@@ -275,19 +299,7 @@ func (c *cli) startMedia(ctx context.Context, cfg *config.Config, ports mediaser
 	} else {
 		logger.Info("the media servers advertise the address of media.node_ip (--node-ip)", "node_ip", nodeIP)
 	}
-	exe := c.executable
-	if exe == "" {
-		var err error
-		if exe, err = os.Executable(); err != nil {
-			return nil, fmt.Errorf("find the own executable: %w", err)
-		}
-	}
-	programs, err := mediaservers.Finder{
-		Executable: exe,
-		DataDir:    cfg.Server.DataDir,
-		Pinned:     map[string]string{mediaservers.LiveKit: buildinfo.LiveKitSHA256, mediaservers.MediaMTX: buildinfo.MediaMTXSHA256},
-		Download:   "the single file of a release (streamgo_X.Y.Z_linux_amd64)",
-	}.Find(ctx)
+	programs, err := finder.Find(ctx)
 	if err != nil {
 		return nil, err
 	}

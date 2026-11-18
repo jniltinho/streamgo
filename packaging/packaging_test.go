@@ -112,6 +112,16 @@ func TestThirdPartyMatchesDockerfile(t *testing.T) {
 			t.Errorf("the build stage does not pass %s", x)
 		}
 	}
+	// an empty or malformed digest fails the media stage, whatever the other one is
+	for _, want := range []string{
+		`for d in "$LIVEKIT_SHA256" "$MEDIAMTX_SHA256"; do`,
+		`grep -Eqx '[0-9a-f]{64}' || {`,
+		`/out/mediamtx | sha256sum --check --strict -`,
+	} {
+		if !strings.Contains(docker, want) {
+			t.Errorf("the media stage does not check its digests strictly (%q)", want)
+		}
+	}
 	for _, want := range []string{"LiveKit server 1.13.10", "MediaMTX 1.21.4", "Apache License", "MIT License"} {
 		if !strings.Contains(third, want) {
 			t.Errorf("THIRD_PARTY lacks %q", want)

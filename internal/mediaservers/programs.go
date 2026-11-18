@@ -110,8 +110,9 @@ func runnable(path string) error {
 }
 
 // version asks a program of the operator for its version: the last word of the first line of --version. The probe
-// keeps 4 KiB of its output and runs in a process group of its own, killed after 5 s; its output is not waited for
-// more than a second after it exited or was killed, even when something it started holds the pipe.
+// keeps 4 KiB of its output and runs in a process group of its own, killed after 5 s and again once it returned (what
+// it started in the background goes too); its output is not waited for more than a second after it exited or was
+// killed, even when something it started holds the pipe.
 func version(ctx context.Context, path string) string {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -123,8 +124,11 @@ func version(ctx context.Context, path string) string {
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = time.Second
 	err := cmd.Run()
+	if cmd.Process != nil { // what it left behind goes with it, however it ended
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
 	first, _, _ := strings.Cut(string(out.b), "\n")
-	if fields := strings.Fields(first); err == nil && len(fields) > 0 {
+	if fields := strings.Fields(first); (err == nil || errors.Is(err, exec.ErrWaitDelay)) && len(fields) > 0 {
 		return fields[len(fields)-1]
 	}
 	return "unknown"
@@ -172,15 +176,41 @@ func MediaDir(dataDir string) (string, error) {
 	return dir, nil
 }
 
-// unpack writes each program of the payload to <data_dir>/media/<name>-<12 hex digits of its digest>, unless the
-// file there already has that digest, and removes the files of other releases.
-func (f Finder) unpack(ctx context.Context, p *Payload) ([]Program, error) {
-	for _, name := range []string{LiveKit, MediaMTX} { // before anything is written
+// Check verifies, writing nothing, that the payload of Executable can be unpacked: this build pins the digest of both
+// programs and the payload carries both with those digests. An executable without a payload passes.
+func (f Finder) Check() error {
+	p, err := ReadPayload(f.Executable)
+	if err != nil || p == nil {
+		return err
+	}
+	return f.checkPayload(p)
+}
+
+func (f Finder) checkPayload(p *Payload) error {
+	for _, name := range []string{LiveKit, MediaMTX} {
 		if !hexDigest.MatchString(f.Pinned[name]) {
-			return nil, fmt.Errorf("%s carries the media servers, but this build has no SHA-256 of %s to check them against "+
+			return fmt.Errorf("%s carries the media servers, but this build has no SHA-256 of %s to check them against "+
 				"(it was built without -X github.com/jniltinho/streamgo/internal/buildinfo.%s): run a release, or the files beside the executable",
 				p.path, name, map[string]string{LiveKit: "LiveKitSHA256", MediaMTX: "MediaMTXSHA256"}[name])
 		}
+	}
+	for _, name := range []string{LiveKit, MediaMTX} {
+		e, ok := p.Entries[name]
+		if !ok {
+			return damaged(p.path, "%s is missing", name)
+		}
+		if !strings.EqualFold(f.Pinned[name], e.SHA256) {
+			return damaged(p.path, "%s is not the one this release pins", name)
+		}
+	}
+	return nil
+}
+
+// unpack writes each program of the payload to <data_dir>/media/<name>-<12 hex digits of its digest>, unless the
+// file there already has that digest, and removes the files of other releases.
+func (f Finder) unpack(ctx context.Context, p *Payload) ([]Program, error) {
+	if err := f.checkPayload(p); err != nil { // before anything is written
+		return nil, err
 	}
 	dir, err := MediaDir(f.DataDir)
 	if err != nil {
@@ -192,14 +222,8 @@ func (f Finder) unpack(ctx context.Context, p *Payload) ([]Program, error) {
 	var out []Program
 	keep := map[string]bool{}
 	for _, name := range []string{LiveKit, MediaMTX} {
-		e, ok := p.Entries[name]
-		if !ok {
-			return nil, damaged(p.path, "%s is missing", name)
-		}
+		e := p.Entries[name]
 		want := strings.ToLower(f.Pinned[name])
-		if !strings.EqualFold(want, e.SHA256) {
-			return nil, damaged(p.path, "%s is not the one this release pins", name)
-		}
 		path := filepath.Join(dir, name+"-"+want[:12])
 		if err := install(ctx, p, name, path, want, f.MaxProgramSize); err != nil {
 			return nil, err

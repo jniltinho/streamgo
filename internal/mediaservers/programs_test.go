@@ -1,12 +1,14 @@
 package mediaservers_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -284,7 +286,8 @@ func TestSinglePayloadScript(t *testing.T) {
 		t.Skip("zstd is not installed")
 	}
 	dir := t.TempDir()
-	files := map[string][]byte{"streamgo": []byte("an executable"), "lk": scriptLK, "mtx": scriptMTX}
+	// a name sha256sum would escape (a backslash) does not reach the digest
+	files := map[string][]byte{"streamgo": []byte("an executable"), `l\k`: scriptLK, "mtx": scriptMTX}
 	for n, b := range files {
 		if err := os.WriteFile(filepath.Join(dir, n), b, 0o600); err != nil {
 			t.Fatal(err)
@@ -292,7 +295,7 @@ func TestSinglePayloadScript(t *testing.T) {
 	}
 	out := filepath.Join(dir, "single")
 	cmd := exec.Command("sh", "../../packaging/single-payload.sh", filepath.Join(dir, "streamgo"), //nolint:noctx // a test script
-		filepath.Join(dir, "lk"), "1.13.10", filepath.Join(dir, "mtx"), "v1.21.4", out)
+		filepath.Join(dir, `l\k`), "1.13.10", filepath.Join(dir, "mtx"), "v1.21.4", out)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %s", err, b)
 	}
@@ -309,6 +312,19 @@ func TestSinglePayloadScript(t *testing.T) {
 	}
 	if st, _ := os.Stat(out); st.Mode().Perm() != 0o755 {
 		t.Fatalf("mode %v", st.Mode())
+	}
+	// a run that fails leaves the output as it was and nothing beside it
+	before, _ := os.ReadFile(out) //nolint:gosec // a test file
+
+	cmd = exec.Command("sh", "../../packaging/single-payload.sh", filepath.Join(dir, "streamgo"), //nolint:noctx // a test script
+		filepath.Join(dir, `l\k`), "1.13.10", filepath.Join(dir, "absent"), "v1.21.4", out)
+	if b, err := cmd.CombinedOutput(); err == nil {
+		t.Fatalf("it succeeded: %s", b)
+	}
+	entries, _ := os.ReadDir(dir)
+	after, _ := os.ReadFile(out) //nolint:gosec // a test file
+	if len(entries) != 4 || !bytes.Equal(before, after) {
+		t.Fatalf("after a failure: %d entries, output changed %v", len(entries), !bytes.Equal(before, after))
 	}
 }
 
@@ -473,6 +489,36 @@ func TestAVersionProbeThatHangs(t *testing.T) { // not parallel: it runs files i
 	}
 	if d := time.Since(began); d > 8*time.Second || got[0].Version != "unknown" {
 		t.Fatalf("took %v, version %q", d, got[0].Version)
+	}
+}
+
+// TestAVersionProbeThatLeavesAProcess: a candidate whose --version answers at once and leaves a process in the
+// background; that process is gone when the probe returned.
+func TestAVersionProbeThatLeavesAProcess(t *testing.T) { // not parallel: it runs files it wrote (text file busy)
+	beside, pids := t.TempDir(), t.TempDir()
+	script := []byte("#!/bin/sh\nsleep 60 >/dev/null 2>&1 &\necho $! > " + pids + "/$(basename $0)\necho v1.2.3\n")
+	for _, n := range []string{"livekit-server", "mediamtx"} {
+		if err := os.WriteFile(filepath.Join(beside, n), script, 0o700); err != nil { //nolint:gosec // a test script
+			t.Fatal(err)
+		}
+	}
+	got, err := mediaservers.Finder{Executable: plainExecutable(t, beside), LookPath: lookNowhere}.Find(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, n := range []string{"livekit-server", "mediamtx"} {
+		if got[i].Version != "v1.2.3" {
+			t.Errorf("%s: version %q", n, got[i].Version)
+		}
+		b, err := os.ReadFile(filepath.Join(pids, n)) //nolint:gosec // a test file
+		if err != nil {
+			t.Fatal(err)
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		waitFor(t, 2*time.Second, n+"'s background sleep gone", func() bool { return gone(pid) })
 	}
 }
 

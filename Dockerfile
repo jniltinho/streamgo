@@ -62,7 +62,11 @@ ARG LIVEKIT_SHA256
 ARG MEDIAMTX_SHA256
 COPY --from=livekit /livekit-server /out/livekit-server
 COPY --from=mediamtx /mediamtx /out/mediamtx
-RUN printf '%s  %s\n' "$LIVEKIT_SHA256" /out/livekit-server "$MEDIAMTX_SHA256" /out/mediamtx | sha256sum -c -
+# both digests are checked first: sha256sum alone passes a list with one malformed line and one good one
+RUN set -eu; for d in "$LIVEKIT_SHA256" "$MEDIAMTX_SHA256"; do \
+      printf '%s\n' "$d" | grep -Eqx '[0-9a-f]{64}' || { echo "media: a SHA-256 is empty or malformed: '$d'" >&2; exit 1; }; \
+    done; \
+    printf '%s  %s\n' "$LIVEKIT_SHA256" /out/livekit-server "$MEDIAMTX_SHA256" /out/mediamtx | sha256sum --check --strict -
 
 # ── single: the executable packed with UPX, then the two verified media servers (zstd -19) and the trailer ─────
 # packaging/single-payload.sh writes the payload; internal/mediaservers/payload.go reads it. The versions in the

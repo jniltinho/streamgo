@@ -107,11 +107,47 @@ when the broadcast starts or ends, and a cue SHALL never be part of the program.
 - **WHEN** five guests join within one second
 - **THEN** one join cue plays
 
+### Requirement: Dialogs and toasts on UI SDK
+Every modal, the confirmation and alert dialogs and the toasts SHALL be built on UI SDK inside `AppModal.vue`,
+`DialogHost.vue` and `ToastStack.vue`, with the behaviour and the look they have today.
+
+#### Scenario: Nothing else changes
+- **WHEN** the change is applied
+- **THEN** no view and no modal file other than those three changed, and `toast.*`, `askConfirm` and `showAlert`
+  keep their signatures
+
+#### Scenario: A modal behaves as before
+- **WHEN** a modal opens from a button, and Escape is pressed
+- **THEN** focus was inside the modal, the page behind it could not be reached by Tab or by a click, the modal
+  closed and focus is on the button again
+
+#### Scenario: A confirmation behaves as before
+- **WHEN** a destructive confirmation opens
+- **THEN** focus is on the button that does not destroy, Escape answers no, and no native dialog of the browser
+  appears
+
+#### Scenario: Toasts behave as before
+- **WHEN** the four kinds of toast are shown
+- **THEN** the error is announced assertively and the others politely, each closes by its button and by its time,
+  and no more than the maximum show at once
+
+#### Scenario: The look in every theme
+- **WHEN** a modal, a confirmation and the four toasts are shown in each of the 28 themes
+- **THEN** each theme's title bar, close control, place below the top, backdrop and toast recipe are the ones it
+  had (the Mac window lights close the dialog, the title is centred where the theme centres it), the contrast
+  matrix holds and no theme file changed
+
+#### Scenario: A piece the library cannot do yet
+- **WHEN** UI SDK's Dialog, Alert Dialog or Toast cannot meet one of the scenarios above
+- **THEN** that component keeps its current implementation, the other two move, and the change's report names the
+  scenario that failed
+
 ### Requirement: The library is contained
 UI SDK SHALL be used at one exact version and only through StreamGo's wrapper components.
 
 #### Scenario: Imported in one place
-- **WHEN** a file outside `frontend/src/components/ui/` imports `@ui-sdk/vue` or `@ui-sdk/core`
+- **WHEN** a file other than `frontend/src/components/AppModal.vue` and the files under
+  `frontend/src/components/ui/` imports `@ui-sdk/vue` or `@ui-sdk/core`
 - **THEN** `make check` fails naming the file
 
 #### Scenario: Pinned

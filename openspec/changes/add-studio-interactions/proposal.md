@@ -34,8 +34,14 @@ A first slice, in the studio, that the owner validates on a local stack before a
   ends. They play on the listener's own device and are never part of the program. A switch in Settings turns them
   off; for the host they are silent while live unless the host turns them on.
 
-UI SDK is used only inside small wrappers under `frontend/src/components/ui/`, at an exact pinned version, so that
-a breaking beta release is fixed in one place and can be dropped without touching the studio.
+- **Dialogs and toasts on UI SDK** (the owner's decision): every modal, the confirmation and alert dialogs and the
+  toasts keep their look in the 28 themes and their behaviour, and get their focus handling, dismissal and
+  announcements from UI SDK's Dialog, Alert Dialog and Toast. The three components the whole app already goes
+  through (`AppModal.vue`, `DialogHost.vue`, `ToastStack.vue`) are where the library is used, so no view changes.
+
+UI SDK is used only inside small wrappers under `frontend/src/components/` (`ui/` and `AppModal.vue`), at an exact
+pinned version, so that a breaking beta release is fixed in one place and can be dropped without touching the
+studio.
 
 **As UI SDK matures, StreamGo follows it.** The owner's direction is to upgrade as the library improves and to take
 more of its components over time. Each upgrade is a deliberate step (a new exact version, the wrappers adjusted,
@@ -53,8 +59,8 @@ Kept for later changes, once the first slice is validated:
 
 Not planned:
 
-- replacing StreamGo's dialogs, toasts and selects with UI SDK's: they are themed, tested and under the project's
-  rules already, and swapping them buys nothing a user would see;
+- replacing StreamGo's select with UI SDK's: it is themed and tested, and the owner asked for dialogs and toasts
+  only;
 - UI SDK's canvas behaviour (pan, zoom and connecting ports): the stage is a fixed 16:9 composition, not a board.
 
 ## Capabilities
@@ -73,6 +79,9 @@ None formally (`add-live-studio` is not archived yet); `studio-ui` gains what th
 - `frontend/package.json`: the Vue adapter and the core, as UI SDK's install guide gives them for Vue
   (`npm install @ui-sdk/vue @ui-sdk/core`), each at an exact version; a lint rule that allows importing
   them only under `frontend/src/components/ui/`; a test that fails when the built app grows beyond a stated budget.
+- `AppModal.vue`, `ui/DialogHost.vue` and `ui/ToastStack.vue` rebuilt on UI SDK behind the same props, events and
+  feedback API (`toast.*`, `askConfirm`, `showAlert`); the dialog and toast recipes of `style.css` moved from the
+  native `<dialog>` to the elements UI SDK renders, for every theme.
 - New `frontend/src/components/ui/UiMenu.vue`, `UiTooltip.vue`, `UiMeter.vue`; `ControlsDock.vue`,
   `BackstageRow.vue`, `StudioHeader.vue`; a small cue player in `frontend/src/core/` (no Vue import) and a
   preference in `PreferencesModal.vue`; both translation catalogs; `style.css` (motion, the three wrappers' recipes

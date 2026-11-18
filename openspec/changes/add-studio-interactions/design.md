@@ -11,12 +11,12 @@ program's audio is mixed in the owner's browser by `frontend/src/core/stageAudio
 ### U1. UI SDK is contained
 
 `@ui-sdk/vue` and `@ui-sdk/core` are pinned to one exact version (no range). They are imported only by wrapper
-components under `frontend/src/components/ui/`: `UiMenu`, `UiTooltip`, `UiMeter`. The studio imports the wrappers,
-never the library; a lint rule in `frontend/vite.config.ts` (beside the one that keeps Vue out of
+components: `UiMenu`, `UiTooltip`, `UiMeter`, `DialogHost` and `ToastStack` under `frontend/src/components/ui/`,
+and `frontend/src/components/AppModal.vue`. The studio and the pages import the wrappers, never the library; a lint rule in `frontend/vite.config.ts` (beside the one that keeps Vue out of
 `frontend/src/core`) fails `make check` otherwise.
 
 Why: the library is three weeks old and says its APIs may change. With wrappers, an upgrade that breaks is a fix
-in three files, and removing the library is replacing three files.
+in six files, and removing the library is replacing six files.
 
 A wrapper exposes what the studio needs and nothing else (no pass-through of the library's whole API).
 
@@ -49,8 +49,7 @@ https://ui-sdk.dev/docs/core/changelog) and to use more of its components over t
 - **A new component** enters the same way the first three do: a `Ui*.vue` wrapper under
   `frontend/src/components/ui/`, a recipe on role tokens, a gallery entry, its contrast recipes, and an OpenSpec
   change when it changes what a user can do.
-- While the library is a beta, StreamGo's own dialogs, toasts and selects stay. When UI SDK reaches a stable
-  release, replacing them with wrappers over it becomes worth a proposal of its own.
+- StreamGo's own select stays while the library is a beta. Dialogs and toasts move now (U10).
 
 ### U2. Styled by role tokens only
 
@@ -112,6 +111,40 @@ A cue player in `frontend/src/core/cues.ts` (no Vue import) synthesises four sho
 - A suspended `AudioContext` (no user gesture yet) drops the cue silently; nothing is queued and nothing throws.
 - Joined and left are for people entering or leaving the backstage, not for one's own join, and are limited to
   one cue per second.
+
+### U10. Dialogs and toasts on UI SDK, behind the components the app already uses
+
+The owner decided that dialogs and toasts use UI SDK. The app reaches them through three components only, and
+that does not change:
+
+| Component | Today | On UI SDK |
+|---|---|---|
+| `AppModal.vue` (every modal, by rule of `AGENTS.md`) | a native `<dialog>` opened with `showModal()` | Dialog |
+| `ui/DialogHost.vue` (`askConfirm`, `showAlert`, the typed confirmation) | a native `<dialog>` | Alert Dialog |
+| `ui/ToastStack.vue` (`toast.success`, `.info`, `.warning`, `.error`) | a list with `aria-live` regions | Toast |
+
+What must stay exactly as it is, and is what the existing tests check:
+
+- **The API**: the props, events and slots of `AppModal`, and `toast.*`, `askConfirm`, `showAlert` in
+  `frontend/src/feedback/`. No view or modal file changes.
+- **Behaviour**: a modal traps focus, closes on Escape and on its close control, returns focus to what opened it,
+  and makes the rest of the page inert; a confirmation puts focus on the safe button; an error toast is announced
+  assertively and the others politely; at most `MAX_TOASTS` toasts show; a toast closes by its button and by its
+  time; the native `alert`, `confirm` and `prompt` stay replaced.
+- **The look in every theme**: the title bar recipes (the XP and 98 captions, the Mac window lights at the left
+  with the centred title, the Platinum stripes, the Ubuntu close button), the place 5 % below the top
+  (`--dialog-top`), the sheet's entry motion, the backdrop, the toast's head and bar, flat mode. The recipes are
+  written today against `dialog.pnl`, `::backdrop` and `.toast`; they are moved to the elements and state
+  attributes UI SDK renders (`data-slot`, `data-open`), with the role tokens and the recipe parameters untouched,
+  so no theme file changes.
+- **No page scrollbar** while a dialog is open.
+
+If UI SDK's Dialog can render inside a native `<dialog>` (its `render` part), that is preferred, because the
+recipes then barely move. If one of the three cannot meet a point above with the beta as it is, that component
+keeps its current implementation and the report says which point failed; the other two still move.
+
+The dialog and toast suites (`03-feedback`, `10-app-pages`, `20-studio`, the contrast matrix in every theme) are
+the acceptance test: they pass with no change to what they assert.
 
 ### U8. Size
 

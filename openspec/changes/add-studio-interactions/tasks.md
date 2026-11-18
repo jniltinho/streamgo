@@ -19,10 +19,21 @@
 - [ ] 2.5 `frontend/src/core/cues.ts`, the two preferences in `PreferencesModal.vue`, both catalogs (design U7);
   unit tests for every scenario of "Sound cues", a real-studio check that a guest's join is heard once
 
-## 3. Validation and checks
+## 3. Dialogs and toasts on UI SDK
 
-- [ ] 3.1 The real studio suite in every theme with a menu open and a tooltip shown ("In every theme")
-- [ ] 3.2 The owner tries the slice on the local stack; what the owner changes is applied
-- [ ] 3.3 `CHANGELOG.md`; `docs/README.md` (UI SDK: what it is used for, https://github.com/vercel-labs/ui, the
+- [ ] 3.1 `ToastStack.vue` on UI SDK's Toast behind `toast.*` (design U10); the toast recipes moved; the feedback
+  unit tests and `03-feedback` pass with no change to what they assert
+- [ ] 3.2 `DialogHost.vue` on Alert Dialog behind `askConfirm`, `showAlert` and the typed confirmation; the native
+  replacements still installed
+- [ ] 3.3 `AppModal.vue` on Dialog behind its props, events and slots; the dialog recipes moved for every theme
+  (title bars, close controls, `--dialog-top`, backdrop, motion, flat mode); `10-app-pages`, the close-control
+  test in every theme and `20-studio` pass
+- [ ] 3.4 A component that cannot meet a scenario keeps its implementation; the report says which and why
+
+## 4. Validation and checks
+
+- [ ] 4.1 The real studio suite in every theme with a menu open and a tooltip shown ("In every theme")
+- [ ] 4.2 The owner tries the slice on the local stack; what the owner changes is applied
+- [ ] 4.3 `CHANGELOG.md`; `docs/README.md` (UI SDK: what it is used for, https://github.com/vercel-labs/ui, the
   upgrade steps of design U1b); `make check && make test`, the browser suites,
   `openspec validate add-studio-interactions --strict`

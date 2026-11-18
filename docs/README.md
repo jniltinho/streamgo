@@ -3,7 +3,8 @@
 **StreamGo** is a live-streaming studio that runs on your own server. The host opens a studio in the browser,
 invites guests with a link, chooses who is on stage and in which layout, adds a logo and banners, and broadcasts
 the result to several RTMP destinations at once (YouTube, Twitch, your own RTMP server). It is one Go binary with
-the web app inside, a database (SQLite, MariaDB or PostgreSQL), [LiveKit](https://livekit.io) for the studio
+the web app inside (also published as a single file that carries the media servers and runs them with
+`streamgo up`), a database (SQLite, MariaDB or PostgreSQL), [LiveKit](https://livekit.io) for the studio
 room, [MediaMTX](https://github.com/bluenviron/mediamtx) to receive the program, and ffmpeg to encode it and send
 it out.
 
@@ -11,10 +12,11 @@ it out.
 
 | I want to… | Read |
 |---|---|
+| Try it or run it from one file, without Docker or a package | [Install the single file](install-single.md) |
 | **Install it on Ubuntu or Debian, or on the RHEL family (a package, systemd services)** | [Install from the Linux packages](install-linux.md) |
 | Try it in one container | [Install with Docker: the all-in-one image](install-docker.md#the-all-in-one-image) |
 | Run it with Docker Compose, on SQLite, MariaDB or PostgreSQL | [Install with Docker](install-docker.md) |
-| Install the binary by hand, on any distribution | [Install the binary](install-binary.md) |
+| Install the packages' files by hand, on any distribution with systemd | [Install the binary](install-binary.md) |
 | Serve HTTPS from StreamGo itself, self-signed or with my certificate, and know which ports to open | [Standalone HTTPS](standalone-https.md) |
 | Put it behind nginx or Caddy | [Behind a reverse proxy](reverse-proxy.md) |
 | Configure the Compose stack: ports, addresses behind NAT, backups | [Deployment](deployment.md) |
@@ -26,14 +28,45 @@ it out.
 
 | | For | What runs |
 |---|---|---|
+| **Single file** | One host without Docker or a package, a first look | One executable that holds StreamGo, LiveKit and MediaMTX; `streamgo up` unpacks the two media servers into the data directory and runs the three, the distribution's ffmpeg |
 | **Linux package** | A server without Docker | A `.deb` or `.rpm`: StreamGo, LiveKit and MediaMTX in `/opt/streamgo` as three systemd services, the distribution's ffmpeg |
 | **All-in-one image** | One container on one host, a first look | StreamGo, LiveKit, MediaMTX and ffmpeg under supervisord, state in `/data` |
 | **Compose stack** | A server with Docker, a checkout of the repository | StreamGo, LiveKit and MediaMTX in containers; SQLite, MariaDB or PostgreSQL |
 | **Binary** | Any other distribution with systemd | The files of the packages, laid out by hand |
+| **StreamGo alone** | A host that already runs LiveKit and MediaMTX | The StreamGo executable of the small archive, with `streamgo server` or `streamgo up` |
 
-Every release publishes the `.deb`, the `.rpm`, the `.tar.gz` and their `SHA256SUMS` on
-[GitHub](https://github.com/jniltinho/streamgo/releases), and the image as
-`ghcr.io/jniltinho/streamgo:<version>-allinone`. All are linux/amd64 only.
+Every release publishes on [GitHub](https://github.com/jniltinho/streamgo/releases), with their `SHA256SUMS`:
+
+| File | Size | What it holds |
+|---|---|---|
+| `streamgo_<version>_linux_amd64` | about 68 MB | The single file: StreamGo, packed with UPX, with the official LiveKit and MediaMTX executables of the release appended, compressed |
+| `streamgo_<version>_amd64.deb` | about 66 MB | StreamGo, LiveKit and MediaMTX in `/opt/streamgo`, three systemd units |
+| `streamgo-<version>-1.x86_64.rpm` | about 78 MB | The same, for the RHEL family |
+| `streamgo_<version>_linux_amd64.tar.gz` | about 79 MB | The files of the packages |
+| `streamgo-server_<version>_linux_amd64.tar.gz` | about 13 MB | StreamGo alone: the executable, the example configuration and the notices |
+
+and the image as `ghcr.io/jniltinho/streamgo:<version>-allinone` (about 150 MB to pull). The single file and the
+StreamGo-only archive come with 0.4.0. All are linux/amd64 only.
+
+### `streamgo up`
+
+`streamgo up` runs the whole studio from one process tree, as the all-in-one image's supervisor does for its
+container. It creates the secret key and the credentials the three programs share in `<data_dir>/streamgo.env` on
+the first start, starts LiveKit and MediaMTX as child processes with a configuration it writes for them, waits for
+both, runs the StreamGo server, starts a media server again when it exits, and stops the three in order on a
+signal. It takes each media server from the single file's payload, else from the file beside the executable (the
+packages' `/opt/streamgo/bin`), else from `PATH`; a payload's files run only when their SHA-256 is the one
+compiled into StreamGo. It refuses to run as root and to start without ffmpeg.
+
+The media servers' own listeners are on the loopback address, on ports chosen free at every start. Browsers reach
+three ports, which are flags: `--livekit-tcp-port` (7881/tcp), `--livekit-udp-port` (7882/udp) and
+`--webrtc-port` (8189, TCP and UDP); `--node-ip` is the address both advertise. The other flags are `--addr`,
+`--public-url`, `--self-signed`, `--cert-file`, `--key-file` and `--no-migrate`. `--data-dir` is a flag of every
+command that reads the configuration, and each of them reads `<data_dir>/streamgo.env` for the variables the
+environment lacks. [Install the single file](install-single.md) has the details.
+
+The packages, the Compose stack and the all-in-one image do not use `up`: they keep their own units and
+supervisor.
 
 ![The pieces of StreamGo: browsers reach StreamGo over HTTPS and LiveKit over WebRTC; the owner's browser sends the program to MediaMTX; ffmpeg reads it and sends it to the RTMP destinations](images/diagram-overview.svg)
 
@@ -50,16 +83,17 @@ What every install needs, whichever way you run it:
 
 ## Where it stands
 
-StreamGo is in its first version. This documentation describes the design the project builds to; where a
-behaviour was measured rather than only designed, the [architecture guide](architecture.md) says so and gives the
-numbers from the [media spike](spike-media-path.md). Two things are known and not yet checked on real hardware: a
-host whose browser window is minimized (it passed only in an emulation), and the media ports reached from an
-outside network behind NAT. The live output was tested against an RTMP server in the test stack; a long broadcast
-to a public platform is part of the manual checks still to run.
+StreamGo is published in tagged releases; what each one changed is in the [changelog](../CHANGELOG.md). This
+documentation describes what the code does; where a behaviour was measured rather than only designed, the
+[architecture guide](architecture.md) says so and gives the numbers from the [media spike](spike-media-path.md).
 
-Not in this version, so you can plan around it: recordings, more than one StreamGo process, a TURN server, and
-composing the program on the server (the broadcast depends on the host's browser staying open; see
-[the limits](architecture.md#limits)).
+Three things are not yet checked on real hardware: a host whose browser window is minimized (it passed only in an
+emulation), a server behind NAT reached from another network, and a long broadcast to a public platform. The live
+output is tested against an RTMP server in the test stack.
+
+Not in the current version, so you can plan around it: recordings, output above 1440p, more than one StreamGo
+process, a TURN server, hosts other than linux/amd64, and composing the program on the server (the broadcast
+depends on the host's browser staying open; see [the limits](architecture.md#limits)).
 
 ## For developers
 
@@ -72,6 +106,7 @@ embedded in the binary. Everything builds and tests in Docker; the host needs Do
 ```bash
 make init                      # config.toml and .env (secret key and credentials), only when missing
 make build                     # dist/streamgo, a static linux/amd64 binary
+make single                    # dist/streamgo-single, the single file (packed, with the two media servers)
 dist/streamgo version
 ```
 

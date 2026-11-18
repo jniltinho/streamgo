@@ -6,7 +6,41 @@ are the section of that version.
 
 ## [Unreleased]
 
-—
+### Added
+
+- **`streamgo up`** — one command runs the whole studio: on the first start it creates the secret key and the
+  credentials the three programs share in `<data_dir>/streamgo.env` (mode 0600, never replaced afterwards),
+  starts LiveKit and MediaMTX as child processes on loopback ports it chooses at every start, keeps them running
+  (restarted after 1 s, doubling up to 30 s), runs the StreamGo server, and on a signal stops the server first and
+  the two media servers after it. Its options are flags: `--addr`, `--public-url`, `--self-signed`, `--cert-file`,
+  `--key-file`, `--no-migrate` and the media ones below. It refuses to run as root and, as `streamgo server` does,
+  to start without an ffmpeg it accepts. It takes the media servers from the single file, else from beside the
+  executable (the packages' `/opt/streamgo/bin`), else from `PATH`.
+- **The single file** — `streamgo_<version>_linux_amd64` (about 68 MB): StreamGo with the release's official
+  LiveKit and MediaMTX inside. Download it, `chmod +x`, install ffmpeg from your distribution and run
+  `./streamgo up`. `up` unpacks the two media servers into `<data_dir>/media/` and runs only files whose SHA-256 is
+  the one compiled into StreamGo. To upgrade, replace the file and start it again: the data directory and
+  `streamgo.env` stay. The guide is [Install the single file](docs/install-single.md).
+- **A StreamGo-only archive** — `streamgo-server_<version>_linux_amd64.tar.gz` (about 13 MB): the executable, the
+  example configuration and the notices, for a host that already runs LiveKit and MediaMTX.
+- **`--data-dir` on every command** that reads the configuration, and each of them reads
+  `<data_dir>/streamgo.env` for the variables the environment lacks: `streamgo user add --data-dir /srv/studio`
+  works with no secret loaded in the shell. A line of that file that is not `NAME=value` stops the command,
+  naming the file and the line.
+- **`streamgo licenses`** — prints the licences and notices of StreamGo, LiveKit, MediaMTX and the bundled fonts.
+- **`[media]` settings**, used by `streamgo up` only: `node_ip` (`--node-ip`; empty: the address of the default
+  route, else `127.0.0.1`), `livekit_tcp_port` (`--livekit-tcp-port`, 7881), `livekit_udp_port`
+  (`--livekit-udp-port`, 7882) and `webrtc_port` (`--webrtc-port`, 8189, TCP and UDP). `up` checks these ports
+  before it starts anything and names the flag of one in use.
+
+### Changed
+
+- **The README and the guides are up to date** — the README shows the single file as the way to start without
+  Docker, lists every download with its size and what it is for, and its "Good to know" section describes the
+  current version. The documentation index describes `streamgo up`, and the binary guide points to the single
+  file and the StreamGo-only archive.
+
+Nothing changes for the packages, the Compose stack or the all-in-one image.
 
 ## [0.3.0] — 2026-11-18
 

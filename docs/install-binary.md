@@ -5,6 +5,15 @@ archive holds the same files as the packages: StreamGo, the pinned LiveKit and M
 three systemd units. You add the user, the secrets and an ffmpeg from your distribution. On Ubuntu, Debian or the
 RHEL family the packages do all of this for you: see [Install from the Linux packages](install-linux.md).
 
+Two other downloads may suit you better (both from release 0.4.0 on):
+
+- **The single file** `streamgo_0.4.0_linux_amd64` (about 68 MB) carries StreamGo, LiveKit and MediaMTX in one
+  executable, and `streamgo up` runs the three with no units or settings to lay out: see
+  [Install the single file](install-single.md).
+- **StreamGo alone**, `streamgo-server_0.4.0_linux_amd64.tar.gz` (about 13 MB): the executable, the example
+  configuration and the notices, for a host that already runs LiveKit and MediaMTX. Its `streamgo up` runs the
+  `livekit-server` and `mediamtx` beside the executable, or else in `PATH`.
+
 All commands run as root (`sudo -i`).
 
 ## 1. ffmpeg from the distribution

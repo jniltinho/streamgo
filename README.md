@@ -40,7 +40,7 @@
 
 ## 🚀 Quick start
 
-One container from the [GitHub Container Registry](https://github.com/jniltinho/streamgo/pkgs/container/streamgo),
+**With Docker**: one container from the [GitHub Container Registry](https://github.com/jniltinho/streamgo/pkgs/container/streamgo),
 with StreamGo, its media servers and ffmpeg inside:
 
 ```bash
@@ -54,14 +54,54 @@ password):
 docker exec -it streamgo streamgo user add --email you@example.com --name "Your Name"
 ```
 
-Open **http://localhost:8080** in Chrome or Edge, sign in, create a broadcast and open its studio. That is all for
-a first look on your own machine.
+**Without Docker**: one file on a linux/amd64 host, run as your normal user (not root). It carries StreamGo,
+LiveKit and MediaMTX; ffmpeg comes from your distribution:
 
-To put it on a server for guests elsewhere, or to install without Docker, follow the guides:
+```bash
+curl -Lo streamgo https://github.com/jniltinho/streamgo/releases/download/v0.4.0/streamgo_0.4.0_linux_amd64
+```
+
+```bash
+chmod +x streamgo && sudo apt install ffmpeg
+```
+
+```bash
+./streamgo up
+```
+
+`streamgo up` creates its secrets and its database under `./data` and keeps running. In a second terminal, in the
+same directory, create your account (it asks for a password):
+
+```bash
+./streamgo user add --email you@example.com --name "Your Name"
+```
+
+Either way, open **http://localhost:8080** in Chrome or Edge, sign in, create a broadcast and open its studio.
+The first account is the administrator: it creates the other accounts on the **Users** page. That is all for a
+first look on your own machine.
+
+To put it on a server for guests elsewhere, follow the guides:
+[the single file](docs/install-single.md) ·
 [Docker and Docker Compose](docs/install-docker.md) ·
 [`.deb` and `.rpm` packages](docs/install-linux.md) ·
 [HTTPS](docs/standalone-https.md) ·
 [all documentation](docs/README.md)
+
+### Downloads
+
+Every [release](https://github.com/jniltinho/streamgo/releases/latest) publishes these files for linux/amd64, with
+their `SHA256SUMS`:
+
+| File | Size | What it holds | For |
+|---|---|---|---|
+| `streamgo_<version>_linux_amd64` | about 68 MB | One executable: StreamGo with LiveKit and MediaMTX inside; `streamgo up` runs the three | Trying StreamGo or running it on one host without Docker or a package ([guide](docs/install-single.md)) |
+| `streamgo_<version>_amd64.deb` | about 66 MB | StreamGo, LiveKit and MediaMTX in `/opt/streamgo` as three systemd services | Debian and Ubuntu servers ([guide](docs/install-linux.md)) |
+| `streamgo-<version>-1.x86_64.rpm` | about 78 MB | The same, for the RHEL family | AlmaLinux, Rocky Linux and RHEL servers ([guide](docs/install-linux.md#the-rpm-almalinux-rocky-linux-and-the-rhel-family)) |
+| `streamgo_<version>_linux_amd64.tar.gz` | about 79 MB | The files of the packages: the three programs, their settings and the systemd units | Other distributions with systemd ([guide](docs/install-binary.md)) |
+| `streamgo-server_<version>_linux_amd64.tar.gz` | about 13 MB | StreamGo alone: the executable, the example configuration and the notices | A host that already runs LiveKit and MediaMTX |
+| `ghcr.io/jniltinho/streamgo:<version>-allinone` | about 150 MB to pull | The three programs and ffmpeg in one container | Docker on one host ([guide](docs/install-docker.md#the-all-in-one-image)) |
+
+The single file and the StreamGo-only archive come with 0.4.0; earlier releases have the other four.
 
 ## 🧩 What you get
 
@@ -72,9 +112,10 @@ To put it on a server for guests elsewhere, or to install without Docker, follow
 | 🏷️ **Your brand** | Your logo, your accent colour, name tags and lower-third banners prepared ahead and shown at the right moment. |
 | 📡 **Multistreaming** | Up to 5 RTMP or RTMPS destinations per broadcast by default (10 at most). The form fills in the usual address of YouTube, Twitch, Facebook and Instagram; you check it and paste the stream key, which is encrypted at rest. |
 | 🔁 **Made to stay on air** | A destination that drops is retried; a program that disappears pauses the broadcast, which resumes when it is back within two minutes (the default), even across a server restart. |
-| 🖥️ **Any screen** | The interface scales from Full HD to 4K monitors and uses the whole window. Each broadcast goes out in 720p, 1080p or 1440p (QHD) at 30 fps, chosen in the studio up to the limit the operator sets. |
+| 🖥️ **Any screen** | The interface scales from Full HD to 4K monitors and uses the whole window. Each broadcast goes out in 720p, 1080p or 1440p (QHD) at 30 fps, chosen in the studio up to the limit an administrator sets. |
 | 🎨 **28 themes, two languages** | Light, dark and 26 more themes; English and Brazilian Portuguese; every control reachable by keyboard, with automated accessibility checks. |
-| 📦 **Runs your way** | One Docker image, Docker Compose, a `.deb`, an `.rpm` or the plain binary (linux/amd64), with SQLite, MariaDB or PostgreSQL. |
+| 👥 **Accounts** | The first account is the administrator; administrators create the other accounts, change their role or password, and disable them in the web app. There is no public sign-up. |
+| 📦 **Runs your way** | One file, one Docker image, Docker Compose, a `.deb`, an `.rpm` or an archive (linux/amd64), with SQLite, MariaDB or PostgreSQL. |
 
 ## 📸 Screenshots
 
@@ -90,16 +131,23 @@ The people in these screens are not real: their pictures were generated for this
 
 ## 📌 Good to know
 
-This is the first version. So you can plan around it:
+What to plan around in the current version:
 
-- **The host needs a desktop Chromium-based browser** (Chrome, Edge, Brave). Guests were tested in Chrome and
-  Firefox. The program is composed in the host's browser, so the broadcast depends on that tab staying open.
-- **The media ports must be reachable** from your guests' networks: there is no TURN server yet.
-- **Not included yet**: recordings, and output above 1440p (4K was measured and the host's browser could not keep up).
-- **1440p is opt-in**: the operator raises `output.max_resolution`; it needs about two server cores per live
-  broadcast and up to 24 Mbit/s of the host's upload.
-- **Still being checked**: the live output is tested against an RTMP test server; long broadcasts to the public
-  platforms and a host behind NAT reached from outside have not been verified yet.
+- **The host needs a desktop Chromium-based browser** (Chrome, Edge, Brave). The program is composed in the host's
+  browser, so the broadcast depends on that tab staying open; it resumes when the tab is back within two minutes
+  (the default). Guests can use any current browser; the automated browser tests run in Chrome.
+- **Guests on other machines need HTTPS**: browsers allow the camera and the microphone only on `https://` or on
+  `localhost`. StreamGo can serve HTTPS itself, with a self-signed certificate or yours.
+- **The media ports must be reachable** from the networks of the host and the guests (7881/tcp, 7882/udp and
+  8189 over TCP and UDP): there is no TURN server, so a network that allows only web traffic cannot take part.
+- **Not included**: recordings, output above 1440p (4K was measured and the host's browser could not keep up),
+  more than one StreamGo process per install, and hosts other than linux/amd64.
+- **1440p is opt-in**: the highest resolution is 1080p until an administrator raises it in Settings → Server (or
+  the operator sets `output.max_resolution`). A live 1440p broadcast needs about two server cores and up to
+  24 Mbit/s of the host's upload.
+- **Not verified yet**: the live output is tested against an RTMP test server. Long broadcasts to the public
+  platforms, a server behind NAT reached from another network, and the host's window minimized on a real desktop
+  (it passed in an emulation) have not been checked.
 
 More in the [documentation](docs/README.md#where-it-stands) and the [architecture guide](docs/architecture.md#limits).
 

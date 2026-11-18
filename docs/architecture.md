@@ -21,6 +21,11 @@ There is no Redis, no job queue, no headless Chrome and no LiveKit Egress. The l
 ffmpeg and a reconciliation loop every 15 seconds) runs inside the server and is rebuilt from the database at
 startup.
 
+StreamGo does not start LiveKit and MediaMTX itself under `streamgo server`: systemd (the packages), Compose or
+supervisord (the all-in-one image) does. `streamgo up` is the exception: it starts the two media servers as child
+processes, on loopback ports it chooses at every start, keeps them running and stops them after the server. It is
+what the single file runs; see [`streamgo up`](README.md#streamgo-up).
+
 ## The stage state and how it reaches everyone
 
 What is on stage is one small JSON document per broadcast:

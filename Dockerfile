@@ -2,7 +2,8 @@
 # StreamGo — every build runs here; the host needs only Docker. Target: linux/amd64 only.
 #   make build  →  docker build --target export --output dist .   (dist/streamgo)
 #   make image  →  docker build --target runtime -t streamgo:<version> .
-#   make package  →  docker build --target packages --output dist/packages .   (.deb, .rpm, .tar.gz)
+#   make single  →  docker build --target single-export --output dist .   (dist/streamgo-single)
+#   make package  →  docker build --target packages --output dist/packages .   (the six assets of a release)
 #   make image-allinone  →  docker build --target allinone -t streamgo:<version>-allinone .
 # Portions adapted from MeetHub (MIT): Dockerfile
 
@@ -36,11 +37,16 @@ COPY --from=frontend /src/web/dist ./web/dist
 ARG VERSION=dev
 ARG COMMIT=none
 ARG BUILDTIME=unknown
+# the digests `streamgo up` checks the media servers of its payload against (design B2): every build carries them
+ARG LIVEKIT_SHA256
+ARG MEDIAMTX_SHA256
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w \
       -X github.com/jniltinho/streamgo/internal/buildinfo.Version=${VERSION} \
       -X github.com/jniltinho/streamgo/internal/buildinfo.Commit=${COMMIT} \
-      -X github.com/jniltinho/streamgo/internal/buildinfo.Date=${BUILDTIME}" \
+      -X github.com/jniltinho/streamgo/internal/buildinfo.Date=${BUILDTIME} \
+      -X github.com/jniltinho/streamgo/internal/buildinfo.LiveKitSHA256=${LIVEKIT_SHA256} \
+      -X github.com/jniltinho/streamgo/internal/buildinfo.MediaMTXSHA256=${MEDIAMTX_SHA256}" \
     -o /out/streamgo . \
  && file /out/streamgo | tee /dev/stderr | grep -q 'ELF 64-bit LSB executable, x86-64.*statically linked'
 
@@ -58,9 +64,33 @@ COPY --from=livekit /livekit-server /out/livekit-server
 COPY --from=mediamtx /mediamtx /out/mediamtx
 RUN printf '%s  %s\n' "$LIVEKIT_SHA256" /out/livekit-server "$MEDIAMTX_SHA256" /out/mediamtx | sha256sum -c -
 
-# ── packages: .deb, .rpm and .tar.gz under /opt/streamgo with three systemd units (packaging/build.sh) ─────────
-# Only with --target packages; the stage root holds the three files and SHA256SUMS. No ffmpeg: the .deb depends on
-# the distribution's, the .rpm recommends it.
+# ── single: the executable packed with UPX, then the two verified media servers (zstd -19) and the trailer ─────
+# packaging/single-payload.sh writes the payload; internal/mediaservers/payload.go reads it. The versions in the
+# trailer come from the tags of the pinned images, so they cannot drift from the binaries.
+FROM ${DEBIAN_IMAGE} AS single
+RUN apt-get update && apt-get install -y --no-install-recommends upx-ucl zstd && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+ARG LIVEKIT_IMAGE
+ARG MEDIAMTX_IMAGE
+COPY packaging/single-payload.sh ./
+COPY --from=build /out/streamgo ./streamgo
+COPY --from=media /out/livekit-server /out/mediamtx ./
+RUN set -eu; tag() { t=${1%%@*}; echo "${t##*:}"; }; \
+    upx-ucl -q --lzma -o streamgo.upx streamgo >/dev/null && upx-ucl -q -t streamgo.upx \
+ && mkdir /out \
+ && sh single-payload.sh streamgo.upx livekit-server "$(tag "$LIVEKIT_IMAGE")" mediamtx "$(tag "$MEDIAMTX_IMAGE")" /out/streamgo-single \
+ && /out/streamgo-single version \
+ && single=$(stat -c %s /out/streamgo-single) archive=$(tar -czf - streamgo livekit-server mediamtx | wc -c) \
+ && echo "single file $single bytes, .tar.gz of the three programs $archive bytes" \
+ && [ "$single" -lt "$archive" ]
+
+FROM scratch AS single-export
+COPY --from=single /out/streamgo-single /streamgo-single
+
+# ── packages: .deb, .rpm and .tar.gz under /opt/streamgo with three systemd units, and the two files of StreamGo ─
+# Only with --target packages; the stage root holds the six assets of a release: the three packages, the single file,
+# the small archive of StreamGo alone, and SHA256SUMS. No ffmpeg: the .deb depends on the distribution's, the .rpm
+# recommends it.
 FROM ${DEBIAN_IMAGE} AS package-build
 RUN apt-get update && apt-get install -y --no-install-recommends rpm && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
@@ -68,6 +98,7 @@ COPY packaging/ packaging/
 COPY config.toml.example LICENSE NOTICE THIRD_PARTY ./
 COPY --from=build /out/streamgo ./streamgo
 COPY --from=media /out/livekit-server /out/mediamtx ./
+COPY --from=single /out/streamgo-single ./streamgo-single
 ARG VERSION=dev
 RUN sh packaging/build.sh "${VERSION}" /out
 

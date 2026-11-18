@@ -7,10 +7,10 @@ RHEL family the packages do all of this for you: see [Install from the Linux pac
 
 Two other downloads may suit you better (both from release 0.4.0 on):
 
-- **The single file** `streamgo_0.4.0_linux_amd64` (about 68 MB) carries StreamGo, LiveKit and MediaMTX in one
+- **The single file** `streamgo_0.4.0_linux_amd64` (68 MB) carries StreamGo, LiveKit and MediaMTX in one
   executable, and `streamgo up` runs the three with no units or settings to lay out: see
   [Install the single file](install-single.md).
-- **StreamGo alone**, `streamgo-server_0.4.0_linux_amd64.tar.gz` (about 13 MB): the executable, the example
+- **StreamGo alone**, `streamgo-server_0.4.0_linux_amd64.tar.gz` (14 MB): the executable, the example
   configuration and the notices, for a host that already runs LiveKit and MediaMTX. Its `streamgo up` runs the
   `livekit-server` and `mediamtx` beside the executable, or else in `PATH`.
 

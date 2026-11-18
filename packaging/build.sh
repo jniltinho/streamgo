@@ -1,12 +1,15 @@
 #!/bin/sh
-# Builds the Linux packages from the static binary (Dockerfile stage package-build; make package):
-#   streamgo_<version>_amd64.deb   streamgo-<version>-1.x86_64.rpm   streamgo_<version>_linux_amd64.tar.gz   SHA256SUMS
+# Builds the files of a release from the static binary (Dockerfile stage package-build; make package):
+#   streamgo_<version>_amd64.deb   streamgo-<version>-1.x86_64.rpm   streamgo_<version>_linux_amd64.tar.gz
+#   streamgo_<version>_linux_amd64 (the single file, given as ./streamgo-single: make single)
+#   streamgo-server_<version>_linux_amd64.tar.gz (StreamGo alone, for a host that has LiveKit and MediaMTX)
+#   SHA256SUMS, written after the last of them
 # The names carry the version (the deb, rpm and tar conventions), so files of several releases can sit side by side.
 # The three hold the same files: everything under /opt/streamgo (StreamGo, the pinned LiveKit and MediaMTX, their
 # configuration) and three systemd units. None carries an ffmpeg: the .deb depends on the distribution's, the .rpm
 # recommends it (output.ffmpeg_path stays "ffmpeg", looked up in PATH).
-# Run from a directory holding the binaries (./streamgo, ./livekit-server, ./mediamtx), config.toml.example,
-# LICENSE, NOTICE and THIRD_PARTY.
+# Run from a directory holding the binaries (./streamgo, ./livekit-server, ./mediamtx, ./streamgo-single),
+# config.toml.example, LICENSE, NOTICE and THIRD_PARTY.
 # Portions adapted from MeetHub (MIT): packaging/build.sh
 set -eu
 
@@ -78,7 +81,18 @@ install -m 0755 "$here/preremove.sh" "$root/DEBIAN/prerm"
 install -m 0755 "$here/postremove.sh" "$root/DEBIAN/postrm"
 dpkg-deb --root-owner-group -Zxz --build "$root" "$out/streamgo_${v}_amd64.deb" >/dev/null
 
-(cd "$out" && sha256sum "streamgo_${v}_amd64.deb" "streamgo-$v-1.x86_64.rpm" "streamgo_${v}_linux_amd64.tar.gz" >SHA256SUMS)
+# ── the single file, and the small archive: StreamGo unpacked, its example configuration and its notices (the
+# notices of LiveKit, which is not in it, and of the fonts embedded in the executable are what `streamgo licenses`
+# prints) ──
+install -m 0755 streamgo-single "$out/streamgo_${v}_linux_amd64"
+small="$work/small/streamgo-server"
+mkdir -p "$small"
+install -m 0755 streamgo "$small/streamgo"
+install -m 0644 config.toml.example LICENSE NOTICE THIRD_PARTY "$small/"
+tar -C "$work/small" --owner=0 --group=0 --numeric-owner -czf "$out/streamgo-server_${v}_linux_amd64.tar.gz" streamgo-server
+
+(cd "$out" && sha256sum "streamgo_${v}_amd64.deb" "streamgo-$v-1.x86_64.rpm" "streamgo_${v}_linux_amd64.tar.gz" \
+  "streamgo_${v}_linux_amd64" "streamgo-server_${v}_linux_amd64.tar.gz" >SHA256SUMS)
 rm -rf "$work"
-echo "packages of StreamGo $v:"
+echo "release files of StreamGo $v:"
 ls -l "$out"

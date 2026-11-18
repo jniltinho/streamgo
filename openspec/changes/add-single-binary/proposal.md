@@ -31,9 +31,10 @@ options are command-line flags, and noticed how large a release's files are.
 
 Nothing changes for the packages, the Compose stack or the all-in-one image in this change.
 
-**Sizes**, measured on the 0.3.0 binaries: StreamGo packed with UPX is 10.0 MB, LiveKit 32.5 MB and MediaMTX
-25.4 MB with zstd -19, about 68 MB in all, against 79 MB for today's `.tar.gz`. The two media servers are most
-of every download and do not shrink further. The small download is about 13 MB.
+**Sizes**, measured on the release files `make package` built from this change (bytes): the single file
+68,104,047 (StreamGo packed with UPX, about 10.2 MB of it, then LiveKit and MediaMTX with zstd -19), against
+79,044,877 for the `.tar.gz` of the same build; the small download 13,542,411. The two media servers are most of
+every download and do not shrink further.
 
 ## Capabilities
 

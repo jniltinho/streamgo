@@ -11,16 +11,24 @@ DIST      := dist
 BUILD_ARGS := --platform $(PLATFORM) \
 	--build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILDTIME=$(BUILDTIME)
 
-.PHONY: all help build image init clean tools check check-go test test-go test-db check-db up down logs dev
+.PHONY: all help build single test-single image init clean tools check check-go test test-go test-db check-db up down logs dev
 
 all: build
 
 help: ## List the targets
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-21s %s\n", $$1, $$2}'
 
 build: ## Build dist/streamgo (static linux/amd64, web app embedded) inside Docker
 	docker build $(BUILD_ARGS) --target export --output type=local,dest=$(DIST) .
 	@ls -l $(DIST)/streamgo
+
+single: ## Build dist/streamgo-single: the executable packed with UPX, LiveKit and MediaMTX appended (streamgo up)
+	docker build $(BUILD_ARGS) --target single-export --output type=local,dest=$(DIST) .
+	@ls -l $(DIST)/streamgo-single
+
+# with dist/packages of the same version (make package), it also checks the single file is smaller than the .tar.gz
+test-single: single tools ## Smoke test the single file in a clean Debian: ready, sign-in, a studio, the key kept, SIGKILL, damage
+	packaging/single-smoke.sh $(DIST)/streamgo-single $(wildcard $(DIST)/packages)
 
 IMAGE ?= streamgo
 image: ## Build the runtime image $(IMAGE):$(VERSION) (non-root, with ffmpeg)
@@ -119,7 +127,7 @@ dev: check-db init ## Vite dev server with hot reload on http://localhost:5173 (
 # ── Linux packages: StreamGo, LiveKit and MediaMTX under /opt/streamgo with three systemd units (packaging/) ──
 .PHONY: package test-package test-package-systemd image-allinone test-allinone
 
-package: ## Build dist/packages: the .deb, the .rpm and the .tar.gz of this version, and SHA256SUMS
+package: ## Build dist/packages: the .deb, .rpm, .tar.gz, single file and small archive of this version, and SHA256SUMS
 	rm -rf $(DIST)/packages
 	docker build $(BUILD_ARGS) --target packages --output type=local,dest=$(DIST)/packages .
 	@ls -l $(DIST)/packages

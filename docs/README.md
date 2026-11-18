@@ -39,11 +39,11 @@ Every release publishes on [GitHub](https://github.com/jniltinho/streamgo/releas
 
 | File | Size | What it holds |
 |---|---|---|
-| `streamgo_<version>_linux_amd64` | about 68 MB | The single file: StreamGo, packed with UPX, with the official LiveKit and MediaMTX executables of the release appended, compressed |
-| `streamgo_<version>_amd64.deb` | about 66 MB | StreamGo, LiveKit and MediaMTX in `/opt/streamgo`, three systemd units |
-| `streamgo-<version>-1.x86_64.rpm` | about 78 MB | The same, for the RHEL family |
-| `streamgo_<version>_linux_amd64.tar.gz` | about 79 MB | The files of the packages |
-| `streamgo-server_<version>_linux_amd64.tar.gz` | about 13 MB | StreamGo alone: the executable, the example configuration and the notices |
+| `streamgo_<version>_linux_amd64` | 68 MB | The single file: StreamGo, packed with UPX, with the official LiveKit and MediaMTX executables of the release appended, compressed |
+| `streamgo_<version>_amd64.deb` | 66 MB | StreamGo, LiveKit and MediaMTX in `/opt/streamgo`, three systemd units |
+| `streamgo-<version>-1.x86_64.rpm` | 79 MB | The same, for the RHEL family |
+| `streamgo_<version>_linux_amd64.tar.gz` | 79 MB | The files of the packages |
+| `streamgo-server_<version>_linux_amd64.tar.gz` | 14 MB | StreamGo alone: the executable, the example configuration and the notices |
 
 and the image as `ghcr.io/jniltinho/streamgo:<version>-allinone` (about 150 MB to pull). The single file and the
 StreamGo-only archive come with 0.4.0. All are linux/amd64 only.
@@ -140,7 +140,8 @@ or in `.env`. [Deployment](deployment.md) has the details.
 make check          # gofmt, go vet, golangci-lint (with the layering rule), govulncheck, frontend check and build
 make test           # Go tests with -race on SQLite, frontend unit tests
 make test-db        # Go tests on SQLite, MariaDB and PostgreSQL, with LiveKit, MediaMTX and ffmpeg (throwaway containers)
-make test-package   # build the .deb, .rpm and .tar.gz and install them in clean distribution containers
+make test-package   # build the release files and install the .deb and .rpm in clean distribution containers
+make test-single    # build the single file and smoke test it in a clean Debian container (packaging/single-smoke.sh)
 make test-allinone  # build and smoke test the all-in-one image
 ```
 

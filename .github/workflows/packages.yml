@@ -1,12 +1,17 @@
 # Portions adapted from MeetHub (MIT): .github/workflows/packages.yml
 name: Packages
 
-# The Linux packages (packaging/: streamgo_<version>_amd64.deb, streamgo-<version>-1.x86_64.rpm,
-# streamgo_<version>_linux_amd64.tar.gz, SHA256SUMS) are built for linux/amd64 and tested on every pull request,
-# push to main and v* tag:
-#   - packaging/smoke.sh installs them in clean Debian, Ubuntu, AlmaLinux and Rocky Linux (RPM Fusion) containers
+# The files of a release, built for linux/amd64 by make package (packaging/build.sh) into dist/packages:
+#   streamgo_<version>_amd64.deb, streamgo-<version>-1.x86_64.rpm, streamgo_<version>_linux_amd64.tar.gz,
+#   streamgo_<version>_linux_amd64 (the single file), streamgo-server_<version>_linux_amd64.tar.gz (StreamGo alone)
+#   and SHA256SUMS, written after the last of them.
+# They are built and tested on every pull request, push to main and v* tag:
+#   - packaging/smoke.sh installs the packages in clean Debian, Ubuntu, AlmaLinux and Rocky Linux (RPM Fusion)
+#     containers
+#   - packaging/single-smoke.sh runs the single file in a clean Debian container (a working studio, the key kept,
+#     the parent killed, a damaged file, the upgrade from the previous release's single file when it has one)
 #   - the .deb is installed on the runner itself, where systemd really starts the three services
-# A v* tag then publishes the four files as the assets of that tag's GitHub release, with the workflow's own token
+# A v* tag then publishes the six files as the assets of that tag's GitHub release, with the workflow's own token
 # and that version's section of CHANGELOG.md as the notes. Lint and the test suites run in ci.yml; tag a commit of
 # main that passed it.
 on:
@@ -24,7 +29,7 @@ concurrency:
 
 jobs:
   packages:
-    name: deb, rpm and tar.gz
+    name: deb, rpm, tar.gz and the single file
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     permissions:
@@ -35,6 +40,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build and install in clean containers
         run: make test-package VERSION="$VERSION" COMMIT="$GITHUB_SHA"
+      - name: Smoke test the single file
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # the upgrade check runs from the single file of the latest release before this one, when it published one
+        run: |
+          set -eu
+          ls dist/packages
+          (cd dist/packages && sha256sum -c SHA256SUMS)
+          previous=$(gh release list --exclude-drafts --limit 30 --json tagName --jq '.[].tagName' |
+            grep -vxF "${GITHUB_REF_NAME}" | head -n 1 || true)
+          if [ -n "$previous" ] &&
+            gh release download "$previous" --pattern 'streamgo_*_linux_amd64' --dir "$RUNNER_TEMP/previous" 2>/dev/null; then
+            export SMOKE_PREVIOUS_SINGLE
+            SMOKE_PREVIOUS_SINGLE=$(ls "$RUNNER_TEMP"/previous/streamgo_*_linux_amd64)
+          fi
+          make tools
+          packaging/single-smoke.sh dist/packages/streamgo_*_linux_amd64 dist/packages
       - name: Install on the runner, under systemd
         run: |
           sudo apt-get update -qq
@@ -62,13 +84,39 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         # the notes are the tag's section of CHANGELOG.md. create uploads the files to a draft and publishes it
-        # only when all are there. A release that already exists (made by hand, or a re-run) only gets the files it
-        # lacks: a complete one is left alone.
+        # only when all are there. A release that already exists (made by hand, or by an earlier version of this
+        # workflow with four files) is complete by its file names: the files it lacks are uploaded, the ones it has
+        # are kept, and SHA256SUMS is written again from the files the release then holds.
         run: |
+          set -eu
           awk -v v="${TAG#v}" '/^## \[/ { p = index($0, "## [" v "]") == 1; next } p' CHANGELOG.md >"$RUNNER_TEMP/notes.md"
           test -s "$RUNNER_TEMP/notes.md" || { echo "CHANGELOG.md has no section for ${TAG#v}" >&2; exit 1; }
+          v=$(printf '%s' "${TAG#v}" | tr -- '-' '.') # as packaging/build.sh names the files
+          files="streamgo_${v}_amd64.deb streamgo-${v}-1.x86_64.rpm streamgo_${v}_linux_amd64.tar.gz streamgo_${v}_linux_amd64 streamgo-server_${v}_linux_amd64.tar.gz"
+          for f in $files SHA256SUMS; do
+            test -f "dist/packages/$f" || { echo "dist/packages lacks $f" >&2; exit 1; }
+          done
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" dist/packages/* --verify-tag --title "StreamGo $TAG" --notes-file "$RUNNER_TEMP/notes.md"
-          elif [ "$(gh release view "$TAG" --json assets --jq '.assets | length')" -lt 4 ]; then
-            gh release upload "$TAG" dist/packages/* --clobber
+            exit 0
           fi
+          have=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          release="$RUNNER_TEMP/release"
+          mkdir -p "$release"
+          missing=""
+          for f in $files; do
+            if printf '%s\n' "$have" | grep -qxF "$f"; then
+              gh release download "$TAG" --pattern "$f" --dir "$release"
+            else
+              cp "dist/packages/$f" "$release/"
+              missing="$missing $f"
+            fi
+          done
+          (cd "$release" && sha256sum $files >SHA256SUMS)
+          if [ -z "$missing" ] && printf '%s\n' "$have" | grep -qxF SHA256SUMS &&
+            gh release download "$TAG" --pattern SHA256SUMS --output - | cmp -s - "$release/SHA256SUMS"; then
+            echo "the release of $TAG is complete"
+            exit 0
+          fi
+          echo "adding to the release of $TAG:${missing:- (none)} and SHA256SUMS"
+          (cd "$release" && gh release upload "$TAG" $missing SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY")

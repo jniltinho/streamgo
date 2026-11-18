@@ -102,6 +102,16 @@ func TestThirdPartyMatchesDockerfile(t *testing.T) {
 			t.Errorf("the Compose stack does not run %s", m[1])
 		}
 	}
+	// design B2: every build of the executable carries the digests the media stage verifies, so a payload is
+	// checked against the program and not against itself
+	for _, x := range []string{
+		"-X github.com/jniltinho/streamgo/internal/buildinfo.LiveKitSHA256=${LIVEKIT_SHA256}",
+		"-X github.com/jniltinho/streamgo/internal/buildinfo.MediaMTXSHA256=${MEDIAMTX_SHA256}",
+	} {
+		if strings.Count(docker, x) != 1 {
+			t.Errorf("the build stage does not pass %s", x)
+		}
+	}
 	for _, want := range []string{"LiveKit server 1.13.10", "MediaMTX 1.21.4", "Apache License", "MIT License"} {
 		if !strings.Contains(third, want) {
 			t.Errorf("THIRD_PARTY lacks %q", want)

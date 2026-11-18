@@ -94,11 +94,11 @@ their `SHA256SUMS`:
 
 | File | Size | What it holds | For |
 |---|---|---|---|
-| `streamgo_<version>_linux_amd64` | about 68 MB | One executable: StreamGo with LiveKit and MediaMTX inside; `streamgo up` runs the three | Trying StreamGo or running it on one host without Docker or a package ([guide](docs/install-single.md)) |
-| `streamgo_<version>_amd64.deb` | about 66 MB | StreamGo, LiveKit and MediaMTX in `/opt/streamgo` as three systemd services | Debian and Ubuntu servers ([guide](docs/install-linux.md)) |
-| `streamgo-<version>-1.x86_64.rpm` | about 78 MB | The same, for the RHEL family | AlmaLinux, Rocky Linux and RHEL servers ([guide](docs/install-linux.md#the-rpm-almalinux-rocky-linux-and-the-rhel-family)) |
-| `streamgo_<version>_linux_amd64.tar.gz` | about 79 MB | The files of the packages: the three programs, their settings and the systemd units | Other distributions with systemd ([guide](docs/install-binary.md)) |
-| `streamgo-server_<version>_linux_amd64.tar.gz` | about 13 MB | StreamGo alone: the executable, the example configuration and the notices | A host that already runs LiveKit and MediaMTX |
+| `streamgo_<version>_linux_amd64` | 68 MB | One executable: StreamGo with LiveKit and MediaMTX inside; `streamgo up` runs the three | Trying StreamGo or running it on one host without Docker or a package ([guide](docs/install-single.md)) |
+| `streamgo_<version>_amd64.deb` | 66 MB | StreamGo, LiveKit and MediaMTX in `/opt/streamgo` as three systemd services | Debian and Ubuntu servers ([guide](docs/install-linux.md)) |
+| `streamgo-<version>-1.x86_64.rpm` | 79 MB | The same, for the RHEL family | AlmaLinux, Rocky Linux and RHEL servers ([guide](docs/install-linux.md#the-rpm-almalinux-rocky-linux-and-the-rhel-family)) |
+| `streamgo_<version>_linux_amd64.tar.gz` | 79 MB | The files of the packages: the three programs, their settings and the systemd units | Other distributions with systemd ([guide](docs/install-binary.md)) |
+| `streamgo-server_<version>_linux_amd64.tar.gz` | 14 MB | StreamGo alone: the executable, the example configuration and the notices | A host that already runs LiveKit and MediaMTX |
 | `ghcr.io/jniltinho/streamgo:<version>-allinone` | about 150 MB to pull | The three programs and ffmpeg in one container | Docker on one host ([guide](docs/install-docker.md#the-all-in-one-image)) |
 
 The single file and the StreamGo-only archive come with 0.4.0; earlier releases have the other four.

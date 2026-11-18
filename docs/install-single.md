@@ -54,12 +54,13 @@ install -m 0755 streamgo_0.4.0_linux_amd64 /usr/local/bin/streamgo
 streamgo version
 ```
 
-It prints `v0.4.0`. `version`, `licenses` and `--help` read no configuration and unpack nothing.
+It prints `streamgo v0.4.0 (commit …, built …)`. `version`, `licenses` and `--help` read no configuration and
+unpack nothing.
 `streamgo licenses` prints the licences and notices of StreamGo, LiveKit, MediaMTX and the bundled fonts, which a
 single file cannot ship beside itself.
 
-The file is about 68 MB. A host that already runs LiveKit and MediaMTX does not need it: the
-`streamgo-server_0.4.0_linux_amd64.tar.gz` archive (about 13 MB) holds StreamGo alone, the example configuration
+The file is 68 MB. A host that already runs LiveKit and MediaMTX does not need it: the
+`streamgo-server_0.4.0_linux_amd64.tar.gz` archive (14 MB) holds StreamGo alone, the example configuration
 and the notices.
 
 ## 3. A user and a data directory
@@ -90,8 +91,8 @@ sudo -u streamgo /usr/local/bin/streamgo up --data-dir /var/lib/streamgo/data
 ```
 
 The commands of this guide run in `/var/lib/streamgo` because StreamGo looks for an optional `config.toml` in the
-working directory first; it needs none. The start line says where each media server came from, its version, and
-the address both advertise to browsers. Once the three are up, in a second terminal:
+working directory first; it needs none. The first lines of the log say where each media server came from, its
+version, and the address both advertise to browsers. Once the three are up, in a second terminal:
 
 ```bash
 curl http://localhost:8080/readyz
@@ -220,7 +221,7 @@ Restart=on-failure
 RestartSec=5
 # SIGTERM to streamgo up only: it stops the server, then the two media servers, in order
 KillMode=mixed
-# the server takes up to 25 s, each media server up to 10 s more
+# the server drains its connections and stops every ffmpeg, then the two media servers get 10 s together
 TimeoutStopSec=50
 LimitNOFILE=65536
 UMask=0027

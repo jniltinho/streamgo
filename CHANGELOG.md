@@ -6,7 +6,15 @@ are the section of that version.
 
 ## [Unreleased]
 
-—
+### Changed
+
+- **Bundled fonts** — every theme and the program's name tags and banners use fonts bundled with the app (Inter,
+  Noto Sans in the Breeze themes, JetBrains Mono in the Matrix theme and timers): nothing depends on the fonts of
+  the operating system any more.
+- **The Classic blue (XP) theme, refined** — the blue title bar as the app's and the studio's header, the XP
+  desktop behind the page, a low dialog title with the red close button, dialogs in the XP face colour, lighter
+  button shadows, sentence-case labels and a blue field focus. Every theme now paints the two headers with its
+  header colours, and tables stand on a surface of their own with the theme's shadow.
 
 ## [0.2.0] — 2026-11-17
 

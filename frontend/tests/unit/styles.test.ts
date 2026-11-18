@@ -43,6 +43,29 @@ describe('style check', () => {
     expect(found).toEqual([])
   })
 
+  // "Bundled fonts": no theme asks for a font of the operating system. Every named family has its files in
+  // assets/fonts, and only a generic family follows as the fallback.
+  it('names only bundled font families, each with its files, and a generic fallback', () => {
+    const css = files(src).filter((p) => p.endsWith('.css'))
+    const base = readFileSync(join(src, 'style.css'), 'utf8')
+    const faces = [...base.matchAll(/@font-face\s*{[^}]*font-family:\s*'([^']+)'[^}]*url\(\.\/([^)]+)\)/g)]
+    const bundled = new Set(faces.map((m) => m[1]))
+    expect([...bundled].sort()).toEqual(['Inter', 'JetBrains Mono', 'Noto Sans'])
+    for (const m of faces) expect(statSync(join(src, m[2]!)).size, m[2]).toBeGreaterThan(1000)
+    const stacks = css.flatMap((p) =>
+      [...readFileSync(p, 'utf8').matchAll(/--font-(?:sans|mono):\s*([^;]+);/g)].map((m) => ({ p, stack: m[1]! })),
+    )
+    expect(stacks.length).toBeGreaterThan(20)
+    for (const { p, stack } of stacks) {
+      const families = stack.split(',').map((f) => f.trim())
+      expect(['sans-serif', 'monospace'], `${relative(src, p)}: ${stack}`).toContain(families.at(-1))
+      for (const f of families.slice(0, -1))
+        expect(bundled.has(f.replace(/^'|'$/g, '')), `${relative(src, p)}: ${f}`).toBe(true)
+    }
+    // the program's text (name tags, banners) is drawn with the bundled face too
+    expect(readFileSync(join(src, 'core/compositor.ts'), 'utf8')).toMatch(/const FONT = "'Inter', sans-serif"/)
+  })
+
   it('declares the three radii once, in rem, in the base stylesheet', () => {
     const css = readFileSync(join(src, 'style.css'), 'utf8')
     expect([...css.matchAll(/--radius-(sm|md|lg):\s*([^;]+);/g)].map((m) => `${m[1]} ${m[2]}`)).toEqual([

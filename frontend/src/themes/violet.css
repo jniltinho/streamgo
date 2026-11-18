@@ -195,7 +195,7 @@
   --shadow-card-hover: 0 1px 4px rgba(21, 27, 38, 0.16);
   --shadow-nav-on: inset 3px 0 0 #894ffb;
   --shadow-login-box: 0 0 4px rgba(21, 27, 38, 0.14);
-  --font-sans: 'Inter', Tahoma, Verdana, Arial, sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-size-base: 0.8125rem;
   --card-head-bar-w: 0px;
   --card-head-size: 0.8125rem;
@@ -433,7 +433,7 @@
   --shadow-card-hover: 0 1px 4px rgba(255, 255, 255, 0.1);
   --shadow-nav-on: inset 3px 0 0 #a36eff;
   --shadow-login-box: 0 0 4px rgba(255, 255, 255, 0.08);
-  --font-sans: 'Inter', Tahoma, Verdana, Arial, sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-size-base: 0.8125rem;
   --card-head-bar-w: 0px;
   --card-head-size: 0.8125rem;

@@ -37,7 +37,10 @@
   --color-cn-ok: #2fa14f;
   --color-cn-err: #c62828;
   --color-cn-warn: #ef6c00;
-  --font-sans: 'Inter', Tahoma, Verdana, Arial, sans-serif;
+  /* every named family is bundled (assets/fonts): the interface looks the same on any system, and only the generic
+     family is left as the fallback for a script the bundled subset does not cover */
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
   /* barely rounded, the same in every theme (ui-themes spec "Corner radii"): 2, 3 and 4 px at the base size, in rem
      so they grow with the interface scale; the round token is for avatars and status dots only */
   --radius-sm: 0.125rem; /* small marks: pictures, tags, counters' boxes */
@@ -167,6 +170,8 @@
   --color-on-table-head: #fff;
   --color-dialog-line: var(--color-cn);
   --color-on-dialog: #000; /* text in dialogs (the browser's dialog default) */
+  --color-dialog-face: var(--color-surface); /* a dialog's body */
+  --color-dialog-foot: var(--color-surface-2); /* and its button row */
   --color-dialog-head-top: var(--color-cn);
   --color-dialog-head: var(--color-cn-dark);
   --color-dialog-head-bar: var(--color-cn-accent);
@@ -250,6 +255,8 @@
 /* parameters (not colors): sizes and on/off switches of the recipes, overridden by themes */
 :root {
   --bg-page: radial-gradient(var(--color-page-dots) 1px, transparent 1px);
+  /* the tile of the page pattern; a theme with a whole-window picture (the XP desktop) says 100% 100% */
+  --bg-page-size: 1.375rem 1.375rem;
   /* gradients (background-image; a theme sets none for a flat fill of the base color) */
   --bg-header: linear-gradient(to bottom in oklab, var(--color-header-top) 0%, var(--color-header) 100%);
   --bg-tabs: linear-gradient(to bottom in oklab, var(--color-tabs-top) 0%, var(--color-tabs) 100%);
@@ -356,7 +363,22 @@
   --dialog-line-w: 2px;
   --dialog-head-bar-w: 3px;
   --dialog-head-size: 0.8125rem;
-  --dialog-head-pad: 0.5rem 0.75rem;
+  --dialog-head-pad: 0.375rem 0.5rem 0.375rem 0.75rem;
+  --dialog-head-shadow: none;
+  /* the close button of a dialog's title: smaller than an icon button, so that it does not set the title's height;
+     a theme may give it a face of its own (the XP close button) */
+  --dialog-x-size: 1.5rem;
+  --dialog-x-line: 0 solid transparent;
+  --dialog-x-bg: transparent;
+  --dialog-x-bg-hover: color-mix(in oklab, currentcolor 20%, transparent);
+  --bg-dialog-x: none;
+  --bg-dialog-x-hover: none;
+  --dialog-x-shadow: none;
+  /* the line under the app's and the studio's header; a theme with a title-bar header gives its own */
+  --header-line: var(--color-line);
+  /* field labels: small capitals by default; a theme may ask for plain sentence case */
+  --lbl-transform: uppercase;
+  --lbl-tracking: 0.025em;
   /* toasts: 100% = title bar in the state color (Default); 0% = a card on the surface with the title in the state's
      text color, thin frame and a state-colored bar on the left (--toast-bar-w) */
   --toast-head-mix: 100%;
@@ -391,6 +413,38 @@
   font-weight: 600;
   font-display: swap;
   src: url(./assets/fonts/inter-latin-600-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 700;
+  font-display: swap;
+  src: url(./assets/fonts/inter-latin-700-normal.woff2) format('woff2');
+}
+/* the Breeze themes' face */
+@font-face {
+  font-family: 'Noto Sans';
+  font-weight: 400;
+  font-display: swap;
+  src: url(./assets/fonts/noto-sans-latin-400-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans';
+  font-weight: 600;
+  font-display: swap;
+  src: url(./assets/fonts/noto-sans-latin-600-normal.woff2) format('woff2');
+}
+/* timers, and the Matrix theme's face */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 400;
+  font-display: swap;
+  src: url(./assets/fonts/jetbrains-mono-latin-400-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 600;
+  font-display: swap;
+  src: url(./assets/fonts/jetbrains-mono-latin-600-normal.woff2) format('woff2');
 }
 
 /* Corner radii (ui-themes spec): subtle and the same in every theme. :where() keeps the specificity at zero, so a
@@ -444,7 +498,8 @@ body {
   @apply bg-page text-on-page antialiased;
   font-size: var(--font-size-base);
   background-image: var(--bg-page);
-  background-size: 1.375rem 1.375rem;
+  background-size: var(--bg-page-size);
+  background-attachment: fixed;
 }
 
 @layer components {
@@ -551,12 +606,16 @@ body {
       0 0 0 1000px var(--color-field) inset;
   }
   .lbl {
-    @apply mb-1 block text-[0.6875rem] font-semibold tracking-wide text-fg-muted uppercase;
+    @apply mb-1 block text-[0.6875rem] font-semibold text-fg-muted;
+    text-transform: var(--lbl-transform);
+    letter-spacing: var(--lbl-tracking);
   }
   /* a list that scrolls (overflow-auto) puts the frame on its wrapper and uses .grid-t with border-0: the outer half
      of a collapsed table border lies outside the table and the scrolling box clips it (no left and right lines) */
   .grid-t {
-    @apply w-full border-collapse border border-line text-[0.75rem];
+    /* a surface of its own, with the theme's card shadow for some volume: a table also stands directly on the page,
+       whose pattern must not show through */
+    @apply w-full border-collapse border border-line bg-surface text-[0.75rem] text-fg shadow-(--shadow-card);
   }
   .grid-t th {
     @apply sticky top-0 z-10 bg-table-head bg-(image:--bg-table-head) px-(--th-px) py-(--th-py) text-left font-semibold whitespace-nowrap text-on-table-head shadow-(--shadow-table-head);
@@ -611,6 +670,10 @@ body {
   --bg-card-head: none;
   --bg-dialog-head: none;
   --bg-dialog-foot: none;
+  --bg-dialog-x: none;
+  --bg-dialog-x-hover: none;
+  --dialog-x-shadow: none;
+  --bg-page-size: 1.375rem 1.375rem;
   --bg-footer: none;
   --shadow-btn: none;
   --shadow-btn-2: none;
@@ -683,7 +746,7 @@ body {
 
 /* panel <dialog> (port of the legacy .pnlDialog) */
 dialog.pnl {
-  @apply border-2 border-dialog-line bg-surface p-0 text-on-dialog shadow-(--shadow-dialog);
+  @apply border-2 border-dialog-line bg-dialog-face p-0 text-on-dialog shadow-(--shadow-dialog);
   border-width: var(--dialog-line-w);
   /* 5% of the window height from the top (--dialog-top), centred horizontally, in every theme */
   margin: calc(var(--view-h) * var(--dialog-top)) auto auto;
@@ -734,12 +797,28 @@ dialog.pnl.closing::backdrop {
   border-bottom-width: var(--dialog-head-bar-w);
   padding: var(--dialog-head-pad);
   font-size: var(--dialog-head-size);
+  text-shadow: var(--dialog-head-shadow);
+}
+.pnl-head .modal-x {
+  width: var(--dialog-x-size);
+  height: var(--dialog-x-size);
+  border: var(--dialog-x-line);
+  border-radius: var(--radius-sm);
+  background: var(--dialog-x-bg) var(--bg-dialog-x);
+  box-shadow: var(--dialog-x-shadow);
+}
+.pnl-head .modal-x:hover {
+  background: var(--dialog-x-bg-hover) var(--bg-dialog-x-hover);
+}
+/* a control in a title keeps a focus mark that shows on it: the title's own text colour */
+.pnl-head :focus-visible {
+  outline-color: var(--color-on-dialog-head);
 }
 .pnl-body {
   @apply px-4 py-3;
 }
 .pnl-foot {
-  @apply flex justify-end gap-2 border-t border-line bg-surface-2 bg-(image:--bg-dialog-foot) px-3 py-2;
+  @apply flex justify-end gap-2 border-t border-line bg-dialog-foot bg-(image:--bg-dialog-foot) px-3 py-2;
 }
 
 /* toasts (as in the earlier panel) */
@@ -1047,8 +1126,24 @@ dialog.pnl.closing::backdrop {
     gap: 0.5rem;
     height: 2rem;
     padding: 0 0.5rem;
-    border-bottom: 1px solid var(--color-line);
-    background: var(--color-panel);
+    border-bottom: 1px solid var(--header-line);
+    /* the theme's header: its bar, its text and its links (the blue title bar of the XP theme, for one) */
+    background: var(--color-header) var(--bg-header);
+    color: var(--color-on-header);
+  }
+  .content-head .act {
+    color: var(--color-header-link);
+  }
+  .content-head .act:hover {
+    color: var(--color-header-link-hover);
+  }
+  .content-head .icon-btn:hover {
+    background: color-mix(in oklab, currentcolor 18%, transparent);
+  }
+  /* the focus mark must show on the header's own colour, not on the page's */
+  .content-head :focus-visible,
+  .studio-head :focus-visible {
+    outline-color: var(--color-on-header);
   }
   .content-main {
     flex: 1;
@@ -1193,17 +1288,17 @@ dialog.pnl.closing::backdrop {
     gap: 0.75rem;
     height: 2.5rem; /* slim, as the owner asked: the height goes to the stage */
     padding: 0 1rem;
-    border-bottom: 1px solid var(--color-line);
-    background: var(--color-panel);
-    color: var(--color-fg);
+    border-bottom: 1px solid var(--header-line);
+    background: var(--color-header) var(--bg-header);
+    color: var(--color-on-header);
   }
   .studio-brand {
     display: flex;
     align-items: center;
     gap: 0.625rem;
     padding-right: 0.75rem;
-    border-right: 1px solid var(--color-line);
-    color: var(--color-fg-strong);
+    border-right: 1px solid color-mix(in oklab, currentcolor 30%, transparent);
+    color: inherit;
     font-size: 0.9375rem;
     font-weight: 600;
   }

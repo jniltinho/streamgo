@@ -196,7 +196,7 @@
   --shadow-card-hover: 0 1px 4px rgba(107, 31, 69, 0.16);
   --shadow-nav-on: inset 3px 0 0 #e98bb2;
   --shadow-login-box: 0 0 4px rgba(46, 24, 40, 0.14);
-  --font-sans: 'Inter', Tahoma, Verdana, Arial, sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-size-base: 0.8125rem;
   --card-head-bar-w: 3px;
   --card-head-size: 0.8125rem;

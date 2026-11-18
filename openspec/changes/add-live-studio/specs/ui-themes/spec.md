@@ -27,6 +27,26 @@ ids, labels and looks.
   carried-over theme
 - **THEN** every role token resolves to the same value as in MeetHub's theme of the same id
 
+#### Scenario: The refined XP theme
+- **WHEN** the Classic blue (XP) theme is applied
+- **THEN** the app's and the studio's header are its blue title bar, its page is the XP desktop (a pale sky over
+  a green hill), a dialog has a low title with the red close button and a face in the XP colour, tables stand on
+  a surface of their own with the theme's shadow, and its role tokens equal MeetHub's except the page, the text
+  roles that stand on it, the links and the field focus
+
+### Requirement: Bundled fonts
+Every font family a theme or the program names SHALL be bundled with the web app, so the interface and the
+program's text look the same on any system; only a generic family follows as the fallback.
+
+#### Scenario: No system font
+- **WHEN** the theme files, the base stylesheet and the compositor are read
+- **THEN** every named family is Inter, Noto Sans or JetBrains Mono, each has its font files in the app, and each
+  stack ends in `sans-serif` or `monospace`
+
+#### Scenario: Fonts load
+- **WHEN** the app opens in the default, the Breeze and the Matrix theme
+- **THEN** the page's text is drawn with the bundled Inter, Noto Sans and JetBrains Mono
+
 ### Requirement: Theme contract
 The role-token contract SHALL be MeetHub's (text, page and surfaces, borders, primary, danger, success, warning,
 focus, tabs, and the toast, alert and dialog roles) extended with the studio's roles (on-air, stage frame, on-stage

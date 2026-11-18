@@ -133,18 +133,57 @@ test.describe('every theme', () => {
     })
   }
 
-  // ui-themes "Carried-over themes look the same": every role token as MeetHub's theme of the same id resolves it
+  // ui-themes "Carried-over themes look the same": every role token as MeetHub's theme of the same id resolves it.
+  // The owner asked for the XP theme to be refined: its page is the XP desktop (a sky and a hill), the text that
+  // stands on it is darker for it, and a field's focus is blue. Those roles, and only those, differ.
+  const refined: Record<string, string[]> = {
+    'classic-blue': ['fg-muted', 'fg-subtle', 'link', 'link-hover', 'page', 'field-focus'],
+  }
   for (const theme of themeCatalog.filter((t) => !t.id.startsWith('streamgo-'))) {
     test(`${theme.id}: every role token equals MeetHub's`, async ({ page }) => {
       const want = meethub.themes[theme.id]!
       const got = await resolve(page, theme.id, Object.keys(want))
       const diff = Object.keys(want).filter((r) => JSON.stringify(got[r]) !== JSON.stringify(want[r]))
       expect(
-        diff.map((r) => `${r}: ${JSON.stringify(got[r])} != ${JSON.stringify(want[r])}`),
+        diff
+          .filter((r) => !(refined[theme.id] ?? []).includes(r))
+          .map((r) => `${r}: ${JSON.stringify(got[r])} != ${JSON.stringify(want[r])}`),
         `roles that differ from MeetHub in ${theme.id}`,
       ).toEqual([])
+      expect(diff.sort(), `the refined roles of ${theme.id}`).toEqual([...(refined[theme.id] ?? [])].sort())
     })
   }
+
+  // The refined XP theme: a control of the blue header keeps a focus mark that shows on it, and flat mode takes the
+  // gradient and the relief off the title's close button as it does off every other control.
+  test('classic-blue: the header focus mark is the header text colour; flat mode flattens the close button', async ({
+    page,
+  }) => {
+    await stubApi(page, { ...ANA, theme: 'classic-blue' })
+    await page.goto('/broadcasts')
+    const settings = page.getByRole('button', { name: 'Settings' })
+    for (let i = 0; i < 20 && !(await settings.evaluate((el) => el === document.activeElement)); i++)
+      await page.keyboard.press('Tab')
+    const mark = await settings.evaluate((el) => {
+      const probe = document.createElement('i')
+      probe.style.color = 'var(--color-on-header)'
+      document.body.append(probe)
+      const want = getComputedStyle(probe).color
+      probe.remove()
+      const s = getComputedStyle(el)
+      return { outline: s.outlineColor, style: s.outlineStyle, want }
+    })
+    expect(mark.style).not.toBe('none')
+    expect(mark.outline).toBe(mark.want)
+
+    await page.keyboard.press('Enter')
+    const close = page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Close' })
+    const face = () => close.evaluate((el) => getComputedStyle(el).backgroundImage)
+    expect(await face()).toContain('gradient')
+    await page.evaluate(() => document.documentElement.setAttribute('data-flat', 'true'))
+    expect(await face()).toBe('none')
+    expect(await close.evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none')
+  })
 
   test('streamgo-dark is the chosen design palette', async ({ page }) => {
     const want: Record<string, string> = {

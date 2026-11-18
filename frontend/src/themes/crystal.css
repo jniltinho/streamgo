@@ -197,7 +197,7 @@
   --shadow-card-hover: 0 1px 4px rgba(0, 0, 0, 0.16);
   --shadow-nav-on: inset 3px 0 0 #0064e1; /* the selection keeps a >= 3:1 mark (the tint alone is ~1.3:1) */
   --shadow-login-box: 0 0 4px rgba(0, 0, 0, 0.14);
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Inter', Arial, sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-size-base: 0.8125rem;
   --card-head-bar-w: 0px;
   --card-head-size: 0.8125rem;
@@ -443,7 +443,7 @@
   --shadow-card-hover: 0 1px 4px rgba(255, 255, 255, 0.1);
   --shadow-nav-on: inset 3px 0 0 #4ea2ff; /* the selection keeps a >= 3:1 mark (the tint alone is ~1.3:1) */
   --shadow-login-box: 0 0 4px rgba(255, 255, 255, 0.08);
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Inter', Arial, sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-size-base: 0.8125rem;
   --card-head-bar-w: 0px;
   --card-head-size: 0.8125rem;

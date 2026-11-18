@@ -4,7 +4,7 @@
  * heads, #eee zebra rows, the green and yellow state boxes with dark text, Verdana. The orange is darkened where
  * it carries white text (AA). Only role values and recipe parameters of the contract in style.css; square corners. */
 :root[data-theme='rabbitmq'] {
-  --font-sans: Verdana, Geneva, 'DejaVu Sans', Arial, sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-size-base: 0.75rem;
   /* text */
   --color-fg: #333333;

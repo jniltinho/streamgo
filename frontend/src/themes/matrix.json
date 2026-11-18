@@ -719,6 +719,18 @@
       "fg": "backstage",
       "bg": ["panel"],
       "size": "normal"
+    },
+    {
+      "id": "text/dialog-face",
+      "fg": "on-dialog",
+      "bg": ["dialog-face", "dialog-foot"],
+      "size": "normal"
+    },
+    {
+      "id": "muted/dialog-face",
+      "fg": "fg-muted",
+      "bg": ["dialog-face", "dialog-foot"],
+      "size": "normal"
     }
   ],
   "pending": {},

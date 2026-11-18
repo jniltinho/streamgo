@@ -31,7 +31,8 @@ export const ACCENTS = [DEFAULT_ACCENT, '#b3b8ff', '#4ade80', '#fbbf24', '#f0464
 const WHITE = '#ffffff'
 const INK = '#111318'
 const TAG = 'rgba(0, 0, 0, 0.62)'
-const FONT = 'system-ui, sans-serif'
+// the bundled face, so name tags and banners look the same from any host's computer
+const FONT = "'Inter', sans-serif"
 
 interface Picture {
   img: CanvasImageSource
@@ -162,6 +163,8 @@ export class Compositor {
     private readonly mode: CompositorMode,
   ) {
     this.g = canvas.getContext('2d')!
+    // a canvas draws with a web font only once it is loaded: ask for the weight the program uses
+    void document.fonts?.load(`600 16px ${FONT}`)
     if (mode === 'program') {
       const gen = new MediaStreamTrackGenerator({ kind: 'video' })
       this.writer = gen.writable.getWriter()

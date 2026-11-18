@@ -199,8 +199,7 @@
   --shadow-card-hover: 0 0 16px rgba(0, 255, 65, 0.22);
   --shadow-nav-on: inset 3px 0 0 #00ff41;
   --shadow-login-box: 0 0 0 1px rgba(0, 255, 65, 0.25), 0 0 40px rgba(0, 255, 65, 0.18);
-  --font-sans:
-    'Cascadia Mono', 'JetBrains Mono', 'DejaVu Sans Mono', Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-sans: 'JetBrains Mono', monospace;
   --font-size-base: 0.75rem;
   --card-head-bar-w: 2px; /* a cursor before each card title */
   --card-head-size: 0.75rem;

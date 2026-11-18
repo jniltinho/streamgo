@@ -19,7 +19,7 @@
   --color-cn-ok: #64ac4b;
   --color-cn-err: #fa3e3e;
   --color-cn-warn: #c25418;
-  --font-sans: Verdana, 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-sans: 'Inter', sans-serif;
 
   /* flat page (no dots) */
   --color-page-dots: rgba(17, 48, 88, 0.25);

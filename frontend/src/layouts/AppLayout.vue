@@ -29,7 +29,7 @@ async function signOut() {
 <template>
   <div class="content h-(--view-h)">
     <header class="content-head">
-      <strong class="text-fg-strong">StreamGo</strong>
+      <strong>StreamGo</strong>
       <nav class="flex flex-1 gap-1" :aria-label="t('Main')">
         <RouterLink to="/broadcasts" class="act" exact-active-class="font-semibold">{{ t('Broadcasts') }}</RouterLink>
         <RouterLink to="/destinations" class="act" exact-active-class="font-semibold">

@@ -203,7 +203,7 @@
   --shadow-card-hover: var(--bevel-raised), 0 4px 14px rgba(0, 0, 0, 0.6);
   --shadow-nav-on: inset 3px 0 0 #f4a51c;
   --shadow-login-box: var(--bevel-raised), 0 8px 28px rgba(0, 0, 0, 0.7);
-  --font-sans: Tahoma, Verdana, 'Segoe UI', Arial, sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-size-base: 0.75rem;
   --card-head-bar-w: 3px;
   --card-head-size: 0.75rem;

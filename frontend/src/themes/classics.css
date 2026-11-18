@@ -1,7 +1,7 @@
 /* Portions adapted from MeetHub (MIT): frontend/src/themes/classics.css */
 /* "Classic" themes: Windows XP (Luna, blue) and Windows 98 (gray), approximate values adapted for contrast
  *. Title bars with gradients, the 98 3D relief through the
- * --bevel-* shadows, Tahoma 11px. Only role values and recipe parameters; square corners. */
+ * --bevel-* shadows. Only role values and recipe parameters; square corners. */
 
 /* Classic blue (XP Luna): dialog face #ece9d8, Luna title bar and taskbar gradients (thin light top band, the text
    area dark enough for 7:1), Start-green action, task-pane card heads, listview headers, orange tab tops */
@@ -9,11 +9,12 @@
   --color-fg: #000000;
   --color-on-page: #000000;
   --color-fg-strong: #0b2a6b;
-  --color-fg-muted: #404040;
-  --color-fg-subtle: #404040;
-  --color-link: #00408a;
-  --color-link-hover: #002f66;
-  --color-page: #ece9d8;
+  --color-fg-muted: #2e2e2e;
+  --color-fg-subtle: #2e2e2e;
+  --color-link: #002c6a;
+  --color-link-hover: #001f4d;
+  /* the page is the XP desktop (below): this is its sky, the darkest part a text of the page can stand on */
+  --color-page: #9cc4f0;
   --color-page-dots: rgba(0, 0, 0, 0.25);
   --color-surface: #ffffff;
   --color-surface-2: #dde6fb;
@@ -25,7 +26,7 @@
   --color-field: #ffffff;
   --color-on-field: #000000;
   --color-field-line: #6e8ba8;
-  --color-field-focus: #2f7d2f;
+  --color-field-focus: #0846c8;
   --color-check-line: #6e8ba8;
   --color-autofill: #000000;
   --color-action: #1a5c1e;
@@ -111,6 +112,8 @@
   --color-table-head: #ece9d8;
   --color-on-table-head: #000000;
   --color-dialog-line: #0831d9;
+  --color-dialog-face: #ece9d8;
+  --color-dialog-foot: #ece9d8;
   --color-on-dialog: #000000;
   --color-dialog-head-top: #0048cf;
   --color-dialog-head: #0143cf;
@@ -158,7 +161,10 @@
   --color-login-field-line: #6e8ba8;
   --color-login-focus: rgba(0, 0, 0, 0.5);
   --color-logo-plate: #f4f5f5;
-  --bg-page: radial-gradient(var(--color-page-dots) 1px, transparent 1px);
+  /* a light Bliss: pale sky over the green hill, no part darker than the sky's top, so the page's text keeps its
+     contrast anywhere on it */
+  --bg-page: linear-gradient(to bottom in oklab, #9cc4f0 0%, #c4dcf5 48%, #b9dda3 72%, #9ed284 100%);
+  --bg-page-size: 100% 100%;
   --bg-header: linear-gradient(
     to bottom in oklab,
     #005ce9 0%,
@@ -230,7 +236,7 @@
     #0048cf 93%,
     var(--color-dialog-head) 100%
   );
-  --bg-dialog-foot: linear-gradient(to bottom in oklab, var(--color-surface) 0%, var(--color-surface-2) 100%);
+  --bg-dialog-foot: none;
   --bg-footer: linear-gradient(
     to bottom in oklab,
     #3168d5 0%,
@@ -243,22 +249,23 @@
     var(--color-footer) 100%
   );
   --bg-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6z' fill='%234f4f4f'/%3E%3C/svg%3E");
+  /* Luna controls sit on the window: a hairline of shadow, not a floating blur */
   --shadow-btn:
-    var(--bevel-raised), 0 2px 5px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    var(--bevel-raised), 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45),
     inset 0 -2px 0 rgba(0, 0, 0, 0.22);
   --shadow-btn-2:
-    var(--bevel-raised), 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 #ffffff, inset 0 -2px 0 rgba(0, 0, 0, 0.08);
+    var(--bevel-raised), 0 1px 1px rgba(0, 0, 0, 0.18), inset 0 1px 0 #ffffff, inset 0 -2px 0 rgba(0, 0, 0, 0.08);
   --shadow-brand-action:
     var(--bevel-raised), 0 2px 5px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45),
     inset 0 -2px 0 rgba(0, 0, 0, 0.22);
   --shadow-btn-danger:
     var(--bevel-raised), 0 2px 5px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45),
     inset 0 -2px 0 rgba(0, 0, 0, 0.22);
-  --shadow-field-focus: 0 0 0 2px rgba(47, 125, 47, 0.25);
+  --shadow-field-focus: 0 0 0 2px rgba(8, 70, 200, 0.25);
   --shadow-invalid: 0 0 0 2px rgba(176, 0, 0, 0.25);
   --shadow-card: var(--bevel-raised), 0 3px 8px rgba(0, 0, 0, 0.22);
   --shadow-field: var(--bevel-sunken), inset 0 1px 2px rgba(0, 0, 0, 0.14);
-  --shadow-table-head: var(--bevel-raised), inset 0 -1px 0 #cbc7b8, inset 0 -2px 0 #d6d2c2, inset 0 -3px 0 #e2decd;
+  --shadow-table-head: var(--bevel-raised), inset 0 -1px 0 #cbc7b8;
   --shadow-dialog: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-pop: 0 6px 16px rgba(0, 0, 0, 0.35);
   --shadow-tip: 0 3px 10px rgba(0, 0, 0, 0.35);
@@ -271,8 +278,10 @@
   --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.28);
   --shadow-nav-on: inset 3px 0 0 #a65e00;
   --shadow-login-box: 0 0 0 1px #166aee, 0 0 0 3px #0831d9, 0 8px 24px rgba(0, 0, 0, 0.35);
-  --font-sans: Tahoma, Verdana, 'Segoe UI', Arial, sans-serif;
-  --font-size-base: 0.6875rem;
+  /* the bundled Inter, not a system Tahoma: on the owner's screen Tahoma lost its thin strokes at the sizes this
+     interface scales to */
+  --font-sans: 'Inter', sans-serif;
+  --font-size-base: 0.75rem;
   --card-head-bar-w: 0px;
   --card-head-size: 0.75rem;
   --card-head-weight: 600;
@@ -306,9 +315,21 @@
   --preview-logo-dark-ink: block;
   --preview-logo-light-ink: none;
   --dialog-line-w: 2px;
-  --dialog-head-bar-w: 3px;
+  /* the Luna title bar: low, the title with its shadow, and the red close button with its white frame */
+  --dialog-head-bar-w: 0px;
   --dialog-head-size: 0.8125rem;
-  --dialog-head-pad: 0.5rem 0.75rem;
+  --dialog-head-pad: 0.25rem 0.3125rem 0.25rem 0.5rem;
+  --dialog-head-shadow: 1px 1px 0 #0a246a;
+  --dialog-x-size: 1.3125rem;
+  --dialog-x-line: 1px solid #ffffff;
+  --dialog-x-bg: #c8431b;
+  --dialog-x-bg-hover: #cf4c24;
+  --bg-dialog-x: linear-gradient(to bottom in oklab, #d9623c 0%, #c8431b 50%, #b5300c 100%);
+  --bg-dialog-x-hover: linear-gradient(to bottom in oklab, #df6a45 0%, #cf4c24 50%, #bd3812 100%);
+  --header-line: var(--color-header-bar);
+  --lbl-transform: none;
+  --lbl-tracking: normal;
+  --dialog-x-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
   --toast-head-mix: 100%;
   --toast-line-w: 2px;
   --toast-bar-w: 2px;
@@ -514,8 +535,9 @@
   --shadow-card-hover: var(--bevel-raised);
   --shadow-nav-on: inset 3px 0 0 #000080;
   --shadow-login-box: var(--bevel-raised);
-  --font-sans: Tahoma, Verdana, 'Segoe UI', Arial, sans-serif;
-  --font-size-base: 0.6875rem;
+  /* the bundled Inter, as in the XP theme */
+  --font-sans: 'Inter', sans-serif;
+  --font-size-base: 0.75rem;
   --card-head-bar-w: 0px;
   --card-head-size: 0.6875rem;
   --card-head-weight: 600;
@@ -547,7 +569,8 @@
   --dialog-line-w: 2px;
   --dialog-head-bar-w: 3px;
   --dialog-head-size: 0.8125rem;
-  --dialog-head-pad: 0.5rem 0.75rem;
+  --dialog-head-pad: 0.25rem 0.3125rem 0.25rem 0.5rem;
+  --dialog-x-size: 1.25rem;
   --toast-head-mix: 100%;
   --toast-line-w: 2px;
   --toast-bar-w: 2px;

@@ -341,19 +341,19 @@
   --login-logo-light-ink: none;
 }
 
-/* Classic gray (Windows 98): the app is a maximised window, its pages the #c0c0c0 face under the navy-to-blue
-   title bar; the teal desktop shows behind the sign-in box. 3D relief in the four system colours (#dfdfdf, #fff,
-   #808080, #000), a gray raised close button, sunken white fields and lists, black text. The desktop and the bright
-   end of the title bar are a shade off the originals (#008080, #1084d0) so text keeps its contrast. */
+/* Classic gray (Windows 98): the teal desktop behind the pages and the sign-in box, the navy-to-blue title bar as
+   the header, panels and dialogs in the #c0c0c0 face. 3D relief in the four system colours (#dfdfdf, #fff, #808080,
+   #000), a gray raised close button, sunken white fields and lists, black text. The desktop and the bright end of
+   the title bar are a shade off the originals (#008080, #1084d0) so text keeps its contrast. */
 :root[data-theme='classic-gray'] {
   --color-fg: #000000;
   --color-on-page: #000000;
-  --color-fg-strong: #000080;
-  --color-fg-muted: #000000; /* 98 has no gray text; a hint also stands on the desktop of the sign-in page */
+  --color-fg-strong: #000000; /* a page's title stands on the desktop */
+  --color-fg-muted: #000000; /* 98 has no gray text; a hint also stands on the desktop */
   --color-fg-subtle: #404040;
   --color-link: #0000ff;
   --color-link-hover: #000080;
-  --color-page: #c0c0c0;
+  --color-page: #008484;
   --color-page-dots: rgba(0, 0, 0, 0.25);
   --color-surface: #c0c0c0;
   --color-surface-2: #c8c8c8;
@@ -594,11 +594,13 @@
   --color-table: #ffffff;
   --table-line: #dfdfdf;
   --table-frame: #000000 #dfdfdf #dfdfdf #000000;
+  --color-on-air: #600000; /* the live mark must show on the desktop too */
   --shadow-table: -1px -1px 0 #808080, 1px 1px 0 #fff;
   /* an information toast or alert is a small window: the caption's navy, the pale blue of a selection */
   --color-toast-info: #000080;
   --color-on-toast-info: #ffffff;
   --color-info-soft: #e1e1ff;
+  --color-on-info-soft: #000080;
   --placeholder-color: #5a5a5a;
   --toast-head-mix: 100%;
   --toast-line-w: 2px;

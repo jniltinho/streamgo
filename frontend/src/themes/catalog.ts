@@ -42,7 +42,7 @@ export const themeCatalog: ThemeEntry[] = [
     id: 'classic-gray',
     label: 'Classic gray (98)',
     scheme: 'light',
-    swatch: ['#c0c0c0', '#ffffff', '#c0c0c0', '#000080'],
+    swatch: ['#008484', '#c0c0c0', '#c0c0c0', '#000080'],
   },
   { id: 'graphite', label: 'Graphite (dark)', scheme: 'dark', swatch: ['#111217', '#181b1f', '#3461bb', '#111217'] },
   { id: 'grafana', label: 'Grafana (dark)', scheme: 'dark', swatch: ['#111217', '#181b1f', '#3461bb', '#111217'] },

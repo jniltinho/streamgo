@@ -46,8 +46,9 @@ function allToasts() {
       <UiAlert kind="warning" title="Attention" action="Review">Two destinations have no key.</UiAlert>
       <UiAlert kind="error" title="Error" dismissible>Invalid e-mail or password.</UiAlert>
     </div>
+    <!-- on a card, as every form of the app is: a field's error text is made for a surface, not for the page -->
     <form
-      class="mt-4 grid max-w-xs gap-1"
+      class="card mt-4 grid max-w-xs gap-1 p-3"
       novalidate
       @submit.prevent="($event.target as HTMLFormElement).reportValidity()"
     >

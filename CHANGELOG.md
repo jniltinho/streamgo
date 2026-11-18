@@ -43,9 +43,9 @@ are the section of that version.
   and `SHA256SUMS`, which lists the five. The single file is smoke tested in a clean Debian container before every
   release and on every push to `main`: it reports its version, becomes ready, a client joins a studio room, a WHIP
   publish reaches MediaMTX, the broadcast reaches an RTMP sink, a saved destination still opens after a restart
-  and an upgrade, and its media servers stop when it is killed. Completing a release that lacks files never leaves
-  it without `SHA256SUMS`: the new one is uploaded as `SHA256SUMS.next` and renamed once checked, and a file the
-  release already has that does not match its `SHA256SUMS` stops the publication.
+  and an upgrade, and its media servers stop when it is killed. A published release is never changed
+  by a later run: a release that lacks a file, or whose files do not match its `SHA256SUMS`, stops the job for a
+  person to look.
 - **Only `vX.Y.Z` tags are released**, and `make` refuses a `VERSION` or `COMMIT` with characters other than
   letters, digits, `.`, `_` and `-`.
 

@@ -225,11 +225,12 @@ below 1024.
 `make single` builds `dist/streamgo-single` (the executable packed with UPX, then the payload) and
 `packaging/build.sh` writes the small archive. The Packages workflow gathers every file of the release in one directory, writes `SHA256SUMS` after the
 last build, and decides that a release is complete by its expected file names, not by a count of four. Only the
-publish job of a `vX.Y.Z` tag may write to the repository (`packaging/publish-release.sh`): a release that lacks
-files gets them first, each checked once uploaded, and only then a new `SHA256SUMS`, uploaded as
-`SHA256SUMS.next` and renamed after it was checked, so the release always has a manifest; a file it already has
-must match the manifest it already has, else the job stops for a person to look; a draft left by an earlier run
-gets the six files of this build and is then published.
+publish job of a `vX.Y.Z` tag may write to the repository (`packaging/publish-release.sh`). A new release is
+created as a draft and published once its six files are there. A draft left by an earlier run gets the six files
+of this build, each checked after its upload, loses anything else, and is then published. A published release
+is never changed, because people may have downloaded its files: complete and matching its `SHA256SUMS`, there
+is nothing to do; otherwise the job stops for a person to look. (Completing a published release in place was
+tried and dropped after the review: replacing `SHA256SUMS` cannot be made atomic through the releases API.)
 
 The single file is smoke tested in a clean Debian container with the distribution's ffmpeg, as an unprivileged
 user, from a script that stays alive to observe: `up` becomes ready, an account signs in, a browserless client

@@ -10,10 +10,14 @@ DIST      := dist
 
 # The three are inserted into shell recipes: quoted there, and refused here when they hold anything else than these
 # characters (a tag such as v0.4.0;id;# is a valid Git tag name).
-only = $(if $(findstring ',$($(1)))$(shell printf '%s' '$($(1))' | tr -d '$(2)'),$(error $(1) may hold only $(2): '$($(1))'))
-$(call only,VERSION,A-Za-z0-9._-)
-$(call only,COMMIT,A-Za-z0-9._-)
-$(call only,BUILDTIME,A-Za-z0-9._:+-)
+# (the value reaches no shell here: every allowed character is removed with make's own functions, and what is left
+# is the offence)
+alnum := a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9
+strip-chars = $(if $(1),$(call strip-chars,$(wordlist 2,$(words $(1)),$(1)),$(subst $(firstword $(1)),,$(2))),$(2))
+only = $(if $(filter-out 1,$(words $($(1))))$(strip $(call strip-chars,$(alnum) $(2),$($(1)))),$(error $(1) may hold only letters, digits and $(2)))
+$(call only,VERSION,. _ -)
+$(call only,COMMIT,. _ -)
+$(call only,BUILDTIME,. _ - : +)
 BUILD_ARGS := --platform $(PLATFORM) \
 	--build-arg 'VERSION=$(VERSION)' --build-arg 'COMMIT=$(COMMIT)' --build-arg 'BUILDTIME=$(BUILDTIME)'
 

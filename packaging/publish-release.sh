@@ -6,13 +6,9 @@
 #
 # - No release yet: `gh release create` uploads the six to a draft and publishes it only when all are there.
 # - A draft (an earlier run stopped): it is private, so each of the six is uploaded from this build (replacing what
-#   is there), checked by downloading it again, and the draft is then published.
-# - A published release that lacks files (made by hand, or by an earlier version with four files): the files it has
-#   are kept, each checked against the SHA256SUMS it has (or, when that does not list it, against this build's file:
-#   an interrupted run of the same build); a mismatch stops here for a person to look at. The missing files are
-#   uploaded and checked, and only then is SHA256SUMS replaced: uploaded as SHA256SUMS.next, checked, the old one
-#   deleted and the new one renamed SHA256SUMS. A run stopped in between leaves SHA256SUMS.next, which the next run
-#   reads as the old manifest. A release is never left without a manifest of its files.
+#   is there), checked by downloading it again, anything else in it is removed, and the draft is then published.
+# - A published release is never changed: people may have downloaded its files. With its six files, each matching
+#   its SHA256SUMS, there is nothing to do; anything else stops here for a person to look at.
 # GH (default gh) is the GitHub CLI (packaging_test.go runs this with a fake one); GH_REPO names the repository.
 set -eu
 
@@ -67,80 +63,26 @@ if [ "$(cat "$tmp/draft")" = true ]; then
     remote "$f"
     cmp -s "$tmp/remote/$f" "$dir/$f" || die "the draft's $f is not the file uploaded"
   done
+  for f in $have; do # what an earlier run or a person left in the draft
+    case " $files SHA256SUMS " in
+    *" $f "*) ;;
+    *) $gh release delete-asset "$tag" "$f" --yes || die "cannot remove $f from the draft" ;;
+    esac
+  done
   $gh release edit "$tag" --draft=false || die "the draft of $tag is complete but was not published"
   echo "publish: the draft of $tag is complete and published"
   exit 0
 fi
 
-# a published release: what it has is checked against the manifest it has
-old=""
-if has SHA256SUMS; then
-  old=SHA256SUMS
-elif has SHA256SUMS.next; then
-  old=SHA256SUMS.next
-fi
-[ -n "$old" ] && remote "$old"
-mkdir -p "$tmp/release"
+# a published release: never changed
 missing=""
-for f in $files; do
-  if ! has "$f"; then
-    missing="$missing $f"
-    cp "$dir/$f" "$tmp/release/$f"
-    continue
-  fi
+for f in $files SHA256SUMS; do
+  has "$f" || missing="$missing $f"
+done
+[ -z "$missing" ] || die "the published release of $tag lacks:$missing; a published release is not changed: a person must look at it"
+for f in $files SHA256SUMS; do
   remote "$f"
-  mv "$tmp/remote/$f" "$tmp/release/$f"
-  want=""
-  [ -z "$old" ] || want=$(awk -v f="$f" '$2 == f || $2 == "*" f { print $1 }' "$tmp/remote/$old")
-  got=$(sha256sum "$tmp/release/$f" | cut -d' ' -f1)
-  if [ -n "$want" ]; then
-    [ "$got" = "$want" ] || die "the release's $f does not match its $old: a person must look at it"
-  else
-    cmp -s "$tmp/release/$f" "$dir/$f" || die "the release's $f is listed in no manifest and is not this build's: a person must look at it"
-  fi
 done
-
-if [ -n "$missing" ]; then
-  echo "publish: adding to the release of $tag:$missing"
-  # shellcheck disable=SC2086
-  (cd "$dir" && $gh release upload "$tag" $missing) || die "the upload of$missing failed; SHA256SUMS is unchanged"
-  have=$(assets) || die "cannot list the assets of $tag"
-  for f in $files; do
-    has "$f" || die "the release still lacks $f"
-  done
-  for f in $missing; do
-    remote "$f"
-    cmp -s "$tmp/remote/$f" "$dir/$f" || die "the release's $f is not the file uploaded"
-  done
-fi
-
-# shellcheck disable=SC2086
-(cd "$tmp/release" && sha256sum $files >SHA256SUMS)
-if has SHA256SUMS && remote SHA256SUMS && cmp -s "$tmp/remote/SHA256SUMS" "$tmp/release/SHA256SUMS"; then
-  echo "publish: the release of $tag is complete"
-  exit 0
-fi
-
-echo "publish: replacing SHA256SUMS of $tag"
-mkdir -p "$tmp/next"
-cp "$tmp/release/SHA256SUMS" "$tmp/next/SHA256SUMS.next"
-if ! { has SHA256SUMS.next && remote SHA256SUMS.next && cmp -s "$tmp/remote/SHA256SUMS.next" "$tmp/next/SHA256SUMS.next"; }; then
-  (cd "$tmp/next" && $gh release upload "$tag" SHA256SUMS.next --clobber) || die "the upload of SHA256SUMS.next failed; SHA256SUMS is unchanged"
-fi
-remote SHA256SUMS.next
-cmp -s "$tmp/remote/SHA256SUMS.next" "$tmp/release/SHA256SUMS" || die "SHA256SUMS.next is not the file uploaded; SHA256SUMS is unchanged"
-id=$($gh release view "$tag" --json assets --jq '.assets[] | select(.name == "SHA256SUMS.next") | .id') || die "cannot read the id of SHA256SUMS.next"
-[ -n "$id" ] || die "the release has no SHA256SUMS.next"
-if has SHA256SUMS; then
-  $gh release delete-asset "$tag" SHA256SUMS --yes || die "cannot delete the old SHA256SUMS; SHA256SUMS.next is the new one"
-fi
-i=0
-until $gh api -X PATCH "repos/{owner}/{repo}/releases/assets/$id" -f name=SHA256SUMS >/dev/null; do
-  i=$((i + 1))
-  [ "$i" -lt 3 ] || die "SHA256SUMS.next was not renamed SHA256SUMS: it is the release's manifest until a run renames it"
-  sleep "${PUBLISH_RETRY_DELAY:-5}"
-done
-remote SHA256SUMS
-cmp -s "$tmp/remote/SHA256SUMS" "$tmp/release/SHA256SUMS" || die "the release's SHA256SUMS is not the one written"
-(cd "$tmp/release" && sha256sum --check --strict --quiet "$tmp/remote/SHA256SUMS") || die "the release's files do not match its SHA256SUMS"
-echo "publish: the release of $tag is complete:$missing added, SHA256SUMS replaced and checked"
+(cd "$tmp/remote" && sha256sum --check --strict --quiet SHA256SUMS) ||
+  die "the files of the published release of $tag do not match its SHA256SUMS: a person must look at it"
+echo "publish: the release of $tag is already published with its six files, which match its SHA256SUMS"

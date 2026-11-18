@@ -95,11 +95,7 @@ func TestPublishRelease(t *testing.T) {
 		out["SHA256SUMS"] = sums
 		return out
 	}
-	completed := maps.Clone(old) // the four-file release once completed: its three files kept, two added
-	for _, n := range releaseFiles[3:] {
-		completed[n] = built[n]
-	}
-	tampered := withSums(old, manifest(old))
+	tampered := withSums(built, builtSums)
 	tampered[releaseFiles[0]] = "replaced by someone"
 
 	for _, tc := range []struct {
@@ -113,27 +109,11 @@ func TestPublishRelease(t *testing.T) {
 	}{
 		{name: "no release", have: nil, ok: true, want: withSums(built, builtSums)},
 		{name: "complete", have: withSums(built, builtSums), ok: true},
-		{name: "a release of four files", have: withSums(old, manifest(old)), ok: true, want: withSums(completed, manifest(completed))},
-		{name: "a kept file that does not match", have: tampered},
-		{name: "a missing file that does not upload", have: withSums(old, manifest(old)), fail: []string{"fail-upload-" + releaseFiles[3]}},
-		{name: "the manifest that does not upload", have: withSums(old, manifest(old)), fail: []string{"fail-upload-SHA256SUMS.next"},
-			want: withSums(completed, manifest(old))},
-		{name: "the rename that fails", have: withSums(old, manifest(old)), fail: []string{"fail-rename"},
-			want: map[string]string{"SHA256SUMS.next": manifest(completed), releaseFiles[0]: old[releaseFiles[0]],
-				releaseFiles[1]: old[releaseFiles[1]], releaseFiles[2]: old[releaseFiles[2]], releaseFiles[3]: built[releaseFiles[3]],
-				releaseFiles[4]: built[releaseFiles[4]]}},
-		{name: "after the rename that failed", have: map[string]string{"SHA256SUMS.next": manifest(completed),
-			releaseFiles[0]: old[releaseFiles[0]], releaseFiles[1]: old[releaseFiles[1]], releaseFiles[2]: old[releaseFiles[2]],
-			releaseFiles[3]: built[releaseFiles[3]], releaseFiles[4]: built[releaseFiles[4]]}, ok: true,
-			want: withSums(completed, manifest(completed))},
-		{name: "an interrupted run of this build", have: withSums(map[string]string{releaseFiles[0]: old[releaseFiles[0]],
-			releaseFiles[3]: built[releaseFiles[3]]}, manifest(map[string]string{releaseFiles[0]: old[releaseFiles[0]]})), ok: true,
-			want: func() map[string]string {
-				m := maps.Clone(built)
-				m[releaseFiles[0]] = old[releaseFiles[0]]
-				return withSums(m, manifest(m))
-			}()},
-		{name: "a draft", draft: true, have: map[string]string{releaseFiles[0]: "partial"}, ok: true, want: withSums(built, builtSums)},
+		// a published release is never changed
+		{name: "a published release of four files", have: withSums(old, manifest(old))},
+		{name: "a published file that does not match", have: tampered},
+		{name: "a draft", draft: true, have: map[string]string{releaseFiles[0]: "partial", "leftover.txt": "x"}, ok: true,
+			want: withSums(built, builtSums)},
 		{name: "a release that cannot be read", have: withSums(old, manifest(old)), fail: []string{"fail-view"}},
 		{name: "a tag that is not a version", tag: "v0.4.0;id", have: nil},
 	} {

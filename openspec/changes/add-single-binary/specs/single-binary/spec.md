@@ -332,10 +332,20 @@ StreamGo alone, both listed in `SHA256SUMS`.
   `./streamgo_X.Y.Z_linux_amd64 version` prints `vX.Y.Z`, and the archive holds the executable, the example
   configuration and the notices
 
-#### Scenario: A release is complete by its files
-- **GIVEN** a release that has the four files of an earlier version of the workflow
+#### Scenario: A published release is never changed
+- **GIVEN** a published release that lacks one of the six files, or whose files do not match its `SHA256SUMS`
 - **WHEN** the Packages workflow runs again for that tag
-- **THEN** it adds the two files that are missing and `SHA256SUMS` lists the six
+- **THEN** the job fails naming what is wrong, and no asset of the release was added, replaced or removed
+
+#### Scenario: A published release that is complete
+- **GIVEN** a published release with its six files, each matching its `SHA256SUMS`
+- **WHEN** the Packages workflow runs again for that tag
+- **THEN** the job succeeds and the release is unchanged
+
+#### Scenario: A draft left by an earlier run
+- **GIVEN** a draft release of the tag with some files and a file that is not one of the six
+- **WHEN** the Packages workflow runs again for that tag
+- **THEN** the draft holds exactly the six files of this build, each checked after its upload, and is published
 
 #### Scenario: Smoke test before publishing
 - **WHEN** the Packages workflow runs

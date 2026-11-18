@@ -101,6 +101,9 @@ async function removeGuest(p: Person) {
           <div class="truncate text-sm" :title="label(c)">{{ label(c) }}</div>
           <div class="studio-meta">{{ role(c) }}</div>
         </div>
+        <span v-if="owner && c.source.k === 'camera'" class="ml-auto flex-none">
+          <TaglinePopover :person="c.person" />
+        </span>
       </div>
       <div class="flex items-center gap-2">
         <template v-if="studio.isOnStage(c.source)">
@@ -165,7 +168,6 @@ async function removeGuest(p: Person) {
               </template>
             </UiTooltip>
           </template>
-          <TaglinePopover v-if="owner && c.source.k === 'camera'" :person="c.person" />
           <UiTooltip
             v-if="owner && !c.person.host && c.source.k === 'camera'"
             :text="t('Remove from the studio')"

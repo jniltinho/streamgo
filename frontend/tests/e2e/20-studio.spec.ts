@@ -495,13 +495,16 @@ test('Name tags: shown by default, hidden and shown again from the Brand tab', a
   const tag = async () => (await pixel(studio, 0.0185, 0.958))[1]!
   await expect.poll(tag).toBeLessThan(130)
   await studio.getByRole('tab', { name: 'Brand' }).click()
+  // a switch since add-name-tag-styles; it follows the stage, so it turns once the patch is answered
   const box = studio.locator('[data-name-tags]')
   await expect(box).toBeChecked()
-  await box.uncheck()
+  await box.click()
+  await expect(box).not.toBeChecked()
   await expect.poll(tag).toBeGreaterThan(200)
   const detail = (await api(ctx, 'GET', `/broadcasts/${b.id}`)) as { stage: { hide_names: boolean } }
   expect(detail.stage.hide_names).toBe(true)
-  await box.check()
+  await box.click()
+  await expect(box).toBeChecked()
   await expect.poll(tag).toBeLessThan(130)
   await ctx.close()
 })
@@ -1111,5 +1114,292 @@ test.describe('Studio interactions', () => {
       await page.getByRole('button', { name: 'Done' }).click()
     }
     await c.close()
+  })
+})
+
+// name-tags (add-name-tag-styles, task 4.1): a style chosen by the owner reaches a guest's view and survives a
+// reload; the names off a shared screen; a second line written and removed from a backstage card; every theme with
+// the Brand tab and the popover open; both languages. One source fills the program (solo), so its tag is at the
+// bottom left of the canvas, over Chrome's fake camera.
+test.describe('Name tag styles', () => {
+  let ctx: BrowserContext
+  let studio: Page
+  let bruno: { ctx: BrowserContext; page: Page }
+  let b: { id: string; invite_url: string }
+  let host = ''
+  const view = { width: 1440, height: 810 }
+
+  test.beforeAll(async ({ browser }) => {
+    ctx = await ownerContext(browser, view)
+    b = await newBroadcast(ctx, 'Name tag styles')
+    host = `host-${((await api(ctx, 'GET', '/me')) as { id: string }).id}`
+    studio = await openStudio(ctx, b.id)
+    bruno = await guestJoins(browser, b.invite_url, 'Bruno Reis')
+    await expect(card(studio, 'Bruno Reis')).toBeVisible({ timeout: 20_000 })
+  })
+  test.afterAll(async () => {
+    await bruno?.ctx.close()
+    await ctx?.close()
+  })
+
+  interface Stage {
+    name_style: string
+    hide_screen_names: boolean
+    taglines: Record<string, string>
+    sources: { p: string; k: string }[]
+  }
+  const stage = async () => ((await api(ctx, 'GET', `/broadcasts/${b.id}`)) as { stage: Stage }).stage
+  const patch = (body: unknown) => api(ctx, 'PATCH', `/broadcasts/${b.id}/stage`, body)
+  const styles = (page: Page) => page.getByRole('radiogroup', { name: 'Style of the name tags' })
+  const lineButton = (page: Page) => card(page, 'Bruno Reis').getByRole('button', { name: 'Second line: Bruno Reis' })
+  // the share of pixels in the default brand colour (#3d41cf) in the program's bottom-left corner: a Solid plate
+  // fills part of it, the Bar's strip hardly any
+  const accentShare = (page: Page) =>
+    page.locator('[data-program]').evaluate((c: HTMLCanvasElement) => {
+      const y0 = Math.round(c.height * 0.85)
+      const d = c.getContext('2d')!.getImageData(0, y0, Math.round(c.width * 0.3), c.height - y0).data
+      let n = 0
+      for (let i = 0; i < d.length; i += 4) if (d[i + 2]! > 150 && d[i]! < 110 && d[i + 1]! < 110) n++
+      return n / (d.length / 4)
+    })
+  // the height in pixels of the plate's strip in the brand colour (Bar and Two lines): taller with a second line
+  const stripHeight = (page: Page) =>
+    page.locator('[data-program]').evaluate((c: HTMLCanvasElement) => {
+      const fs = Math.max(10, Math.round(c.height * 0.026))
+      const y0 = Math.round(c.height * 0.75)
+      const d = c.getContext('2d')!.getImageData(Math.round(fs * 0.75) + 1, y0, 1, c.height - y0).data
+      let n = 0
+      for (let i = 0; i < d.length; i += 4) if (d[i + 2]! > 150 && d[i]! < 110 && d[i + 1]! < 110) n++
+      return n
+    })
+  test('Choose a style: Solid reaches the guest view and survives a reload', async () => {
+    await patch({ sources: [{ p: host, k: 'camera' }], layout: 'solo' })
+    await expect.poll(() => accentShare(studio)).toBeLessThan(0.02) // bar: only the thin strip
+    await studio.getByRole('tab', { name: 'Brand' }).click()
+    await expect(styles(studio).getByRole('radio', { name: 'Bar' })).toHaveAttribute('aria-checked', 'true')
+    await styles(studio).getByRole('radio', { name: 'Solid' }).click()
+    await expect(styles(studio).getByRole('radio', { name: 'Solid' })).toHaveAttribute('aria-checked', 'true')
+    expect((await stage()).name_style).toBe('solid')
+    await expect.poll(() => accentShare(studio)).toBeGreaterThan(0.04) // the name on a plate in the brand colour
+    await expect.poll(() => accentShare(bruno.page), { timeout: 15_000 }).toBeGreaterThan(0.04) // the guest's view
+    await studio.reload()
+    await expect(card(studio, 'Bruno Reis')).toBeVisible({ timeout: 20_000 })
+    await studio.getByRole('tab', { name: 'Brand' }).click()
+    await expect(styles(studio).getByRole('radio', { name: 'Solid' })).toHaveAttribute('aria-checked', 'true')
+    await expect.poll(() => accentShare(studio), { timeout: 15_000 }).toBeGreaterThan(0.04)
+  })
+
+  test('Off the screens: the shared screen loses its name, the camera keeps it; Depends on the first switch', async () => {
+    const dock = studio.getByRole('toolbar')
+    await dock.getByRole('button', { name: 'Share screen' }).click()
+    await expect(dock.getByRole('button', { name: 'Stop sharing' })).toBeVisible({ timeout: 15_000 })
+    await patch({ sources: [{ p: host, k: 'screen' }], layout: 'solo' })
+    await expect.poll(() => accentShare(studio)).toBeGreaterThan(0.04) // Solid, on the screen too
+    const screens = studio.getByRole('switch', { name: 'Show names on shared screens' })
+    await expect(screens).toHaveAttribute('aria-checked', 'true')
+    await screens.click()
+    await expect(screens).toHaveAttribute('aria-checked', 'false')
+    expect((await stage()).hide_screen_names).toBe(true)
+    await expect.poll(() => accentShare(studio)).toBeLessThan(0.01)
+    await expect.poll(() => accentShare(bruno.page), { timeout: 15_000 }).toBeLessThan(0.01)
+    await patch({ sources: [{ p: host, k: 'camera' }] })
+    await expect.poll(() => accentShare(studio)).toBeGreaterThan(0.04) // the camera keeps its name
+    const names = studio.getByRole('switch', { name: "Show each person's name on the program" })
+    await names.click()
+    await expect(screens).toBeDisabled()
+    await expect(screens).toHaveAccessibleDescription('The names are off on the program.')
+    await expect.poll(() => accentShare(studio)).toBeLessThan(0.01)
+    await names.click()
+    await expect(screens).toBeEnabled()
+    await screens.click()
+    await expect(screens).toHaveAttribute('aria-checked', 'true')
+    await dock.getByRole('button', { name: 'Stop sharing' }).click()
+  })
+
+  test("Write one and Remove it: a guest's second line from the backstage card", async () => {
+    await styles(studio).getByRole('radio', { name: 'Two lines' }).click()
+    await studio.getByRole('button', { name: 'Add to stage: Bruno Reis' }).click()
+    await expect.poll(async () => (await stage()).sources.length).toBe(2)
+    const brunoId = (await stage()).sources.find((x) => x.p.startsWith('guest-'))!.p
+    await patch({ sources: [{ p: brunoId, k: 'camera' }], layout: 'solo' })
+    await expect.poll(() => stripHeight(studio)).toBeGreaterThan(20)
+    const oneLine = await stripHeight(studio)
+    await expect.poll(() => stripHeight(bruno.page), { timeout: 15_000 }).toBeGreaterThan(10)
+    const guestOneLine = await stripHeight(bruno.page) // the guest's canvas has its own size
+
+    await lineButton(studio).click()
+    const pop = studio.getByRole('dialog', { name: 'Second line of Bruno Reis' })
+    await expect(pop).toBeVisible()
+    await expect(pop.getByLabel('Role or company')).toBeFocused()
+    await pop.getByLabel('Role or company').fill('  Head of Product ')
+    await pop.getByRole('button', { name: 'Save' }).click()
+    await expect(pop).toBeHidden()
+    await expect(lineButton(studio)).toBeFocused()
+    expect((await stage()).taglines).toEqual({ [brunoId]: 'Head of Product' })
+    // the name with the second line under it: the plate and its strip are a line taller, in the guest's view too
+    await expect.poll(() => stripHeight(studio)).toBeGreaterThan(oneLine * 1.4)
+    await expect.poll(() => stripHeight(bruno.page), { timeout: 15_000 }).toBeGreaterThan(guestOneLine * 1.4)
+
+    // Another style ignores it, and keeps it
+    await styles(studio).getByRole('radio', { name: 'Bar' }).click()
+    await expect.poll(() => stripHeight(studio)).toBeLessThan(oneLine * 1.2)
+    expect((await stage()).taglines).toEqual({ [brunoId]: 'Head of Product' })
+    await styles(studio).getByRole('radio', { name: 'Two lines' }).click()
+    await expect.poll(() => stripHeight(studio)).toBeGreaterThan(oneLine * 1.4)
+
+    // Remove it
+    await lineButton(studio).click()
+    await expect(pop.getByLabel('Role or company')).toHaveValue('Head of Product')
+    await pop.getByRole('button', { name: 'Remove' }).click()
+    await expect(pop).toBeHidden()
+    expect((await stage()).taglines).toEqual({})
+    await expect.poll(() => stripHeight(studio)).toBeLessThan(oneLine * 1.2)
+  })
+
+  // "Contrast": the Brand tab (one switch on, one off, a style chosen) and an open second-line popover in each theme
+  test('In every theme: the Brand tab and the popover open meet the contrast rules, no axe violation', async () => {
+    test.setTimeout(240_000)
+    await expect(studio.locator('.toast')).toHaveCount(0, { timeout: 15_000 })
+    const screens = studio.getByRole('switch', { name: 'Show names on shared screens' })
+    await screens.click()
+    await expect(screens).toHaveAttribute('aria-checked', 'false')
+    await lineButton(studio).click()
+    await expect(studio.getByRole('dialog', { name: 'Second line of Bruno Reis' })).toBeVisible()
+    const failures: string[] = []
+    for (const theme of themeCatalog) {
+      await setTheme(studio, theme.id)
+      const r = await new AxeBuilder({ page: studio }).include('.studio-side').include('[role=dialog]').analyze()
+      for (const v of r.violations) for (const n of v.nodes) failures.push(`${theme.id}: ${v.id} ${n.target}`)
+      const ratios = await studio.evaluate(() => {
+        const rgb = (c: string) =>
+          c
+            .match(/[\d.]+/g)!
+            .slice(0, 3)
+            .map(Number)
+        const ch = (v: number) => {
+          const s = v / 255
+          return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+        }
+        const lum = (c: number[]) => 0.2126 * ch(c[0]!) + 0.7152 * ch(c[1]!) + 0.0722 * ch(c[2]!)
+        const ratio = (a: string, b: string) => {
+          const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p)
+          return (x! + 0.05) / (y! + 0.05)
+        }
+        const behind = (el: Element | null): string => {
+          for (; el; el = el.parentElement) {
+            const c = getComputedStyle(el).backgroundColor
+            if (c && !/rgba\(.*, 0\)$/.test(c) && c !== 'transparent') return c
+          }
+          return getComputedStyle(document.body).backgroundColor
+        }
+        const cs = (el: Element) => getComputedStyle(el)
+        const on = document.querySelector('[data-name-tags]')!
+        const off = document.querySelector('[data-screen-names]')!
+        const chosen = document.querySelector('[data-name-style] [aria-checked=true]')!
+        const pop = document.querySelector('[role=dialog]')!
+        return {
+          edgeOn: ratio(cs(on).borderTopColor, behind(on.parentElement)),
+          edgeOff: ratio(cs(off).borderTopColor, behind(off.parentElement)),
+          thumbOn: ratio(cs(on.firstElementChild!).backgroundColor, cs(on).backgroundColor),
+          thumbOff: ratio(cs(off.firstElementChild!).backgroundColor, cs(off).backgroundColor),
+          chosen: ratio(cs(chosen).borderTopColor, behind(chosen.parentElement)),
+          popover: ratio(cs(pop).color, cs(pop).backgroundColor),
+          hint: ratio(cs(pop.querySelector('.studio-meta')!).color, cs(pop).backgroundColor),
+        }
+      })
+      const need = { edgeOn: 3, edgeOff: 3, thumbOn: 3, thumbOff: 3, chosen: 3, popover: 4.5, hint: 4.5 }
+      for (const [k, v] of Object.entries(ratios))
+        if (v < need[k as keyof typeof need] - 0.01) failures.push(`${theme.id}: ${k} ${v.toFixed(2)}`)
+    }
+    await setTheme(studio, 'streamgo-dark')
+    await studio.keyboard.press('Escape')
+    await screens.click()
+    await expect(screens).toHaveAttribute('aria-checked', 'true')
+    expect(failures).toEqual([])
+  })
+
+  test('Both languages: the styles, the switches and the popover in Brazilian Portuguese', async ({ browser }) => {
+    const pt = await browser.newContext({
+      viewport: view,
+      colorScheme: 'dark',
+      baseURL: base,
+      storageState: signedIn,
+      locale: 'pt-BR',
+    })
+    const page = await pt.newPage()
+    await page.goto(`/studio/${b.id}`) // a second hosting tab takes the studio over
+    await expect(card(page, 'Bruno Reis')).toBeVisible({ timeout: 20_000 })
+    await page.getByRole('tab', { name: 'Marca' }).click()
+    const g = page.getByRole('radiogroup', { name: 'Estilo das etiquetas de nome' })
+    for (const name of ['Barra', 'Sólido', 'Faixa', 'Só texto', 'Duas linhas'])
+      await expect(g.getByRole('radio', { name })).toBeVisible()
+    await expect(page.getByRole('switch', { name: 'Mostrar o nome de cada pessoa no programa' })).toBeVisible()
+    await expect(page.getByRole('switch', { name: 'Mostrar os nomes nas telas compartilhadas' })).toBeVisible()
+    await card(page, 'Bruno Reis').getByRole('button', { name: 'Segunda linha: Bruno Reis' }).click()
+    const pop = page.getByRole('dialog', { name: 'Segunda linha de Bruno Reis' })
+    await expect(pop.getByLabel('Cargo ou empresa')).toBeVisible()
+    await expect(pop.getByText('Aparece sob o nome no estilo Duas linhas.')).toBeVisible()
+    await expect(pop.getByRole('button', { name: 'Salvar' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await pt.close()
+    // the first tab was taken over: open the studio again for what follows
+    await studio.close()
+    studio = await openStudio(ctx, b.id)
+  })
+
+  test('screenshots at 1440x810: the five styles, a screen without its name, the Brand tab and the popover', async () => {
+    test.skip(!shots, 'E2E_SHOTS not set')
+    test.setTimeout(120_000)
+    mkdirSync(shots, { recursive: true })
+    const brunoId = (await stage()).sources.find((x) => x.p.startsWith('guest-'))!.p
+    await setTheme(studio, 'streamgo-dark')
+    await patch({ tagline: { identity: host, text: 'Host, Weekly Product Live' } })
+    await patch({ tagline: { identity: brunoId, text: 'Head of Product' } })
+    await patch({
+      sources: [
+        { p: host, k: 'camera' },
+        { p: brunoId, k: 'camera' },
+      ],
+      layout: 'grid',
+    })
+    await studio.getByRole('tab', { name: 'Brand' }).click()
+    for (const style of ['bar', 'solid', 'strip', 'text', 'two-line']) {
+      await patch({ name_style: style })
+      await studio.waitForTimeout(800)
+      await studio.screenshot({ path: `${shots}/style-${style}.png` })
+    }
+    const dock = studio.getByRole('toolbar')
+    await dock.getByRole('button', { name: 'Share screen' }).click()
+    await expect(dock.getByRole('button', { name: 'Stop sharing' })).toBeVisible({ timeout: 15_000 })
+    await patch({
+      sources: [
+        { p: host, k: 'camera' },
+        { p: host, k: 'screen' },
+      ],
+      name_style: 'bar',
+      hide_screen_names: true,
+    })
+    await studio.waitForTimeout(1000)
+    await studio.screenshot({ path: `${shots}/screen-name-off.png` })
+    await patch({
+      hide_screen_names: false,
+      sources: [
+        { p: host, k: 'camera' },
+        { p: brunoId, k: 'camera' },
+      ],
+    })
+    await dock.getByRole('button', { name: 'Stop sharing' }).click()
+    for (const theme of ['streamgo-dark', 'macos', 'classic-gray']) {
+      await setTheme(studio, theme)
+      await studio.locator('body').click({ position: { x: 5, y: 5 } })
+      await studio.waitForTimeout(300)
+      await studio.screenshot({ path: `${shots}/brand-${theme}.png` })
+      await lineButton(studio).click()
+      await expect(studio.getByRole('dialog', { name: 'Second line of Bruno Reis' })).toBeVisible()
+      await studio.waitForTimeout(300)
+      await studio.screenshot({ path: `${shots}/popover-${theme}.png` })
+      await studio.keyboard.press('Escape')
+    }
+    await setTheme(studio, 'streamgo-dark')
   })
 })

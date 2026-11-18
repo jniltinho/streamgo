@@ -20,6 +20,24 @@ in three files, and removing the library is replacing three files.
 
 A wrapper exposes what the studio needs and nothing else (no pass-through of the library's whole API).
 
+### U1a. Installed the way UI SDK says, for Vue
+
+- Packages: `npm install @ui-sdk/vue @ui-sdk/core` in `frontend/` (the Vue adapter and the core; not the React
+  one), then both versions made exact in `package.json`.
+- Imports come from a component's own entry (`@ui-sdk/vue/menu`, `@ui-sdk/vue/tooltip`, `@ui-sdk/vue/meter`),
+  never from the package root and never from `@ui-sdk/core/internal/*`.
+- `style.css` declares `@layer ui-sdk;` above `@import "tailwindcss"`, as the library asks. Its optional default
+  look (`@ui-sdk/core/web.css`) is not imported: the wrappers' recipes are StreamGo's own (U2), styled from the
+  `data-slot` and state attributes the components set.
+- The agent skill is installed with `npx skills@latest add vercel-labs/ui --skill ui-sdk` (telemetry off). It is
+  guidance for agents, read before a wrapper is written or changed; the docs of the installed version ship in the
+  package (`frontend/node_modules/@ui-sdk/vue/docs/llms.txt`) and win over the website. `skills-lock.json` is
+  committed; the skill's files stay out of the repository, as the project's other skill does.
+- Two things the skill asks for are not followed in this change, on purpose: it says not to hand-write a
+  `role="toolbar"`, `"radiogroup"` or `"dialog"` once the library is installed (StreamGo's existing ones stay
+  until the library is stable, U1b), and it ends every task with making the interface usable by agents
+  (`createAgent`, WebMCP), which nobody asked for here.
+
 ### U1b. Upgrading and growing
 
 The owner's direction is to follow UI SDK as it improves (https://github.com/vercel-labs/ui; its changelog is at

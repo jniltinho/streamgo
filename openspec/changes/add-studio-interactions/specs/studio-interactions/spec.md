@@ -116,7 +116,21 @@ UI SDK SHALL be used at one exact version and only through StreamGo's wrapper co
 
 #### Scenario: Pinned
 - **WHEN** `frontend/package.json` is read
-- **THEN** both packages have an exact version, with no range
+- **THEN** it has `@ui-sdk/vue` and `@ui-sdk/core` at the same exact version, with no range, and no other
+  `@ui-sdk` adapter
+
+#### Scenario: Imported by entry
+- **WHEN** a wrapper imports a component of the library
+- **THEN** the import is from that component's entry (such as `@ui-sdk/vue/menu`), not from the package root
+
+#### Scenario: The layer is declared
+- **WHEN** `frontend/src/style.css` is read
+- **THEN** `@layer ui-sdk;` comes before the Tailwind import, and the library's default stylesheet is not imported
+
+#### Scenario: The agent skill is recorded
+- **WHEN** the repository is read
+- **THEN** `skills-lock.json` names the `ui-sdk` skill of `vercel-labs/ui` with its commit, and `AGENTS.md` says to
+  restore and read it before changing a `Ui*` wrapper
 
 #### Scenario: Size
 - **WHEN** the app is built

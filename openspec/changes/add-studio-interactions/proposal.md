@@ -70,12 +70,16 @@ None formally (`add-live-studio` is not archived yet); `studio-ui` gains what th
 
 ## Impact
 
-- `frontend/package.json`: `@ui-sdk/vue` and `@ui-sdk/core` at an exact version; a lint rule that allows importing
+- `frontend/package.json`: the Vue adapter and the core, as UI SDK's install guide gives them for Vue
+  (`npm install @ui-sdk/vue @ui-sdk/core`), each at an exact version; a lint rule that allows importing
   them only under `frontend/src/components/ui/`; a test that fails when the built app grows beyond a stated budget.
 - New `frontend/src/components/ui/UiMenu.vue`, `UiTooltip.vue`, `UiMeter.vue`; `ControlsDock.vue`,
   `BackstageRow.vue`, `StudioHeader.vue`; a small cue player in `frontend/src/core/` (no Vue import) and a
   preference in `PreferencesModal.vue`; both translation catalogs; `style.css` (motion, the three wrappers' recipes
   with role tokens).
+- UI SDK's agent skill (`npx skills@latest add vercel-labs/ui --skill ui-sdk`): `skills-lock.json` at the
+  repository root records its source and commit, and a line in `AGENTS.md` tells agents to restore and read it
+  before touching a `Ui*` wrapper.
 - `THIRD_PARTY` (Apache-2.0 notice of UI SDK, with its repository), `CHANGELOG.md`, `docs/README.md` (what UI SDK
   is used for, the link to https://github.com/vercel-labs/ui, and how to upgrade it).
 - No server change, no migration, no new setting.

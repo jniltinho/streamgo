@@ -2,8 +2,9 @@
 
 ## 1. The library, contained
 
-- [ ] 1.1 `@ui-sdk/vue` and `@ui-sdk/core` at an exact version; the lint rule that allows them only under
-  `frontend/src/components/ui/`; `THIRD_PARTY`
+- [ ] 1.1 `npm install @ui-sdk/vue @ui-sdk/core` in `frontend/`, both made exact; `@layer ui-sdk;` in `style.css`;
+  the lint rule that allows the library only under `frontend/src/components/ui/` and only by component entry;
+  `THIRD_PARTY`; `skills-lock.json` and the line in `AGENTS.md` (design U1a)
 - [ ] 1.2 `UiMenu.vue`, `UiTooltip.vue`, `UiMeter.vue` with their recipes on role tokens in `style.css`; the matrix
   recipes for the new pairs; gallery entries for the three
 - [ ] 1.3 The size test: the entry chunk before and after, the budget, the numbers in the proposal

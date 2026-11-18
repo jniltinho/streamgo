@@ -28,11 +28,14 @@ let seq = 0
 const keyOf = (r: DialogRequest) => keys.get(r) ?? (keys.set(r, ++seq), seq)
 let opener: HTMLElement | null = null
 
+// immediate: the host is loaded after the entry, so a request may already be waiting when it mounts; the opener is
+// the element that had the focus when the request was made, not when the host arrived
 watch(
   () => dialogState.current,
   (req, prev) => {
-    if (req && !prev) opener = document.activeElement as HTMLElement | null
+    if (req && !prev) opener = req.opener as HTMLElement | null
     if (req) return
+    if (!prev) return
     // the opener may have gone with a modal its parent closed meanwhile: then the modal still open takes the focus
     if (opener?.isConnected) opener.focus?.()
     else {
@@ -42,7 +45,7 @@ watch(
     }
     opener = null
   },
-  { flush: 'post' }, // after the dialog left the page, which is no longer inert
+  { flush: 'post', immediate: true }, // after the dialog left the page, which is no longer inert
 )
 
 function answer(ok: boolean) {

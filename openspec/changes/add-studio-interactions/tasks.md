@@ -38,6 +38,11 @@
   modal, a confirmation and the toasts in each theme
 - [x] 3.4 A component that cannot meet a scenario keeps its implementation; the report says which and why, and
   lists every existing assertion whose structure changed
+- [x] 3.5 The toast stack and the dialog host loaded after the entry, the preferences modal when first opened
+  (`components/lazy.ts`): a toast waits for the stack before its time runs, a request made before the host keeps
+  its opener, a chunk that does not load is retried and then settles every confirmation as cancelled; the size
+  check fails when UI SDK is in the static closure of the entry or of the sign-in route; unit tests
+  (`lazyFeedback.test.ts`) and a browser suite (`09-lazy-feedback`) with the chunk held back and refused
 
 ## 4. Validation and checks
 

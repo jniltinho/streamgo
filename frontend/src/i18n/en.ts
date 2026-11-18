@@ -9,6 +9,8 @@ const catalog: Catalog = {
   Close: 'Close',
   Confirm: 'Confirm',
   Confirmation: 'Confirmation',
+  'Could not load this window. Check the connection and try again.':
+    'Could not load this window. Check the connection and try again.',
   'Could not sign out. Check the connection and try again.': 'Could not sign out. Check the connection and try again.',
   Destinations: 'Destinations',
   Dismiss: 'Dismiss',

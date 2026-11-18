@@ -1,10 +1,13 @@
 // Portions adapted from MeetHub (MIT): frontend/tests/unit/feedback.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { closeToast, MAX_TOASTS, pauseToast, resumeToast, toast, toastState } from '@/feedback/toasts'
+import { closeToast, MAX_TOASTS, pauseToast, resumeToast, toast, toastState, toastsReady } from '@/feedback/toasts'
 import { askConfirm, cancelDialogs, confirmTyped, dialogState, settleDialog, showAlert } from '@/feedback/dialogs'
 
 describe('toasts', () => {
-  beforeEach(() => vi.useFakeTimers())
+  beforeEach(() => {
+    vi.useFakeTimers()
+    toastsReady() // what the mounted toast stack does (a toast waits until then: tests/unit/lazyFeedback.test.ts)
+  })
   afterEach(() => {
     for (const it of toastState.items.slice()) closeToast(it.id)
     vi.useRealTimers()

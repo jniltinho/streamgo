@@ -6,11 +6,13 @@
 import { ref } from 'vue'
 import { CircleUser, LogOut, Settings } from '@lucide/vue'
 import { useRouter } from 'vue-router'
-import PreferencesModal from '@/components/PreferencesModal.vue'
+import { lazyModal } from '@/components/lazy'
 import { useSession } from '@/stores/session'
 import { toast } from '@/feedback/toasts'
 import { t } from '@/i18n'
 
+// fetched when first opened: it is built on UI SDK, which the first page does not wait for (design U8)
+const PreferencesModal = lazyModal(() => import('@/components/PreferencesModal.vue'))
 const session = useSession()
 const router = useRouter()
 // the settings modal and the tab it opens on: undefined is closed

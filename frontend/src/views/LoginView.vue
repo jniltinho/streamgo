@@ -5,13 +5,15 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LogIn, Palette } from '@lucide/vue'
-import PreferencesModal from '@/components/PreferencesModal.vue'
+import { lazyModal } from '@/components/lazy'
 import UiAlert from '@/components/ui/UiAlert.vue'
 import { ApiError } from '@/api/client'
 import { safeNext } from '@/router'
 import { useSession } from '@/stores/session'
 import { errorMessage, t } from '@/i18n'
 
+// fetched when first opened: it is built on UI SDK, which the first page does not wait for (design U8)
+const PreferencesModal = lazyModal(() => import('@/components/PreferencesModal.vue'))
 const session = useSession()
 const route = useRoute()
 const router = useRouter()

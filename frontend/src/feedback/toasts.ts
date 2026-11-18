@@ -26,6 +26,24 @@ interface Timer {
 }
 const timers = new Map<number, Timer>()
 let seq = 0
+// the stack is loaded after the entry (design U10): until it is mounted a toast waits, its time not running
+let ready = false
+
+// arm slides a toast in and starts its time, once the stack can show it.
+function arm(it: Toast): void {
+  setTimeout(() => {
+    const cur = toastState.items.find((x) => x.id === it.id)
+    if (cur) cur.show = true
+  }, 30)
+  startTimer(it.id, DURATION[it.kind])
+}
+
+// toastsReady is called by the toast stack once it is mounted: the toasts pushed before it start now.
+export function toastsReady(): void {
+  if (ready) return
+  ready = true
+  for (const it of toastState.items) arm(it)
+}
 
 function startTimer(id: number, ms: number): void {
   const tm: Timer = { handle: null, remaining: ms, startedAt: Date.now() }
@@ -35,13 +53,10 @@ function startTimer(id: number, ms: number): void {
 
 export function pushToast(kind: ToastKind, message: string, title?: string): number {
   const id = ++seq
-  toastState.items.push({ id, kind, title: title ?? defaultTitle(kind), message, show: false })
+  const it: Toast = { id, kind, title: title ?? defaultTitle(kind), message, show: false }
+  toastState.items.push(it)
   while (toastState.items.length > MAX_TOASTS) closeToast(toastState.items[0]!.id)
-  setTimeout(() => {
-    const it = toastState.items.find((x) => x.id === id)
-    if (it) it.show = true
-  }, 30)
-  startTimer(id, DURATION[kind])
+  if (ready) arm(it)
   return id
 }
 

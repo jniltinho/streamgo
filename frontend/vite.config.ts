@@ -41,6 +41,18 @@ export default defineConfig(({ mode }) => ({
       name: 'gitkeep',
       closeBundle: () => writeFileSync(fileURLToPath(new URL('../web/dist/.gitkeep', import.meta.url)), ''),
     },
+    // SIZE_CHECK=1: the chunks that hold UI SDK's code, beside Vite's manifest, for scripts/size-check.mjs (design U8)
+    {
+      name: 'ui-sdk-chunks',
+      apply: 'build',
+      generateBundle(_, bundle) {
+        if (!process.env.SIZE_CHECK) return
+        const files = Object.values(bundle)
+          .filter((o) => o.type === 'chunk' && o.moduleIds.some((id) => id.includes('/@ui-sdk/')))
+          .map((o) => o.fileName)
+        this.emitFile({ type: 'asset', fileName: '.vite/ui-sdk-chunks.json', source: JSON.stringify(files) })
+      },
+    },
     // the /__gallery page is for tests only: a production bundle that contains it fails the build
     {
       name: 'no-gallery-in-production',

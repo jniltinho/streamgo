@@ -71,14 +71,21 @@ Not planned:
 Measured on the production build by `frontend/scripts/size-check.mjs` (bytes after gzip, the route totals with the
 shared chunks they import and their CSS), run by `make check`:
 
-| | Before UI SDK | Menus, tooltips, meter | With dialogs and toasts | Ceiling |
-|---|---|---|---|---|
-| Entry | 95 845 | 98 733 | 148 915 | 163 807 |
-| Studio route | 255 463 | 307 538 | 325 082 | 357 590 |
-| Guest route | 252 181 | 304 177 | 321 742 | 353 916 |
+| | Before UI SDK | Menus, tooltips, meter | Dialogs and toasts in the entry | Hosts after the entry | Ceiling |
+|---|---|---|---|---|---|
+| Entry | 95 845 | 98 733 | 149 795 | 98 027 | 107 830 |
+| Sign-in route | — | — | 156 152 | 102 298 | 112 528 |
+| Studio route | 255 463 | 307 538 | 336 022 | 327 592 | 360 352 |
+| Guest route | 252 181 | 304 177 | 325 190 | 317 091 | 348 801 |
+| Toast stack and dialog host, after the entry | — | — | — | 56 079 | — |
 
-Dialogs and toasts (design U10) are mounted by the app's root, so the library's shared chunk moves into the entry:
-the entry grows by 50 182 B and the routes by about 17.5 kB each.
+With dialogs and toasts (design U10) mounted statically by the app's root, the library's shared chunk was in the
+entry, which grew by about 50 kB. The toast stack and the dialog host are now asynchronous components the root
+mounts at once, and the preferences modal is fetched when it is first opened: the library is in neither the
+entry's nor the sign-in route's static closure, so the first page paints without waiting for it. The library is
+still downloaded on every page, right after the entry (toasts and confirmations need it): the total download does
+not shrink, only what the first paint waits for. (The "dialogs and toasts in the entry" column was measured again on
+the commit before this change; the figures recorded earlier were 148 915, 325 082 and 321 742.)
 
 ## Capabilities
 

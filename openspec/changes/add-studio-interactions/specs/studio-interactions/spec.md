@@ -283,9 +283,19 @@ UI SDK SHALL be used at one exact version and only through StreamGo's wrapper co
 
 #### Scenario: Size
 - **WHEN** the production app is built
-- **THEN** the entry, and the studio and guest routes with the shared chunks they import and their CSS, measured
-  after gzip from the build manifest, are each within the ceiling the size check states, and the check ran in
-  `make check`
+- **THEN** the entry, and the sign-in, studio and guest routes with the shared chunks they import and their CSS,
+  measured after gzip from the build manifest, are each within the ceiling the size check states, and the check
+  ran in `make check`
+
+#### Scenario: Not in the first paint
+- **WHEN** the production app is built and the sign-in page is opened
+- **THEN** no module of UI SDK is in the static closure of the entry or of the sign-in route (the size check fails
+  otherwise), the toast stack and the dialog host are requested right after the entry, and the sign-in form is
+  shown and usable while their chunk is still loading
+- **AND** a toast pushed meanwhile is shown when the stack arrives and stays its full time, a confirmation asked
+  meanwhile is shown when the host arrives with its first focus on Cancel and gives the focus back to what had it
+- **AND** when their chunk cannot be loaded after a few tries, every pending and later confirmation settles as
+  cancelled and nothing waits forever
 
 #### Scenario: The lock file
 - **WHEN** the dependencies are installed with `npm ci`

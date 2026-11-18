@@ -17,6 +17,7 @@ export interface DialogRequest {
   expected: string // typed confirm: the text to type
   value: string
   resolve: (ok: boolean) => void
+  opener: Element | null // what had the focus when it was asked: it gets it back (the host may mount later)
 }
 
 export interface DialogOptions {
@@ -27,9 +28,11 @@ export interface DialogOptions {
 }
 
 export const dialogState = reactive({ current: null as DialogRequest | null, queue: [] as DialogRequest[] })
+let unavailable = false
 
 function open(kind: DialogKind, message: string, opts: DialogOptions, expected = ''): Promise<boolean> {
   return new Promise((resolve) => {
+    if (unavailable) return resolve(kind === 'alert') // the safe answer: see dialogsUnavailable
     const req: DialogRequest = {
       kind,
       message,
@@ -40,6 +43,7 @@ function open(kind: DialogKind, message: string, opts: DialogOptions, expected =
       ok: opts.ok ?? (kind === 'typed' ? t('Confirm') : t('OK')),
       cancel: opts.cancel ?? t('Cancel'),
       resolve,
+      opener: document.activeElement,
     }
     if (dialogState.current) dialogState.queue.push(req)
     else dialogState.current = req
@@ -76,4 +80,11 @@ export function cancelDialogs(): void {
   dialogState.current = null
   dialogState.queue = []
   for (const d of pending) d.resolve(d.kind === 'alert')
+}
+
+// dialogsUnavailable is called when the dialog host's chunk could not be loaded: every pending and later request
+// settles at once as cancelled (an alert as seen) instead of waiting for a host that will not come.
+export function dialogsUnavailable(): void {
+  unavailable = true
+  cancelDialogs()
 }

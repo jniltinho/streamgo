@@ -223,6 +223,16 @@ What must stay as it is:
   modal is open, in either order, is above it and its close control can be clicked: the toast region stays in the
   top layer, as it is today, also when one of the three components kept its old implementation.
 - **No page scrollbar** while a dialog is open.
+- **Loaded after the entry** (U8): the root mounts `ToastStack` and `DialogHost` as asynchronous components, at once
+  and unconditionally, so their chunk is requested as soon as the entry runs and never delays the first paint; a
+  modal that a view of the entry's or the sign-in route's closure mounts with `v-if` (the preferences modal) is
+  fetched when it is first opened (`components/lazy.ts`). Three rules make this safe. A toast pushed before the
+  stack is mounted waits: `toasts.ts` starts its time only when the stack calls `toastsReady()`, so it is shown
+  for its full time. A confirmation or an alert asked before the host is mounted is shown when it mounts, with
+  the same first focus, and focus returns to what had it when it was asked (each request records it). A chunk
+  that does not load is tried again three times, 0.5, 1 and 1.5 s apart; after that every pending and later
+  confirmation settles as cancelled and an alert as seen (`dialogsUnavailable()`), the failure is logged once,
+  and a modal that does not load shows an error toast and closes, so the control that opened it works again.
 
 If one of the three cannot meet a point above with the beta as it is, that component keeps its current
 implementation and the report says which point failed; the other two still move.
@@ -242,6 +252,11 @@ manifest: the entry, the studio and guest route chunks with the shared chunks th
 bytes after gzip. The proposal records the numbers before and after. A check that runs right after the build in
 `make check` fails when the entry, or a route's total, passes a fixed ceiling set 10 % above the measured size.
 Views are loaded lazily, so the library will land in route and shared chunks: an entry-only budget would miss it.
+The sign-in route is measured the same way. The library is kept out of the static closure of the entry and of the
+sign-in route (the dialog and toast hosts and the preferences modal are loaded asynchronously, U10): the build
+lists the chunks that hold UI SDK's code beside the manifest, and the check fails when one of them is in either
+closure. The library is still downloaded on every page, right after the entry; what changes is that the first
+paint does not wait for it.
 
 ### U9. The owner validates before it merges
 

@@ -4,7 +4,7 @@
 // (at most five, 4 s or 8 s, paused under the pointer or the focus): its list is mirrored into a toaster of this
 // component that never times out or queues anything itself. The library brings the region in the top layer, above
 // an open modal, and the announcements: its live regions, errors assertively and the rest politely.
-import { onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from '@lucide/vue'
 import { createToaster, Toast, ToastClose, ToastDescription, ToastRegion, ToastTitle } from '@ui-sdk/vue/toast'
 import {
@@ -13,6 +13,7 @@ import {
   pauseToast,
   resumeToast,
   toastState,
+  toastsReady,
   type Toast as Item,
   type ToastKind,
 } from '@/feedback/toasts'
@@ -46,6 +47,7 @@ watch(
   },
   { immediate: true },
 )
+onMounted(toastsReady) // a toast pushed while this chunk loaded starts its time now (design U10)
 onUnmounted(() => toaster.dismiss())
 
 const css: Record<ToastKind, string> = { success: '', info: 'info', warning: 'warn', error: 'err' }

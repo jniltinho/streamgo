@@ -55,7 +55,8 @@ func stageAnswer(c *echo.Context) func(stage.State, error) error {
 }
 
 // decodePatch reads a stage patch: any of layout, sources, banner_id (null hides the banner),
-// accent and hide_names; any other field, logo included, is refused.
+// accent, hide_names, name_style, hide_screen_names and tagline ({identity, text}, one
+// person's second line); any other field, logo included, is refused.
 func decodePatch(body io.Reader) (studio.Patch, error) {
 	var raw map[string]json.RawMessage
 	if err := json.NewDecoder(body).Decode(&raw); err != nil || raw == nil {
@@ -79,6 +80,21 @@ func decodePatch(body io.Reader) (studio.Patch, error) {
 			err = json.Unmarshal(v, &p.HideNames)
 			if p.HideNames == nil {
 				err = core.Invalid(k, "Must be true or false.")
+			}
+		case "name_style":
+			err = json.Unmarshal(v, &p.NameStyle)
+			if p.NameStyle == nil {
+				err = core.Invalid(k, "Unknown name tag style.")
+			}
+		case "hide_screen_names":
+			err = json.Unmarshal(v, &p.HideScreenNames)
+			if p.HideScreenNames == nil {
+				err = core.Invalid(k, "Must be true or false.")
+			}
+		case "tagline":
+			err = json.Unmarshal(v, &p.Tagline)
+			if p.Tagline == nil {
+				err = core.Invalid(k, "Must be {identity, text}.")
 			}
 		case "sources":
 			err = json.Unmarshal(v, &p.Sources)

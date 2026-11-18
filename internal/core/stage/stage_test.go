@@ -3,6 +3,9 @@ package stage_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"maps"
+	"strings"
 	"sync"
 	"testing"
 
@@ -13,7 +16,28 @@ import (
 )
 
 // The broadcasts package creates new broadcasts with this document; the default must match it.
-const newBroadcastStage = `{"v":1,"on_air":false,"layout":"grid","sources":[],"banner":null,"logo":null,"accent":"#3d41cf","hide_names":false}`
+const newBroadcastStage = `{"v":1,"on_air":false,"layout":"grid","sources":[],"banner":null,"logo":null,"accent":"#3d41cf","hide_names":false,"name_style":"bar","hide_screen_names":false,"taglines":{}}`
+
+// Scenario "Bar by default": a new broadcast, and a state stored before the name styles.
+func TestBarByDefault(t *testing.T) {
+	t.Parallel()
+	for _, text := range []string{
+		newBroadcastStage,
+		`{"v":7,"on_air":false,"layout":"grid","sources":[],"banner":null,"logo":null,"accent":"#3d41cf","hide_names":false}`,
+		`{"v":3,"on_air":false,"layout":"grid","sources":[],"banner":null,"logo":null,"accent":"#3d41cf"}`,
+	} {
+		s, err := stage.Parse(text)
+		if err != nil || s.NameStyle != "bar" || s.HideScreenNames || s.Taglines == nil || len(s.Taglines) != 0 {
+			t.Fatalf("%s: parsed %+v, %v", text, s, err)
+		}
+		if err := s.Validate(2); err != nil {
+			t.Fatalf("%s: %v", text, err)
+		}
+		if !strings.Contains(s.JSON(), `"name_style":"bar","hide_screen_names":false,"taglines":{}`) {
+			t.Fatalf("encoded %s", s.JSON())
+		}
+	}
+}
 
 func TestDefaultMatchesNewBroadcast(t *testing.T) {
 	t.Parallel()
@@ -47,6 +71,10 @@ func TestValidate(t *testing.T) {
 		{"unknown kind", func(s *stage.State) { s.Sources = []stage.Source{{P: "a", K: "mic"}} }, "sources"},
 		{"short accent", func(s *stage.State) { s.Accent = "#fff" }, "accent"},
 		{"named accent", func(s *stage.State) { s.Accent = "red" }, "accent"},
+		// scenario "Only a known style"
+		{"every name style", func(s *stage.State) { s.NameStyle = "two-line" }, ""},
+		{"unknown name style", func(s *stage.State) { s.NameStyle = "neon" }, "name_style"},
+		{"empty name style", func(s *stage.State) { s.NameStyle = "" }, "name_style"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -62,6 +90,107 @@ func TestValidate(t *testing.T) {
 				t.Fatalf("got %v, want invalid %s", err, tt.field)
 			}
 		})
+	}
+}
+
+// Scenarios "Rules", "Remove it" and "One at a time" of the second line.
+func TestSetTagline(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name, identity, text string
+		field                string
+		want                 map[string]string
+	}{
+		{"set", "guest-a", "Head of Product", "", map[string]string{"host-u1": "Host", "guest-a": "Head of Product"}},
+		{"trimmed", "guest-a", "  Head of Product \t", "", map[string]string{"host-u1": "Host", "guest-a": "Head of Product"}},
+		{"replaced", "host-u1", "CEO", "", map[string]string{"host-u1": "CEO"}},
+		{"sixty characters", "guest-a", strings.Repeat("é", 60), "", map[string]string{"host-u1": "Host", "guest-a": strings.Repeat("é", 60)}},
+		{"sixty-one characters", "guest-a", strings.Repeat("a", 61), "tagline", nil},
+		{"control character", "guest-a", "Head\nof Product", "tagline", nil},
+		{"delete character", "guest-a", "Head\x7f", "tagline", nil},
+		{"invalid UTF-8", "guest-a", "Head \xff", "tagline", nil},
+		{"removed by an empty text", "host-u1", "", "", map[string]string{}},
+		{"removed by blanks", "host-u1", "   ", "", map[string]string{}},
+		{"removing an absent entry", "guest-z", "", "", map[string]string{"host-u1": "Host"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			s := stage.Default()
+			s.Taglines["host-u1"] = "Host"
+			err := s.SetTagline(tt.identity, tt.text)
+			var inv *core.InvalidError
+			if tt.field != "" {
+				if !errors.As(err, &inv) || inv.Field != tt.field {
+					t.Fatalf("got %v, want invalid %s", err, tt.field)
+				}
+				if len(s.Taglines) != 1 || s.Taglines["host-u1"] != "Host" {
+					t.Fatalf("refused change left %v", s.Taglines)
+				}
+				return
+			}
+			if err != nil || !maps.Equal(s.Taglines, tt.want) {
+				t.Fatalf("got %v, %v; want %v", s.Taglines, err, tt.want)
+			}
+		})
+	}
+}
+
+// Scenario "The limit".
+func TestTaglineLimit(t *testing.T) {
+	t.Parallel()
+	full := func(onStage int) stage.State {
+		s := stage.Default()
+		for i := range stage.MaxTaglines {
+			id := fmt.Sprintf("guest-%02d", i)
+			s.Taglines[id] = "Role"
+			if i < onStage {
+				s.Sources = append(s.Sources, stage.Source{P: id, K: stage.Camera})
+			}
+		}
+		return s
+	}
+	tests := []struct {
+		name     string
+		onStage  int
+		identity string
+		field    string
+		wantLen  int
+	}{
+		{"off-stage entries are dropped", 6, "guest-new", "", 7},
+		{"every entry off stage", 0, "guest-new", "", 1},
+		{"all on stage", stage.MaxTaglines, "guest-new", "tagline", stage.MaxTaglines},
+		{"editing an entry is not a new one", stage.MaxTaglines, "guest-07", "", stage.MaxTaglines},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			s := full(tt.onStage)
+			err := s.SetTagline(tt.identity, "Speaker")
+			var inv *core.InvalidError
+			switch {
+			case tt.field != "" && (!errors.As(err, &inv) || inv.Field != tt.field):
+				t.Fatalf("got %v, want invalid %s", err, tt.field)
+			case tt.field == "" && (err != nil || s.Taglines[tt.identity] != "Speaker"):
+				t.Fatalf("got %v, %v", err, s.Taglines)
+			case len(s.Taglines) != tt.wantLen:
+				t.Fatalf("%d taglines, want %d", len(s.Taglines), tt.wantLen)
+			}
+			for i := range tt.onStage {
+				if id := fmt.Sprintf("guest-%02d", i); s.Taglines[id] == "" {
+					t.Fatalf("on-stage %s dropped", id)
+				}
+			}
+			if err := s.Validate(stage.MaxTaglines); err != nil {
+				t.Fatalf("validate: %v", err)
+			}
+		})
+	}
+	s := full(0)
+	s.Taglines["guest-extra"] = "x"
+	var inv *core.InvalidError
+	if err := s.Validate(2); !errors.As(err, &inv) || inv.Field != "tagline" {
+		t.Fatalf("51 taglines: %v", err)
 	}
 }
 

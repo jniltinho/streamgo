@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // The backstage: every participant and shared screen in the studio with whether each is on stage. The owner adds
-// and takes sources off the stage, removes guests and sees a live picture of every source; a guest sees the names,
+// and takes sources off the stage, writes each person's second line, removes guests and sees a live picture of every
+// source; a guest sees the names,
 // and a picture only of their own camera and screen.
 import { computed, ref } from 'vue'
 import { MicAudioLines, Mic, MicOff, MonitorUp, UserMinus, UserPlus, Video, VideoOff } from '@lucide/vue'
 import InviteModal from '@/components/studio/InviteModal.vue'
 import UiTooltip from '@/components/ui/UiTooltip.vue'
 import SourcePreview from '@/components/studio/SourcePreview.vue'
+import TaglinePopover from '@/components/studio/TaglinePopover.vue'
 import { initials } from '@/core/compositor'
 import type { StageSource } from '@/core/stageState'
 import { type Person, studioError, useStudio } from '@/stores/studio'
@@ -163,6 +165,7 @@ async function removeGuest(p: Person) {
               </template>
             </UiTooltip>
           </template>
+          <TaglinePopover v-if="owner && c.source.k === 'camera'" :person="c.person" />
           <UiTooltip
             v-if="owner && !c.person.host && c.source.k === 'camera'"
             :text="t('Remove from the studio')"

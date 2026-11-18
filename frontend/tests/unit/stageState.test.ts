@@ -14,6 +14,9 @@ const state = (v: number, extra: object = {}) => ({
   logo: '/assets/9f3c.png',
   accent: '#3d41cf',
   hide_names: false,
+  name_style: 'bar',
+  hide_screen_names: false,
+  taglines: {},
   ...extra,
 })
 
@@ -32,6 +35,23 @@ describe('parseStage', () => {
     expect(parseStage(raw)).toEqual(
       state(3, { sources: [{ p: 'host-1', k: 'camera' }], banner: { id: 'b', text: 't' } }),
     )
+  })
+
+  // name-tags "Bar by default": a state from before the name styles, or with values it does not know
+  it('reads the name tag fields, with their defaults when missing or unknown', () => {
+    const old = { ...state(2) } as Record<string, unknown>
+    delete old.name_style
+    delete old.hide_screen_names
+    delete old.taglines
+    expect(parseStage(old)).toMatchObject({ name_style: 'bar', hide_screen_names: false, taglines: {} })
+    expect(parseStage(state(2, { name_style: 'neon', taglines: [], hide_screen_names: 'yes' }))).toMatchObject({
+      name_style: 'bar',
+      hide_screen_names: false,
+      taglines: {},
+    })
+    expect(
+      parseStage(state(2, { name_style: 'two-line', hide_screen_names: true, taglines: { a: 'CEO', b: 3 } })),
+    ).toMatchObject({ name_style: 'two-line', hide_screen_names: true, taglines: { a: 'CEO' } })
   })
 
   it('accepts no banner and no logo', () => {

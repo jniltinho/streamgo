@@ -39,7 +39,7 @@ import { AudioMix, stageAudio } from '@/core/audioMix'
 import { type Cue, CuePlayer, type CuePrefs, loadCuePrefs, saveCuePrefs } from '@/core/cues'
 import { AudioSuspendedError, WhipPublisher, type WhipState } from '@/core/whip'
 import { Compositor, type Source } from '@/core/compositor'
-import { type Layout, StageFeed, type StageSource, type StageState } from '@/core/stageState'
+import { type Layout, type NameStyle, StageFeed, type StageSource, type StageState } from '@/core/stageState'
 import { screenCapture, sizeChanged } from '@/core/quality'
 
 // the server's defaults (studio.max_on_stage, output.resolution), until GET /broadcasts/:id answers with its own
@@ -840,6 +840,10 @@ export const useStudio = defineStore('studio', () => {
   const showBanner = (id: string | null) => patchStage({ banner_id: id })
   const setAccent = (accent: string) => patchStage({ accent })
   const setNameTags = (show: boolean) => patchStage({ hide_names: !show })
+  const setNameStyle = (style: NameStyle) => patchStage({ name_style: style })
+  const setScreenNames = (show: boolean) => patchStage({ hide_screen_names: !show })
+  /** an empty text removes the person's second line */
+  const setTagline = (identity: string, text: string) => patchStage({ tagline: { identity, text } })
   const removeGuest = (who: string) =>
     answer(api<StageAnswer>('DELETE', `${base()}/participants/${encodeURIComponent(who)}`))
 
@@ -944,6 +948,9 @@ export const useStudio = defineStore('studio', () => {
     showBanner,
     setAccent,
     setNameTags,
+    setNameStyle,
+    setScreenNames,
+    setTagline,
     removeGuest,
     loadBanners,
     addBanner,

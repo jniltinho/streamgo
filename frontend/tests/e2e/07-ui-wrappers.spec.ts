@@ -278,3 +278,132 @@ test('Contrast: every theme with a menu open, a tooltip shown and the meter half
   }
   expect(failures).toEqual([])
 })
+
+// The wrappers of add-name-tag-styles (design N5): UiSwitch, UiRadioGroup and UiPopover in the gallery.
+const tagsState = (page: Page) => page.locator('[data-gallery-tags-state]')
+
+test.describe('Switches, radio cards and the popover', () => {
+  test.beforeEach(({ page }) => openGallery(page))
+
+  test('Switch: named, turned by a click and by Space; Depends on the first switch: disabled and says why', async ({
+    page,
+  }) => {
+    const names = page.getByRole('switch', { name: 'Show names', exact: true })
+    const screens = page.getByRole('switch', { name: 'Show names on screens' })
+    await expect(names).toHaveAttribute('aria-checked', 'true')
+    await expect(screens).toBeEnabled()
+    await names.click()
+    await expect(names).toHaveAttribute('aria-checked', 'false')
+    await expect(tagsState(page)).toHaveText('false|true|bar|')
+    // the second switch is disabled while the first is off, and its reason is shown and describes it
+    await expect(screens).toBeDisabled()
+    await expect(screens).toHaveAccessibleDescription('The names are off.')
+    await expect(page.locator('[data-gallery-tags]').getByText('The names are off.')).toBeVisible()
+    await names.focus()
+    await page.keyboard.press('Space')
+    await expect(names).toHaveAttribute('aria-checked', 'true')
+    await expect(screens).toBeEnabled()
+    await page.getByText('Show names on screens').click() // the label turns it too
+    await expect(tagsState(page)).toHaveText('true|false|bar|')
+  })
+
+  test('Radio cards: Keyboard, one tab stop, the right arrow chooses the next, each card named', async ({ page }) => {
+    const group = page.getByRole('radiogroup', { name: 'Style' })
+    await expect(group.getByRole('radio')).toHaveCount(3)
+    for (const name of ['Bar', 'Solid', 'Strip']) await expect(group.getByRole('radio', { name })).toBeVisible()
+    await expect(group.getByRole('radio', { name: 'Bar' })).toHaveAttribute('aria-checked', 'true')
+    await tabTo(page, '[data-gallery-radio] [data-value=bar]')
+    await page.keyboard.press('ArrowRight')
+    await expect(group.getByRole('radio', { name: 'Solid' })).toBeFocused()
+    await expect(group.getByRole('radio', { name: 'Solid' })).toHaveAttribute('aria-checked', 'true')
+    await expect(tagsState(page)).toHaveText('true|true|solid|')
+    await page.keyboard.press('Tab') // one tab stop: the next control is the popover's button
+    await expect(page.locator('[data-gallery-popover]')).toBeFocused()
+    await group.getByRole('radio', { name: 'Strip' }).click()
+    await expect(tagsState(page)).toHaveText('true|true|strip|')
+  })
+
+  test('Popover: opens on its field, saves with Enter and returns focus; Escape and a press outside close it', async ({
+    page,
+  }) => {
+    const button = page.locator('[data-gallery-popover]')
+    await expect(button).toHaveAccessibleName('Edit the second line')
+    await button.click()
+    const dialog = page.getByRole('dialog', { name: 'Second line' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByLabel('Role or company')).toBeFocused()
+    await page.keyboard.type('Head of Product')
+    await page.keyboard.press('Enter')
+    await expect(dialog).toBeHidden()
+    await expect(tagsState(page)).toHaveText('true|true|bar|Head of Product')
+    await expect(button).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(dialog).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(button).toBeFocused()
+    await button.click()
+    await expect(dialog).toBeVisible()
+    await page.mouse.click(2, 2)
+    await expect(dialog).toBeHidden()
+    // inside the window, no page scrollbar
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await button.click()
+    const box = await dialog.evaluate((e) => {
+      const r = e.getBoundingClientRect()
+      return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight
+    })
+    expect(box).toBe(true)
+  })
+})
+
+// "Contrast" of the name-tag controls: the switches (one on, one off and one disabled), the radio cards with one
+// chosen and the popover open, in each theme: no axe violation, and the painted pairs meet their ratios.
+test('Contrast: every theme with the switches, the radio cards and the popover open', async ({ page }) => {
+  test.setTimeout(180_000)
+  await openGallery(page)
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.getByRole('switch', { name: 'Show names on screens' }).click() // off
+  await page.locator('[data-gallery-popover]').click()
+  await expect(page.getByRole('dialog', { name: 'Second line' })).toBeVisible()
+  const failures: string[] = []
+  for (const theme of themeCatalog) {
+    await page.evaluate((id) => document.documentElement.setAttribute('data-theme', id), theme.id)
+    const r = await new AxeBuilder({ page }).include('[data-gallery-tags]').include('[role=dialog]').analyze()
+    for (const v of r.violations) for (const n of v.nodes) failures.push(`${theme.id}: ${v.id} ${n.target}`)
+    const ratios = await page.evaluate(() => {
+      const rgb = (c: string) =>
+        c
+          .match(/[\d.]+/g)!
+          .slice(0, 3)
+          .map(Number)
+      const ch = (v: number) => {
+        const s = v / 255
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+      }
+      const lum = (c: number[]) => 0.2126 * ch(c[0]!) + 0.7152 * ch(c[1]!) + 0.0722 * ch(c[2]!)
+      const ratio = (a: string, b: string) => {
+        const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p)
+        return (x! + 0.05) / (y! + 0.05)
+      }
+      const s = (sel: string) => getComputedStyle(document.querySelector(sel)!)
+      const card = s('[data-gallery-tags]').backgroundColor
+      const on = s('[data-gallery-switch=names]')
+      const off = s('[data-gallery-switch=screens]')
+      const pop = s('[role=dialog]')
+      return {
+        edgeOn: ratio(on.borderTopColor, card),
+        edgeOff: ratio(off.borderTopColor, card),
+        thumbOn: ratio(s('[data-gallery-switch=names] [data-checked]').backgroundColor, on.backgroundColor),
+        thumbOff: ratio(s('[data-gallery-switch=screens] > *').backgroundColor, off.backgroundColor),
+        chosen: ratio(s('[data-gallery-radio] [aria-checked=true]').borderTopColor, card),
+        popover: ratio(pop.color, pop.backgroundColor),
+        hint: ratio(s('[role=dialog] .studio-meta').color, pop.backgroundColor),
+      }
+    })
+    const need = { edgeOn: 3, edgeOff: 3, thumbOn: 3, thumbOff: 3, chosen: 3, popover: 4.5, hint: 4.5 }
+    for (const [k, v] of Object.entries(ratios))
+      if (v < need[k as keyof typeof need] - 0.01) failures.push(`${theme.id}: ${k} ${v.toFixed(2)}`)
+  }
+  expect(failures).toEqual([])
+})

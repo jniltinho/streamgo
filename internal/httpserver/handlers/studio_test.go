@@ -162,7 +162,7 @@ func TestPatchStageRoute(t *testing.T) {
 	want(t, rec, 200, "")
 	var raw map[string]map[string]any
 	_ = json.Unmarshal(rec.Body.Bytes(), &raw)
-	for _, k := range []string{"v", "on_air", "layout", "sources", "banner", "logo", "accent", "hide_names"} {
+	for _, k := range []string{"v", "on_air", "layout", "sources", "banner", "logo", "accent", "hide_names", "name_style", "hide_screen_names", "taglines"} {
 		if _, ok := raw["stage"][k]; !ok {
 			t.Fatalf("stage without %q: %s", k, rec.Body.String())
 		}
@@ -210,6 +210,70 @@ func TestPatchStageRoute(t *testing.T) {
 		t.Fatalf("after removal %+v", s)
 	}
 	wantField(t, h.do(t, call{method: "DELETE", path: "/api/v1/broadcasts/b1/participants/host-u1", user: "u1"}), "identity")
+}
+
+// Requirements "Name tag styles", "Names off shared screens" and "A second line per person"
+// through the route.
+func TestNameTagRoute(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.AddBroadcast("b2", "u2", "invite-b2")
+	rafael := h.JoinGuest(t, "invite-b1", "Rafael", "")
+	carla := h.JoinGuest(t, "invite-b1", "Carla", "")
+	other := h.JoinGuest(t, "invite-b2", "Someone", "")
+	patch := func(user, body string) *httptest.ResponseRecorder {
+		return h.do(t, call{method: "PATCH", path: "/api/v1/broadcasts/b1/stage", user: user, body: body})
+	}
+	ok := func(body string) stage.State {
+		t.Helper()
+		rec := patch("u1", body)
+		want(t, rec, 200, "")
+		return decode[stageBody](t, rec).Stage
+	}
+
+	if s := ok(`{"name_style":"solid"}`); s.NameStyle != "solid" {
+		t.Fatalf("style %+v", s)
+	}
+	if s := ok(`{"hide_screen_names":true}`); !s.HideScreenNames || s.NameStyle != "solid" {
+		t.Fatalf("screens %+v", s)
+	}
+	// "One at a time": two taglines one after the other are both kept; "Rules": stored trimmed
+	ok(`{"tagline":{"identity":"` + rafael.Identity + `","text":"  Head of Product  "}}`)
+	s := ok(`{"tagline":{"identity":"host-u1","text":"Host"}}`)
+	if len(s.Taglines) != 2 || s.Taglines[rafael.Identity] != "Head of Product" || s.Taglines["host-u1"] != "Host" {
+		t.Fatalf("taglines %v", s.Taglines)
+	}
+	// "Remove it": an empty text removes the entry
+	ok(`{"tagline":{"identity":"` + carla.Identity + `","text":"Guest"}}`)
+	if s = ok(`{"tagline":{"identity":"` + carla.Identity + `","text":""}}`); len(s.Taglines) != 2 || s.Taglines[carla.Identity] != "" {
+		t.Fatalf("removed %v", s.Taglines)
+	}
+
+	tests := []struct{ name, body, field string }{
+		{"unknown style", `{"name_style":"neon"}`, "name_style"},
+		{"style as a number", `{"name_style":3}`, "name_style"},
+		{"null style", `{"name_style":null}`, "name_style"},
+		{"screens as a string", `{"hide_screen_names":"yes"}`, "hide_screen_names"},
+		{"null screens", `{"hide_screen_names":null}`, "hide_screen_names"},
+		{"61 characters", `{"tagline":{"identity":"` + rafael.Identity + `","text":"` + strings.Repeat("a", 61) + `"}}`, "tagline"},
+		{"control character", `{"tagline":{"identity":"` + rafael.Identity + `","text":"Head\u0007"}}`, "tagline"},
+		{"null tagline", `{"tagline":null}`, "tagline"},
+		{"tagline as a string", `{"tagline":"CEO"}`, "tagline"},
+		{"guest of another broadcast", `{"tagline":{"identity":"` + other.Identity + `","text":"CEO"}}`, "tagline"},
+		{"unknown identity", `{"tagline":{"identity":"guest-nobody","text":"CEO"}}`, "tagline"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wantField(t, patch("u1", tt.body), tt.field)
+		})
+	}
+	// "Only the owner": a guest (no user session) and another user get what every stage patch gives them
+	want(t, patch("", `{"name_style":"text"}`), 401, "unauthenticated")
+	want(t, patch("u2", `{"name_style":"text"}`), 404, "not_found")
+	want(t, patch("u2", `{"tagline":{"identity":"host-u1","text":"x"}}`), 404, "not_found")
+	if got := h.Stored(t, "b1"); got.JSON() != s.JSON() {
+		t.Fatalf("refused patches changed the stage: %s", got.JSON())
+	}
 }
 
 // Requirement "Banners" through the routes.

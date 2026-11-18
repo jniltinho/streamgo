@@ -221,6 +221,10 @@ export interface StagePatch {
   banner_id?: string | null
   accent?: string
   hide_names?: boolean
+  name_style?: string
+  hide_screen_names?: boolean
+  /** one person's second line; an empty text removes it */
+  tagline?: { identity: string; text: string }
 }
 
 /** the answer of every route that changes the stage */

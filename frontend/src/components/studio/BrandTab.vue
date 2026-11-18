@@ -1,8 +1,12 @@
 <script setup lang="ts">
-// The brand of the program: its accent colour and the logo (PNG, JPEG or WebP up to 2 MB).
-import { ref } from 'vue'
+// The brand of the program: its accent colour, the name tags (shown or not, on shared screens or not, their style
+// chosen from previews drawn by the program's own function) and the logo (PNG, JPEG or WebP up to 2 MB).
+import { computed, ref, watchPostEffect } from 'vue'
 import { ImageUp, Trash2 } from '@lucide/vue'
-import { ACCENTS } from '@/core/compositor'
+import UiRadioGroup from '@/components/ui/UiRadioGroup.vue'
+import UiSwitch from '@/components/ui/UiSwitch.vue'
+import { ACCENTS, drawNameTagPreview } from '@/core/compositor'
+import { NAME_STYLES, type NameStyle } from '@/core/stageState'
 import { studioError, useStudio } from '@/stores/studio'
 import { toast } from '@/feedback/toasts'
 import { t } from '@/i18n'
@@ -11,6 +15,22 @@ const studio = useStudio()
 const busy = ref(false)
 const file = ref<HTMLInputElement | null>(null)
 const accent = () => studio.stage?.accent ?? ''
+
+const styleNames: Record<NameStyle, () => string> = {
+  bar: () => t('Bar'),
+  solid: () => t('Solid'),
+  strip: () => t('Strip'),
+  text: () => t('Text only'),
+  'two-line': () => t('Two lines'),
+}
+const styles = computed(() => NAME_STYLES.map((value) => ({ value, label: styleNames[value]() })))
+const previews = new Map<string, HTMLCanvasElement>()
+watchPostEffect(() => {
+  const host = studio.people.find((p) => p.host)
+  const name = host?.name || t('Your name')
+  const tagline = (host && studio.stage?.taglines[host.identity]) || t('Second line')
+  for (const [style, c] of previews) drawNameTagPreview(c, name, tagline, accent(), style as NameStyle)
+})
 
 async function act(fn: () => Promise<void>) {
   busy.value = true
@@ -63,16 +83,40 @@ async function upload() {
   </div>
 
   <h3 class="lbl">{{ t('Name tags') }}</h3>
-  <label class="studio-item mb-4 flex cursor-pointer items-center gap-2">
-    <input
-      type="checkbox"
+  <div class="studio-item mb-4 grid gap-3">
+    <UiSwitch
       :checked="!studio.stage?.hide_names"
-      :disabled="busy"
+      :label="t(`Show each person's name on the program`)"
       data-name-tags
-      @change="act(() => studio.setNameTags(($event.target as HTMLInputElement).checked))"
+      @change="(on) => act(() => studio.setNameTags(on))"
     />
-    <span class="min-w-0 flex-1 text-sm">{{ t("Show each person's name on the program") }}</span>
-  </label>
+    <div>
+      <UiSwitch
+        :checked="!studio.stage?.hide_screen_names"
+        :label="t('Show names on shared screens')"
+        :disabled="studio.stage?.hide_names ? t('The names are off on the program.') : undefined"
+        data-screen-names
+        @change="(on) => act(() => studio.setScreenNames(on))"
+      />
+    </div>
+    <UiRadioGroup
+      :label="t('Style of the name tags')"
+      :items="styles"
+      :value="studio.stage?.name_style ?? 'bar'"
+      data-name-style
+      @select="(s) => act(() => studio.setNameStyle(s as NameStyle))"
+    >
+      <template #item="{ value }">
+        <canvas
+          :ref="(el) => el && previews.set(value, el as HTMLCanvasElement)"
+          width="128"
+          height="72"
+          class="aspect-video w-full"
+          :data-preview="value"
+        />
+      </template>
+    </UiRadioGroup>
+  </div>
 
   <h3 class="lbl">{{ t('Logo') }}</h3>
   <div class="studio-item flex items-center gap-3">

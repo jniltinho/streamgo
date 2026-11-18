@@ -7,6 +7,9 @@ import { Mic, MicAudioLines, MicOff, Settings } from '@lucide/vue'
 import UiAlert from '@/components/ui/UiAlert.vue'
 import UiMenu from '@/components/ui/UiMenu.vue'
 import UiMeter from '@/components/ui/UiMeter.vue'
+import UiPopover from '@/components/ui/UiPopover.vue'
+import UiRadioGroup from '@/components/ui/UiRadioGroup.vue'
+import UiSwitch from '@/components/ui/UiSwitch.vue'
 import UiTooltip from '@/components/ui/UiTooltip.vue'
 import ThemePicker from '@/components/ThemePicker.vue'
 import { askConfirm, confirmTyped, showAlert } from '@/feedback/dialogs'
@@ -29,6 +32,17 @@ const mics = [
 const mic = ref('')
 // the state motion (design U6): a dock icon that changes with its pressed state, the speaking mark, the live mark
 const pressed = ref(true)
+// the switches, the radio cards and the popover of add-name-tag-styles
+const names = ref(true)
+const screens = ref(true)
+const tagStyles = [
+  { value: 'bar', label: 'Bar' },
+  { value: 'solid', label: 'Solid' },
+  { value: 'strip', label: 'Strip' },
+]
+const tagStyle = ref('bar')
+const tagline = ref('')
+const draft = ref('')
 
 function allToasts() {
   toast.success('Saved successfully.')
@@ -146,6 +160,41 @@ function allToasts() {
       <UiMenu label="Choose a speaker" :items="[]" value="" disabled="No speaker found." data-gallery-menu="none" />
       <UiMeter :value="0.5" label="Microphone level" text="Heard" data-gallery-meter />
       <output data-gallery-chosen>{{ camera }}|{{ mic }}</output>
+    </div>
+    <!-- the wrappers of add-name-tag-styles (design N5): two switches (the second depends on the first), a radio
+         group of cards and a popover with a small form -->
+    <div class="card mt-4 grid max-w-xl gap-3 p-2" data-gallery-tags>
+      <UiSwitch :checked="names" label="Show names" data-gallery-switch="names" @change="names = $event" />
+      <div>
+        <UiSwitch
+          :checked="screens"
+          label="Show names on screens"
+          :disabled="names ? undefined : 'The names are off.'"
+          data-gallery-switch="screens"
+          @change="screens = $event"
+        />
+      </div>
+      <UiRadioGroup label="Style" :items="tagStyles" :value="tagStyle" data-gallery-radio @select="tagStyle = $event">
+        <template #item="{ value }"><span class="studio-preview block" :data-gallery-picture="value" /></template>
+      </UiRadioGroup>
+      <div class="flex items-center gap-2">
+        <span>Second line</span>
+        <UiPopover label="Edit the second line" title="Second line" data-gallery-popover>
+          <template #trigger><Settings class="size-4" aria-hidden="true" /></template>
+          <template #default="{ close }">
+            <form class="grid gap-2" @submit.prevent="((tagline = draft), close())">
+              <label class="lbl" for="gallery-tagline">Role or company</label>
+              <input id="gallery-tagline" v-model="draft" class="inp" aria-describedby="gallery-tagline-hint" />
+              <p id="gallery-tagline-hint" class="studio-meta">Shown under the name.</p>
+              <div class="flex justify-end gap-2">
+                <button type="button" class="btn-ghost" @click="close()">Cancel</button>
+                <button type="submit" class="btn">Save</button>
+              </div>
+            </form>
+          </template>
+        </UiPopover>
+      </div>
+      <output data-gallery-tags-state>{{ names }}|{{ screens }}|{{ tagStyle }}|{{ tagline }}</output>
     </div>
     <div class="card mt-4 flex max-w-xl items-center gap-3 p-2" data-gallery-motion>
       <button type="button" class="btn-ghost" :aria-pressed="pressed" data-gallery-toggle @click="pressed = !pressed">

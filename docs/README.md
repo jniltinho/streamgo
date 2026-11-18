@@ -150,11 +150,12 @@ how.
 
 ### UI SDK in the web app
 
-The studio's device menus, its tooltips and the microphone meter are built on
+The studio's device menus, its tooltips, the microphone meter and the name-tag controls (switches, the style
+cards and the second-line popover) are built on
 [UI SDK](https://github.com/vercel-labs/ui) (`@ui-sdk/vue` and `@ui-sdk/core`, Apache-2.0): unstyled components that
 bring the keyboard, focus and screen-reader behaviour, styled by StreamGo's own recipes on the theme roles. It is a
 young library (a beta), so it is held at one exact version and used only inside the wrappers of
-`frontend/src/components/ui/` (`UiMenu`, `UiTooltip`, `UiMeter`) and `AppModal.vue`; a lint rule fails
+`frontend/src/components/ui/` (`UiMenu`, `UiTooltip`, `UiMeter`, `UiSwitch`, `UiRadioGroup`, `UiPopover`) and `AppModal.vue`; a lint rule fails
 `make check` on an import anywhere else. Its default stylesheet is not used.
 
 An upgrade is one commit, never a version bump alone:

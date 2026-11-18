@@ -4,6 +4,9 @@
 export const LAYOUTS = ['solo', 'grid', 'spotlight', 'sidebar', 'screen', 'pip'] as const
 export type Layout = (typeof LAYOUTS)[number]
 export type SourceKind = 'camera' | 'screen'
+/** the styles of the name tags (design N1); the first is the default */
+export const NAME_STYLES = ['bar', 'solid', 'strip', 'text', 'two-line'] as const
+export type NameStyle = (typeof NAME_STYLES)[number]
 
 export interface StageSource {
   /** participant identity: host-<user id> or guest-<guest id> */
@@ -22,6 +25,12 @@ export interface StageState {
   accent: string
   /** the name tags are taken off the tiles; false when the server does not say */
   hide_names: boolean
+  /** "bar" when the server does not say or names an unknown style */
+  name_style: NameStyle
+  /** the name tags are taken off the tiles of shared screens */
+  hide_screen_names: boolean
+  /** a participant's identity → the second line the owner wrote for them */
+  taglines: Record<string, string>
 }
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
@@ -62,6 +71,11 @@ export function parseStage(raw: unknown): StageState | null {
     logo,
     accent,
     hide_names: raw.hide_names === true,
+    name_style: (NAME_STYLES as readonly unknown[]).includes(raw.name_style) ? (raw.name_style as NameStyle) : 'bar',
+    hide_screen_names: raw.hide_screen_names === true,
+    taglines: isObj(raw.taglines)
+      ? Object.fromEntries(Object.entries(raw.taglines).filter((e): e is [string, string] => typeof e[1] === 'string'))
+      : {},
   }
 }
 

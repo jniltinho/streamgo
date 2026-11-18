@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jniltinho/streamgo/internal/core"
 	"github.com/jniltinho/streamgo/internal/core/broadcast"
@@ -19,6 +20,17 @@ type Patch struct {
 	BannerID  *string
 	Accent    *string
 	HideNames *bool
+	NameStyle *string
+	// HideScreenNames takes the name tags off shared screens.
+	HideScreenNames *bool
+	// Tagline sets one person's second line; an empty text removes it.
+	Tagline *Tagline
+}
+
+// Tagline is one person's second line in a patch.
+type Tagline struct {
+	Identity string `json:"identity"`
+	Text     string `json:"text"`
 }
 
 // PatchStage applies the owner's patch. Every source must be the owner's or an unremoved
@@ -37,6 +49,12 @@ func (s *Service) PatchStage(ctx context.Context, userID, broadcastID string, p 
 		if p.HideNames != nil {
 			st.HideNames = *p.HideNames
 		}
+		if p.NameStyle != nil {
+			st.NameStyle = *p.NameStyle
+		}
+		if p.HideScreenNames != nil {
+			st.HideScreenNames = *p.HideScreenNames
+		}
 		if p.Sources != nil {
 			for _, src := range *p.Sources {
 				if src.P == HostIdentity(b.OwnerID) {
@@ -51,6 +69,21 @@ func (s *Service) PatchStage(ctx context.Context, userID, broadcastID string, p 
 				}
 			}
 			st.Sources = append([]stage.Source{}, *p.Sources...)
+		}
+		if p.Tagline != nil {
+			if strings.TrimSpace(p.Tagline.Text) != "" && p.Tagline.Identity != HostIdentity(b.OwnerID) {
+				ok, err := s.knownGuest(ctx, b.ID, p.Tagline.Identity)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					return core.Invalid("tagline", "Not a participant of this studio.")
+				}
+			}
+			// after the sources, so the limit's pruning sees the new stage
+			if err := st.SetTagline(p.Tagline.Identity, p.Tagline.Text); err != nil {
+				return err
+			}
 		}
 		if p.BannerSet {
 			st.Banner = nil

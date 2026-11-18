@@ -1326,6 +1326,120 @@ dialog.pnl.closing::backdrop {
   display: none;
 }
 
+/* ── the wrappers of add-name-tag-styles (design N5): the switch in the check roles, the radio cards as the accent swatches, the
+   popover in the popover roles, as the menu ── */
+/* the switch: a track in the field roles with the check line, filled in the checked role when on */
+/* (relative: the hidden native input UI SDK adds stays inside, and the page does not grow under it) */
+.ui-switch-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+.ui-switch-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+.ui-switch {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  width: 2.25rem;
+  height: 1.25rem;
+  padding: 0.125rem;
+  cursor: pointer;
+  background: var(--color-field);
+  border: 1px solid var(--color-check-line);
+  border-radius: var(--radius-round);
+}
+.ui-switch-thumb {
+  width: 0.875rem;
+  height: 0.875rem;
+  background: var(--color-check-line);
+  border-radius: var(--radius-round);
+}
+/* on: filled, the edge kept (the checked fill is too close to some surfaces to be the edge), the thumb moved */
+.ui-switch[data-checked] {
+  background: var(--color-check-on);
+}
+.ui-switch-thumb[data-checked] {
+  background: var(--color-on-check);
+  translate: 1rem 0;
+}
+[dir='rtl'] .ui-switch-thumb[data-checked] {
+  translate: -1rem 0;
+}
+.ui-switch[data-disabled] {
+  cursor: default;
+  opacity: 0.5;
+}
+.ui-switch-row:has(.ui-switch[data-disabled]) {
+  cursor: default;
+}
+.ui-switch-reason {
+  margin: 0.25rem 0 0;
+  font-size: 0.6875rem;
+  color: var(--color-fg-muted);
+}
+/* the radio cards: a picture over its name */
+.ui-radio-group {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.5rem;
+}
+.ui-radio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.25rem;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-fg);
+  text-align: start;
+  background: var(--color-surface);
+  border: 2px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+/* the chosen card: the strong frame, as the chosen accent swatch */
+.ui-radio[data-checked] {
+  border-color: var(--color-fg-strong);
+}
+.ui-radio-picture {
+  display: block;
+  line-height: 0;
+}
+.ui-radio-label {
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ui-radio[data-checked] .ui-radio-label {
+  font-weight: 600;
+}
+/* the popover: the menu's look, a small form inside */
+.ui-popover {
+  width: min(18rem, var(--available-width));
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--color-on-pop);
+  background: var(--color-field);
+  border: 1px solid var(--color-pop-line);
+  border-top: 3px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+}
+.ui-popover-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 @layer components {
   /* ── MeetHub feedback additions: inline alerts and field errors (roles only) ─────────────────── */
   .toast-close {

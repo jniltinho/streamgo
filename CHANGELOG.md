@@ -21,11 +21,18 @@ are the section of that version.
   card, on hover and on keyboard focus, in place of the browser's own.
 - **Motion** — the dock's icons turn when they change, the speaking mark moves and the live mark pulses; none of it
   with "reduce motion" or the flat look.
+- **Name tag styles** — the Brand tab offers five lower-third styles, chosen from small previews of the program:
+  Bar (as before), Solid (a plate in the brand colour, its text white or near black for contrast), Strip, Text
+  only and Two lines. Every participant's view follows the choice, and a reload keeps it.
+- **Names off shared screens** — a second switch in the Brand tab takes the name tags off shared screens and keeps
+  them on the cameras.
+- **A second line per person** — on each backstage card the host writes a role or a company for that person (60
+  characters at most), shown under the name by the Two lines style.
 
 ### Changed
 
-- The web app uses UI SDK (https://github.com/vercel-labs/ui, Apache-2.0, 0.1.0-beta.10) for the menus, tooltips
-  and the meter, inside its own wrappers; `make check` now also fails when the app's entry or the studio and guest
+- The web app uses UI SDK (https://github.com/vercel-labs/ui, Apache-2.0, 0.1.0-beta.10) for the menus, tooltips,
+  the meter, the switches, the name tag style cards and the second-line popover, inside its own wrappers; `make check` now also fails when the app's entry or the studio and guest
   pages grow past a stated size.
 
 ## [0.4.0] — 2026-11-18

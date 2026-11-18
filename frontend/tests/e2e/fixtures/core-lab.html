@@ -9,6 +9,7 @@
     import * as audioMix from '/src/core/audioMix.ts'
     import * as whip from '/src/core/whip.ts'
     import * as stageState from '/src/core/stageState.ts'
+    import * as layout from '/src/core/layout.ts'
 
     // a 30 fps camera-like video track, driven by the same worker clock as the compositor; each frame is filled
     // with `color` and carries a frame counter as a grey level in its top-left 64x64 corner ((n % 8) * 32)
@@ -71,7 +72,7 @@
       return max
     }
 
-    window.lab = { ...compositor, ...audioMix, ...whip, ...stageState, videoSource, tone, levelAt, peak }
+    window.lab = { ...compositor, ...audioMix, ...whip, ...stageState, ...layout, videoSource, tone, levelAt, peak }
     window.labReady = true
   </script>
 </body>

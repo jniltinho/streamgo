@@ -7,7 +7,7 @@
 //   timestamp on an exact 30 fps grid. This keeps fresh pictures in a hidden tab; `stream` is what gets published.
 // - 'preview' (guests): <video> elements drawn on requestAnimationFrame, nothing captured.
 import { layoutRects, presentSources, type Rect } from './layout'
-import type { SourceKind, StageSource, StageState } from './stageState'
+import type { NameStyle, SourceKind, StageSource, StageState } from './stageState'
 
 export const PROGRAM_FPS = 30
 
@@ -31,6 +31,9 @@ export const ACCENTS = [DEFAULT_ACCENT, '#b3b8ff', '#4ade80', '#fbbf24', '#f0464
 const WHITE = '#ffffff'
 const INK = '#111318'
 const TAG = 'rgba(0, 0, 0, 0.62)'
+const STRIP = 'rgba(0, 0, 0, 0.6)'
+const SHADOW = 'rgba(0, 0, 0, 0.9)'
+const SUB = '#d6d9e4' // the second line, a step below the name
 // the bundled face, so name tags and banners look the same from any host's computer
 const FONT = "'Inter', sans-serif"
 
@@ -253,7 +256,8 @@ export class Compositor {
     if (!stage) return
     const accent = stage.accent || DEFAULT_ACCENT
     const placed = layoutRects(stage.layout, this.onStage(), W, H)
-    for (const { source, rect } of placed) this.drawTile(source, rect, accent, !stage.hide_names)
+    for (const { source, rect } of placed)
+      this.drawTile(source, rect, accent, !stage.hide_names && !(source.k === 'screen' && stage.hide_screen_names))
 
     const logo = this.logo?.img
     if (logo?.complete && logo.naturalWidth > 0) {
@@ -267,7 +271,6 @@ export class Compositor {
 
   private drawTile(s: StageSource, r: Rect, accent: string, tag: boolean) {
     const g = this.g
-    const H = this.canvas.height
     const name = this.sources.find((x) => x.identity === s.p)?.name ?? ''
     const track = this.entry(s)?.track
     const pic = track ? this.feeds.get(track)?.picture() : null
@@ -295,25 +298,8 @@ export class Compositor {
       g.textBaseline = 'middle'
       g.fillText(initials(name), r.x + r.w / 2, r.y + r.h / 2)
     }
-    if (name && tag) {
-      const fs = Math.max(10, Math.round(Math.min(H * 0.026, r.h * 0.08)))
-      const pad = fs * 0.5
-      g.font = `600 ${fs}px ${FONT}`
-      g.textAlign = 'left'
-      g.textBaseline = 'middle'
-      const text = fit(g, name, r.w - pad * 6)
-      const tw = g.measureText(text).width
-      const th = fs + pad * 1.4
-      const x = r.x + pad * 1.5
-      const y = r.y + r.h - th - pad * 1.5
-      g.fillStyle = TAG
-      g.fillRect(x, y, tw + pad * 2.6, th)
-      g.fillStyle = accent
-      g.fillRect(x, y, pad * 0.5, th)
-      g.fillStyle = WHITE
-      g.fillText(text, x + pad * 1.6, y + th / 2)
-    }
     g.restore()
+    if (tag) drawNameTag(g, r, name, this.stage?.taglines[s.p] ?? '', accent, this.stage?.name_style ?? 'bar')
   }
 
   private drawBanner(text: string, accent: string) {
@@ -335,6 +321,118 @@ export class Compositor {
     g.textBaseline = 'middle'
     g.fillText(shown, x + h * 0.45, y + h / 2)
   }
+}
+
+// relative luminance of a #rrggbb colour (WCAG 2)
+function luminance(hex: string): number {
+  const c = [1, 3, 5].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!
+}
+
+/** inkOn is the text colour for a plate of colour bg: white or near black, whichever contrasts more */
+export function inkOn(bg: string): string {
+  const l = luminance(/^#[0-9a-f]{6}$/i.test(bg) ? bg : DEFAULT_ACCENT)
+  return 1.05 / (l + 0.05) >= (l + 0.05) / (luminance(INK) + 0.05) ? WHITE : INK
+}
+
+/**
+ * drawNameTag draws a name tag in a style at the bottom left of tile r (design N3): the program calls it for each
+ * tile and the Brand tab's previews on small canvases. Sizes derive from the tile's height (capped by the canvas's),
+ * text that does not fit ends with an ellipsis, and nothing is drawn outside the tile. Only 'two-line' draws the
+ * tagline, under the name; without one it is the name alone, as 'bar'.
+ */
+export function drawNameTag(
+  g: CanvasRenderingContext2D,
+  r: Rect,
+  name: string,
+  tagline: string,
+  accent: string,
+  style: NameStyle,
+) {
+  if (!name) return
+  const fs = Math.max(10, Math.round(Math.min(g.canvas.height * 0.026, r.h * 0.08)))
+  const pad = fs * 0.5
+  const font = `600 ${fs}px ${FONT}`
+  const small = `400 ${Math.round(fs * 0.8)}px ${FONT}`
+  g.save()
+  g.beginPath()
+  g.rect(r.x, r.y, r.w, r.h)
+  g.clip()
+  g.textAlign = 'left'
+  g.textBaseline = 'middle'
+  g.font = font
+  const x = r.x + pad * 1.5
+  if (style === 'strip') {
+    const sh = fs + pad * 2.4
+    g.fillStyle = STRIP
+    g.fillRect(r.x, r.y + r.h - sh, r.w, sh)
+    g.fillStyle = WHITE
+    g.fillText(fit(g, name, r.w - pad * 4), r.x + pad * 2, r.y + r.h - sh / 2)
+  } else if (style === 'text') {
+    const text = fit(g, name, r.w - pad * 4)
+    const line = Math.max(2, Math.round(fs * 0.14))
+    const y = r.y + r.h - pad * 2 - line - pad * 0.5 - fs / 2
+    g.fillStyle = accent
+    g.fillRect(x, y + fs / 2 + pad * 0.5, g.measureText(text).width, line)
+    g.shadowColor = SHADOW
+    g.shadowBlur = fs * 0.35
+    g.fillStyle = WHITE
+    g.fillText(text, x, y)
+    g.fillText(text, x, y) // twice: a denser shadow under thin letters
+  } else {
+    // bar, solid and two-line: a plate
+    const solid = style === 'solid'
+    const indent = solid ? pad * 1.3 : pad * 1.6
+    const text = fit(g, name, r.w - pad * 6)
+    let sub = ''
+    let tw = g.measureText(text).width
+    if (style === 'two-line' && tagline) {
+      g.font = small
+      sub = fit(g, tagline, r.w - pad * 6)
+      tw = Math.max(tw, g.measureText(sub).width)
+    }
+    const th = fs + pad * 1.4 + (sub ? fs * 0.8 + pad * 0.4 : 0)
+    const y = r.y + r.h - th - pad * 1.5
+    g.fillStyle = solid ? accent : TAG
+    g.fillRect(x, y, tw + indent + pad, th)
+    if (!solid) {
+      g.fillStyle = accent
+      g.fillRect(x, y, pad * 0.5, th)
+    }
+    g.fillStyle = solid ? inkOn(accent) : WHITE
+    g.font = font
+    g.fillText(text, x + indent, y + pad * 0.7 + fs / 2)
+    if (sub) {
+      g.font = small
+      g.fillStyle = SUB
+      g.fillText(sub, x + indent, y + pad * 1.1 + fs + (fs * 0.8) / 2)
+    }
+  }
+  g.restore()
+}
+
+/** drawNameTagPreview draws a name tag on an empty tile filling canvas c: the Brand tab's previews */
+export function drawNameTagPreview(
+  c: HTMLCanvasElement,
+  name: string,
+  tagline: string,
+  accent: string,
+  style: NameStyle,
+) {
+  const g = c.getContext('2d')
+  if (!g) return
+  const draw = () => {
+    g.fillStyle = TILE
+    g.fillRect(0, 0, c.width, c.height)
+    drawNameTag(g, { x: 0, y: 0, w: c.width, h: c.height }, name, tagline, accent, style)
+  }
+  draw()
+  // a canvas draws with a web font only once it is loaded
+  if (document.fonts && !document.fonts.check(`600 10px ${FONT}`))
+    void document.fonts.load(`600 10px ${FONT}`).then(draw)
 }
 
 // fit shortens text with an ellipsis until it fits in max pixels with the current font.

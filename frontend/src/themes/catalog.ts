@@ -56,4 +56,20 @@ export const themeCatalog: ThemeEntry[] = [
     scheme: 'dark',
     swatch: ['#000000', '#000000', '#ffff00', '#000000'],
   },
+  // StreamGo's own themes after desktop systems and OBS Studio
+  { id: 'macos', label: 'macOS', scheme: 'light', swatch: ['#ececec', '#ffffff', '#0064d2', '#e8e8e8'] },
+  { id: 'macos-retro', label: 'Mac OS Retro', scheme: 'light', swatch: ['#b4b4d2', '#dddddd', '#d4d4d4', '#dddddd'] },
+  { id: 'ubuntu', label: 'Ubuntu', scheme: 'light', swatch: ['#fafafa', '#ffffff', '#c34113', '#2c001e'] },
+  {
+    id: 'obs-dark',
+    label: 'OBS Studio (dark)',
+    scheme: 'dark',
+    swatch: ['#1d1f26', '#272a33', '#284cb8', '#2b2e38'],
+  },
+  {
+    id: 'obs-light',
+    label: 'OBS Studio (light)',
+    scheme: 'light',
+    swatch: ['#e5e5e5', '#f3f3f3', '#284cb8', '#d6d6d6'],
+  },
 ]

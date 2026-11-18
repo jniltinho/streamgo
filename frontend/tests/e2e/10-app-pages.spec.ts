@@ -515,7 +515,7 @@ test.describe('no page scrollbar, modals below the top', () => {
       await page.getByRole('button', { name: 'Theme and language' }).click()
       const dialog = page.locator('dialog[open]')
       await expect(dialog).toBeVisible()
-      expect(await fits('dialog[open]')).toBe(true) // the 22 themes show without scrolling
+      expect(await fits('dialog[open]')).toBe(true) // the 27 themes show without scrolling
       const top = await dialog.evaluate((el) => el.getBoundingClientRect().top)
       expect(Math.abs(top - size.height * 0.05)).toBeLessThanOrEqual(8) // 5% below the top (the rise animation ends there)
     })

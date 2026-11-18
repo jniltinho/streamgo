@@ -29,7 +29,7 @@ function styled(): Set<string> {
 
 describe('theme lockstep', () => {
   const reg = registry()
-  it('reads the 22 themes of the catalog scenario from the Go registry, in order', () => {
+  it('reads the 27 themes of the catalog scenario from the Go registry, in order', () => {
     expect(reg.map((t) => t.id)).toEqual([
       'streamgo-dark',
       'streamgo-light',
@@ -53,6 +53,11 @@ describe('theme lockstep', () => {
       'winamp',
       'pink-panther',
       'high-contrast',
+      'macos',
+      'macos-retro',
+      'ubuntu',
+      'obs-dark',
+      'obs-light',
     ])
   })
   it('the picker catalog equals the registry, in order, label and scheme', () => {

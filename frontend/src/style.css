@@ -18,6 +18,9 @@
 @import './themes/winamp.css';
 @import './themes/pink-panther.css';
 @import './themes/high-contrast.css';
+@import './themes/macos.css';
+@import './themes/ubuntu.css';
+@import './themes/obs.css';
 
 /* Default theme — tokens of the original skin (site kit).
    Corners: three shared radii (below), never declared by a theme. */
@@ -374,6 +377,18 @@
   --bg-dialog-x: none;
   --bg-dialog-x-hover: none;
   --dialog-x-shadow: none;
+  /* where the close button sits (-1: left of the title, as on a Mac) and the colour of its cross (transparent: a
+     face with no cross, the macOS light or the Platinum close box) */
+  --dialog-x-order: 0;
+  --dialog-x-ink: currentcolor;
+  --dialog-x-ink-hover: currentcolor;
+  /* the dialog title: its alignment, and as a patch (Platinum: the title on a plain patch over the stripes) its
+     flex, side margins, side padding and fill */
+  --dialog-head-align: start;
+  --dialog-title-flex: 1 1 0%;
+  --dialog-title-mx: 0px;
+  --dialog-title-px: 0px;
+  --dialog-title-bg: transparent;
   /* the line under the app's and the studio's header; a theme with a title-bar header gives its own */
   --header-line: var(--color-line);
   /* field labels: small capitals by default; a theme may ask for plain sentence case */
@@ -432,6 +447,46 @@
   font-weight: 600;
   font-display: swap;
   src: url(./assets/fonts/noto-sans-latin-600-normal.woff2) format('woff2');
+}
+/* the Mac OS Retro theme's face: a squarish grotesque that recalls Charcoal and stays readable when small */
+@font-face {
+  font-family: 'Barlow';
+  font-weight: 400;
+  font-display: swap;
+  src: url(./assets/fonts/barlow-latin-400-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-weight: 600;
+  font-display: swap;
+  src: url(./assets/fonts/barlow-latin-600-normal.woff2) format('woff2');
+}
+/* the OBS Studio themes' face, as OBS ships it */
+@font-face {
+  font-family: 'Open Sans';
+  font-weight: 400;
+  font-display: swap;
+  src: url(./assets/fonts/open-sans-latin-400-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Open Sans';
+  font-weight: 600;
+  font-display: swap;
+  src: url(./assets/fonts/open-sans-latin-600-normal.woff2) format('woff2');
+}
+/* the Ubuntu theme's face; its Medium serves the semibold and bold text, as in Yaru (the range keeps the browser
+   from thickening it with a synthetic bold) */
+@font-face {
+  font-family: 'Ubuntu';
+  font-weight: 400;
+  font-display: swap;
+  src: url(./assets/fonts/ubuntu-latin-400-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Ubuntu';
+  font-weight: 500 700;
+  font-display: swap;
+  src: url(./assets/fonts/ubuntu-latin-500-normal.woff2) format('woff2');
 }
 /* timers, and the Matrix theme's face */
 @font-face {
@@ -673,6 +728,8 @@ body {
   --bg-dialog-x: none;
   --bg-dialog-x-hover: none;
   --dialog-x-shadow: none;
+  --dialog-x-ink: currentcolor; /* a close button drawn by its gradient (the macOS light) shows its cross instead */
+  --dialog-x-ink-hover: currentcolor;
   --bg-page-size: 1.375rem 1.375rem;
   --bg-footer: none;
   --shadow-btn: none;
@@ -798,16 +855,26 @@ dialog.pnl.closing::backdrop {
   padding: var(--dialog-head-pad);
   font-size: var(--dialog-head-size);
   text-shadow: var(--dialog-head-shadow);
+  text-align: var(--dialog-head-align);
+}
+.pnl-title {
+  flex: var(--dialog-title-flex);
+  margin-inline: var(--dialog-title-mx);
+  padding-inline: var(--dialog-title-px);
+  background: var(--dialog-title-bg);
 }
 .pnl-head .modal-x {
+  order: var(--dialog-x-order);
   width: var(--dialog-x-size);
   height: var(--dialog-x-size);
   border: var(--dialog-x-line);
   border-radius: var(--radius-sm);
+  color: var(--dialog-x-ink);
   background: var(--dialog-x-bg) var(--bg-dialog-x);
   box-shadow: var(--dialog-x-shadow);
 }
 .pnl-head .modal-x:hover {
+  color: var(--dialog-x-ink-hover);
   background: var(--dialog-x-bg-hover) var(--bg-dialog-x-hover);
 }
 /* a control in a title keeps a focus mark that shows on it: the title's own text colour */

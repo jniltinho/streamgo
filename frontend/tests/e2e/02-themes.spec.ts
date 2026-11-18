@@ -139,7 +139,10 @@ test.describe('every theme', () => {
   const refined: Record<string, string[]> = {
     'classic-blue': ['fg-muted', 'fg-subtle', 'link', 'link-hover', 'page', 'field-focus'],
   }
-  for (const theme of themeCatalog.filter((t) => !t.id.startsWith('streamgo-'))) {
+  // StreamGo's own themes (the streamgo pair, macOS, Mac OS Retro, Ubuntu and the OBS Studio pair) have no MeetHub
+  // counterpart: they are left out of the comparison.
+  const own = /^(streamgo-|macos|ubuntu$|obs-)/
+  for (const theme of themeCatalog.filter((t) => !own.test(t.id))) {
     test(`${theme.id}: every role token equals MeetHub's`, async ({ page }) => {
       const want = meethub.themes[theme.id]!
       const got = await resolve(page, theme.id, Object.keys(want))

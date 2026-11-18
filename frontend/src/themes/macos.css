@@ -1,0 +1,559 @@
+/* StreamGo's own Mac themes: today's macOS in light appearance, and Mac OS 8/9 "Platinum". Only role values and
+ * recipe parameters; the corners are the shared ones. Approximate values, adjusted for contrast where the original
+ * colour is too light for text (the system blue, the highlight). */
+
+/* macOS: window grey #ececec, a unified light toolbar as the header, the system blue darkened to #0064d2 so that
+   white text on it reaches 5.6:1, hairline separators, sheets that slide down from the top with the red close
+   light at their left, translucent notification banners */
+:root[data-theme='macos'] {
+  --color-fg: #1d1d1f;
+  --color-on-page: #1d1d1f;
+  --color-fg-strong: #000000;
+  --color-fg-muted: #5e5e63;
+  --color-fg-subtle: #5e5e63;
+  --color-link: #0058c4;
+  --color-link-hover: #00449a;
+  --color-page: #ececec;
+  --color-page-dots: transparent;
+  --color-surface: #ffffff;
+  --color-surface-2: #f5f5f7;
+  --color-surface-3: #f0f0f2;
+  --color-row-alt: #f5f5f7;
+  --color-row-hover: #ebebef;
+  --color-line: #d8d8dc;
+  --color-line-soft: #e8e8eb;
+  --color-field: #ffffff;
+  --color-on-field: #1d1d1f;
+  --color-field-line: #86868b;
+  --color-field-focus: #0064d2;
+  --color-check-line: #86868b;
+  --color-autofill: #1d1d1f;
+  --color-action: #0064d2;
+  --color-action-top: #0a6ee0;
+  --color-action-line: #0058c4;
+  --color-on-action: #ffffff;
+  --color-action-2: #ffffff;
+  --color-action-2-top: #ffffff;
+  --color-action-2-line: #c8c8cd;
+  --color-action-2-hover-line: #86868b;
+  --color-on-action-2: #1d1d1f;
+  --color-danger: #d70015;
+  --color-danger-top: #e01b2d;
+  --color-danger-line: #c00013;
+  --color-on-danger: #ffffff;
+  --color-brand-action: #0064d2;
+  --color-brand-action-top: #0a6ee0;
+  --color-brand-action-hover: #0058c4;
+  --color-on-brand-action: #ffffff;
+  --color-accent: #0064d2;
+  --color-accent-strong: #0058c4;
+  --color-selection: #0064d2;
+  --color-on-selection: #ffffff;
+  --color-focus: #0064d2;
+  --color-ok: #1e7a34;
+  --color-err: #c4001a;
+  --color-warn: #8a5300;
+  --color-ok-fill: #1e7a34;
+  --color-err-fill: #d70015;
+  --color-warn-fill: #ffcc00;
+  --color-on-ok-fill: #ffffff;
+  --color-on-err-fill: #ffffff;
+  --color-on-warn-fill: #1d1d1f;
+  --color-on-neutral-fill: #ffffff;
+  --color-on-strong-fill: #ffffff;
+  --color-on-toast: #ffffff;
+  --color-on-toast-warn: #1d1d1f;
+  --color-err-soft: #fdecec;
+  --color-on-err-soft: #a1000f;
+  --color-neutral-fill: #6e6e73;
+  --color-strong-fill: #0064d2;
+  --color-ok-soft: #e6f4e9;
+  --color-on-ok-soft: #1a6a2d;
+  --color-warn-soft: #fff6dc;
+  --color-on-warn-soft: #6e4300;
+  --color-toast-ok: #1e7a34;
+  --color-toast-err: #d70015;
+  --color-toast-warn: #ffcc00;
+  --color-toast-info: #0064d2;
+  --color-header-top: #f6f6f6;
+  --color-header: #e8e8e8;
+  --color-on-header: #1d1d1f;
+  --color-on-header-muted: #5e5e63;
+  --color-on-header-subtle: #5e5e63;
+  --color-header-bar: #c6c6c6;
+  --color-header-link: #3a3a3c;
+  --color-header-link-hover: #000000;
+  --color-tabs-top: #f6f6f6;
+  --color-tabs: #e8e8e8;
+  --color-tab: transparent;
+  --color-on-tab: #3a3a3c;
+  --color-tab-hover: #dcdce0;
+  --color-on-tab-hover: #000000;
+  --color-tab-divider: transparent;
+  --color-on-tab-aux: #3a3a3c;
+  --color-on-tab-aux-hover: #000000;
+  --color-tab-on-top: #ffffff;
+  --color-tab-on: #ffffff;
+  --color-on-tab-on: #000000;
+  --color-tab-on-icon: #0064d2;
+  --color-footer-top: #f6f6f6;
+  --color-footer: #e8e8e8;
+  --color-footer-bar: #c6c6c6;
+  --color-on-footer: #3a3a3c;
+  --color-footer-strong: #1d1d1f;
+  --color-nav-on: #dcdce0;
+  --color-on-nav-on: #000000;
+  --color-nav-on-line: #d8d8dc;
+  --color-card-head-top: #f5f5f7;
+  --color-card-head: #f5f5f7;
+  --color-card-head-bar: #d8d8dc;
+  --color-on-card-head: #1d1d1f;
+  --color-table-head-top: #ffffff;
+  --color-table-head: #ffffff;
+  --color-on-table-head: #3a3a3c;
+  --color-dialog-line: #b9b9be;
+  --color-dialog-face: #f5f5f7;
+  --color-dialog-foot: #f5f5f7;
+  --color-on-dialog: #1d1d1f;
+  --color-dialog-head-top: #f5f5f7;
+  --color-dialog-head: #ececee;
+  --color-dialog-head-bar: #d8d8dc;
+  --color-on-dialog-head: #1d1d1f;
+  --color-backdrop: rgba(0, 0, 0, 0.22);
+  --color-pop-line: #c8c8cd;
+  --color-tooltip: #f5f5f7;
+  --color-on-tooltip: #1d1d1f;
+  --color-tooltip-bar: #c8c8cd;
+  --color-on-pop: #1d1d1f;
+  --color-on-selection-muted: #ffffff;
+  --color-card-hover-line: #86868b;
+  --color-subtab-line: #d8d8dc;
+  --color-cardtabs: #e3e3e6;
+  --color-cardtabs-line: #d8d8dc;
+  --color-cardtab: transparent;
+  --color-on-cardtab: #1d1d1f;
+  --color-cardtab-hover: #d6d6da;
+  --color-cardtab-on: #ffffff;
+  --color-on-cardtab-on: #000000;
+  --color-cardtab-bar: #0064d2;
+  --color-subtab: transparent;
+  --color-on-subtab: #3a3a3c;
+  --color-subtab-hover: #ebebef;
+  --color-subtab-on: #ffffff;
+  --color-on-subtab-on: #000000;
+  --color-chart-1: #0064d2;
+  --color-decor-ok: #28cd41;
+  --color-decor-err: #ff3b30;
+  --color-decor-warn: #ffcc00;
+  --color-decor-muted: #8e8e93;
+  --color-decor-strong: #007aff;
+  --color-scroll-thumb: #b6b6bb;
+  --color-scroll-track: #f5f5f7;
+  --color-login-page: #ececec;
+  --color-login-box: #ffffff;
+  --color-login-box-line: #d8d8dc;
+  --color-login-box-bar: #ffffff;
+  --color-on-login-box: #1d1d1f;
+  --color-on-login-box-strong: #1d1d1f;
+  --color-on-login-box-muted: #5e5e63;
+  --color-on-login-box-faint: #5e5e63;
+  --color-login-title: #1d1d1f;
+  --color-login-field-line: #86868b;
+  --color-login-focus: #0064d2;
+  --color-logo-plate: transparent;
+  --bg-page: none;
+  --bg-header: linear-gradient(to bottom in oklab, var(--color-header-top) 0%, var(--color-header) 100%);
+  --bg-tabs: none;
+  --bg-tab-on: none;
+  --bg-action: linear-gradient(to bottom in oklab, var(--color-action-top) 0%, var(--color-action) 100%);
+  --bg-action-hover: linear-gradient(var(--color-action) 0%, var(--color-action) 100%);
+  --bg-action-2: none;
+  --bg-danger: linear-gradient(to bottom in oklab, var(--color-danger-top) 0%, var(--color-danger) 100%);
+  --bg-brand-action: linear-gradient(
+    to bottom in oklab,
+    var(--color-brand-action-top) 0%,
+    var(--color-brand-action) 100%
+  );
+  --bg-table-head: none;
+  --bg-card-head: none;
+  --bg-dialog-head: linear-gradient(to bottom in oklab, var(--color-dialog-head-top) 0%, var(--color-dialog-head) 100%);
+  --bg-dialog-foot: none;
+  --bg-footer: linear-gradient(to bottom in oklab, var(--color-footer-top) 0%, var(--color-footer) 100%);
+  --bg-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%233a3a3c' stroke-width='1.5'/%3E%3C/svg%3E");
+  /* controls: a hairline of shadow under each, the push button's light top edge */
+  --shadow-btn: 0 0.5px 1px rgba(0, 0, 0, 0.3), inset 0 0.5px 0 rgba(255, 255, 255, 0.3);
+  --shadow-btn-2: 0 0.5px 1px rgba(0, 0, 0, 0.14);
+  --shadow-brand-action: 0 0.5px 1px rgba(0, 0, 0, 0.3), inset 0 0.5px 0 rgba(255, 255, 255, 0.3);
+  --shadow-btn-danger: 0 0.5px 1px rgba(0, 0, 0, 0.3), inset 0 0.5px 0 rgba(255, 255, 255, 0.3);
+  /* the focus ring: a soft blue halo around the field */
+  --shadow-field-focus: 0 0 0 3px rgba(0, 100, 210, 0.3);
+  --shadow-invalid: 0 0 0 3px rgba(215, 0, 21, 0.25);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-field: inset 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  --shadow-table-head: inset 0 -1px 0 #d8d8dc;
+  /* a sheet: a soft, deep shadow and a thin outer line */
+  --shadow-dialog: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 10px 30px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.1);
+  --shadow-pop: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.2);
+  --shadow-tip: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --shadow-app: 0 1px 4px rgba(0, 0, 0, 0.12);
+  --shadow-tabs: inset 0 -1px #d8d8dc;
+  --shadow-tab-on: inset 0 -2px 0 #0064d2;
+  --shadow-subtab-on: inset 0 -2px 0 #0064d2;
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-nav-on: 0 0 #0000;
+  --shadow-login-box: 0 0 0 0.5px rgba(0, 0, 0, 0.1), 0 12px 32px rgba(0, 0, 0, 0.14);
+  --font-sans: 'Inter', sans-serif;
+  --font-size-base: 0.8125rem;
+  --card-head-bar-w: 0px;
+  --card-head-size: 0.8125rem;
+  --card-head-weight: 600;
+  --card-head-transform: none;
+  --card-stripe: 0.1875rem;
+  --btn-hover-filter: none;
+  --shadow-btn-active: inset 0 0 0 100vmax rgba(0, 0, 0, 0.12);
+  /* the segmented control: a grey track with the chosen segment raised in white */
+  --cardtabs-pad: 0.1875rem;
+  --cardtabs-gap: 0.1875rem;
+  --shadow-cardtab: 0 0 #0000;
+  --shadow-cardtab-on: 0 0.5px 1.5px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  --cardtab-inset-top: 0px;
+  --cardtab-on-overlap: 0px;
+  --cardtab-bar-w: 0px;
+  --cardtab-transform: none;
+  --subtabs-line-w: 1px;
+  --placeholder-color: var(--color-fg-muted);
+  --dialog-line-w: 0px;
+  --dialog-head-bar-w: 1px;
+  --dialog-head-size: 0.8125rem;
+  /* the title centred over the whole bar: the right padding matches the close light's room on the left */
+  --dialog-head-pad: 0.5rem 1.625rem 0.5rem 0.8125rem;
+  --dialog-head-align: center;
+  --dialog-rise: -0.75rem;
+  /* the close light: a red dot at the left, its cross showing on hover */
+  --dialog-x-order: -1;
+  --dialog-x-size: 0.8125rem;
+  --dialog-x-line: 0 solid transparent;
+  --dialog-x-bg: transparent;
+  --dialog-x-bg-hover: transparent;
+  --bg-dialog-x: radial-gradient(
+    circle closest-side,
+    #ff5f57 0,
+    #ff5f57 calc(100% - 1.5px),
+    #e0443e calc(100% - 1px),
+    #e0443e 100%,
+    transparent calc(100% + 0.5px)
+  );
+  --bg-dialog-x-hover: var(--bg-dialog-x);
+  --dialog-x-ink: transparent;
+  --dialog-x-ink-hover: #5a0a07;
+  --dialog-x-shadow: none;
+  --header-line: #c6c6c6;
+  --lbl-transform: none;
+  --lbl-tracking: normal;
+  /* notifications: a translucent light banner, the title in the state's colour and a bar at its left */
+  --toast-head-mix: 0%;
+  --toast-alpha: 86%;
+  --toast-blur: 1.25rem;
+  --toast-line-w: 1px;
+  --toast-bar-w: 3px;
+  --header-logo-dark-ink: block;
+  --header-logo-light-ink: none;
+  --login-logo-dark-ink: block;
+  --login-logo-light-ink: none;
+}
+
+/* Mac OS Retro (Platinum, Mac OS 8/9): window face #dddddd with the two-pixel relief, black hairline frames, the
+   menu bar as the header, a title bar of fine stripes with the title on a plain patch and the square close box at
+   the left, the default button with its heavier ring, folder tabs, the lavender highlight, and the muted
+   blue-purple desktop with its fine pattern as the page */
+:root[data-theme='macos-retro'] {
+  --color-fg: #000000;
+  --color-on-page: #000000;
+  --color-fg-strong: #000000;
+  --color-fg-muted: #3c3c3c;
+  --color-fg-subtle: #3c3c3c;
+  --color-link: #2a2a8f;
+  --color-link-hover: #000066;
+  /* the desktop: a pale blue-purple, the lightest of the Mac OS 8 desktops, so the page's text keeps its contrast */
+  --color-page: #b4b4d2;
+  --color-page-dots: rgba(60, 60, 120, 0.22);
+  --color-surface: #ffffff;
+  --color-surface-2: #dddddd;
+  --color-surface-3: #eeeeee;
+  --color-row-alt: #f3f3f3;
+  --color-row-hover: #e6e6f5;
+  --color-line: #8c8c8c;
+  --color-line-soft: #cccccc;
+  --color-field: #ffffff;
+  --color-on-field: #000000;
+  --color-field-line: #000000;
+  --color-field-focus: #000000;
+  --color-check-line: #000000;
+  --color-autofill: #000000;
+  /* a Platinum push button: the window face with black text; the default one stands out by its ring */
+  --color-action: #d4d4d4;
+  --color-action-top: #f2f2f2;
+  --color-action-line: #000000;
+  --color-on-action: #000000;
+  --color-action-2: #d4d4d4;
+  --color-action-2-top: #f2f2f2;
+  --color-action-2-line: #000000;
+  --color-action-2-hover-line: #000000;
+  --color-on-action-2: #000000;
+  --color-danger: #a00000;
+  --color-danger-top: #b81c1c;
+  --color-danger-line: #000000;
+  --color-on-danger: #ffffff;
+  --color-brand-action: #d4d4d4;
+  --color-brand-action-top: #f2f2f2;
+  --color-brand-action-hover: #e4e4e4;
+  --color-on-brand-action: #000000;
+  --color-accent: #5c5cad;
+  --color-accent-strong: #3d3d8f;
+  /* the classic lavender highlight with black text */
+  --color-selection: #bbbbee;
+  --color-on-selection: #000000;
+  --color-focus: #4b4ba6;
+  --color-ok: #1b5e20;
+  --color-err: #a00000;
+  --color-warn: #6b4500;
+  --color-ok-fill: #1b5e20;
+  --color-err-fill: #a00000;
+  --color-warn-fill: #ffcc33;
+  --color-on-ok-fill: #ffffff;
+  --color-on-err-fill: #ffffff;
+  --color-on-warn-fill: #000000;
+  --color-on-neutral-fill: #ffffff;
+  --color-on-strong-fill: #ffffff;
+  --color-on-toast: #ffffff;
+  --color-on-toast-warn: #000000;
+  --color-err-soft: #f7e0e0;
+  --color-on-err-soft: #800000;
+  --color-neutral-fill: #555555;
+  --color-strong-fill: #3d3d8f;
+  --color-ok-soft: #e2efe2;
+  --color-on-ok-soft: #1b4d1e;
+  --color-warn-soft: #fff6d6;
+  --color-on-warn-soft: #5c3b00;
+  --color-toast-ok: #1b5e20;
+  --color-toast-err: #a00000;
+  --color-toast-warn: #ffcc33;
+  --color-toast-info: #3d3d8f;
+  --color-on-toast-info: #ffffff;
+  --color-info-soft: #e6e6f5;
+  --color-on-info-soft: #000000;
+  /* the header is the menu bar: light grey, black text, a black line under it */
+  --color-header-top: #f4f4f4;
+  --color-header: #dddddd;
+  --color-on-header: #000000;
+  --color-on-header-muted: #333333;
+  --color-on-header-subtle: #333333;
+  --color-header-bar: #000000;
+  --color-header-link: #000000;
+  --color-header-link-hover: #2a2a8f;
+  --color-tabs-top: #dddddd;
+  --color-tabs: #dddddd;
+  --color-tab: #cccccc;
+  --color-on-tab: #000000;
+  --color-tab-hover: #d6d6d6;
+  --color-on-tab-hover: #000000;
+  --color-tab-divider: transparent;
+  --color-on-tab-aux: #000000;
+  --color-on-tab-aux-hover: #2a2a8f;
+  --color-tab-on-top: #dddddd;
+  --color-tab-on: #dddddd;
+  --color-on-tab-on: #000000;
+  --color-tab-on-icon: #3d3d8f;
+  --color-footer-top: #eeeeee;
+  --color-footer: #dddddd;
+  --color-footer-bar: #000000;
+  --color-on-footer: #000000;
+  --color-footer-strong: #000000;
+  --color-nav-on: #ccccff;
+  --color-on-nav-on: #000000;
+  --color-nav-on-line: #8c8c8c;
+  --color-card-head-top: #eeeeee;
+  --color-card-head: #dddddd;
+  --color-card-head-bar: #8c8c8c;
+  --color-on-card-head: #000000;
+  --color-table-head-top: #eeeeee;
+  --color-table-head: #dddddd;
+  --color-on-table-head: #000000;
+  --color-dialog-line: #000000;
+  --color-dialog-face: #dddddd;
+  --color-dialog-foot: #dddddd;
+  --color-on-dialog: #000000;
+  --color-dialog-head-top: #dddddd;
+  --color-dialog-head: #dddddd;
+  --color-dialog-head-bar: #8c8c8c;
+  --color-on-dialog-head: #000000;
+  --color-backdrop: rgba(40, 40, 80, 0.3);
+  --color-pop-line: #000000;
+  --color-tooltip: #ffffcc;
+  --color-on-tooltip: #000000;
+  --color-tooltip-bar: #000000;
+  --color-on-pop: #000000;
+  --color-on-selection-muted: #000000;
+  --color-card-hover-line: #000000;
+  --color-subtab-line: #000000;
+  --color-cardtabs: #dddddd;
+  --color-cardtabs-line: #000000;
+  --color-cardtab: #c8c8c8;
+  --color-on-cardtab: #000000;
+  --color-cardtab-hover: #d2d2d2;
+  --color-cardtab-on: #dddddd;
+  --color-on-cardtab-on: #000000;
+  --color-cardtab-bar: #000000;
+  --color-subtab: #c8c8c8;
+  --color-on-subtab: #000000;
+  --color-subtab-hover: #d2d2d2;
+  --color-subtab-on: #ffffff;
+  --color-on-subtab-on: #000000;
+  --color-chart-1: #3d3d8f;
+  --color-decor-ok: #1b5e20;
+  --color-decor-err: #a00000;
+  --color-decor-warn: #ffcc33;
+  --color-decor-muted: #808080;
+  --color-decor-strong: #3d3d8f;
+  --color-scroll-thumb: #8c8ccf;
+  --color-scroll-track: #dddddd;
+  --color-login-page: #b4b4d2;
+  --color-login-box: #dddddd;
+  --color-login-box-line: #000000;
+  --color-login-box-bar: #000000;
+  --color-on-login-box: #000000;
+  --color-on-login-box-strong: #000000;
+  --color-on-login-box-muted: #333333;
+  --color-on-login-box-faint: #333333;
+  --color-login-title: #000000;
+  --color-login-field-line: #000000;
+  --color-login-focus: #4b4ba6;
+  --color-logo-plate: transparent;
+  /* the desktop pattern: a fine dither of darker dots on the pale blue-purple */
+  --bg-page: radial-gradient(var(--color-page-dots) 0.5px, transparent 1px);
+  --bg-page-size: 0.25rem 0.25rem;
+  --bg-header: linear-gradient(to bottom in oklab, var(--color-header-top) 0%, var(--color-header) 100%);
+  --bg-tabs: none;
+  --bg-tab-on: none;
+  --bg-action: linear-gradient(to bottom in oklab, var(--color-action-top) 0%, #e2e2e2 45%, var(--color-action) 100%);
+  --bg-action-hover: linear-gradient(to bottom in oklab, #f8f8f8 0%, #e8e8e8 45%, #dadada 100%);
+  --bg-action-2: linear-gradient(
+    to bottom in oklab,
+    var(--color-action-2-top) 0%,
+    #e2e2e2 45%,
+    var(--color-action-2) 100%
+  );
+  --bg-danger: linear-gradient(to bottom in oklab, var(--color-danger-top) 0%, var(--color-danger) 100%);
+  --bg-brand-action: linear-gradient(
+    to bottom in oklab,
+    var(--color-brand-action-top) 0%,
+    #e2e2e2 45%,
+    var(--color-brand-action) 100%
+  );
+  --bg-table-head: linear-gradient(to bottom in oklab, var(--color-table-head-top) 0%, var(--color-table-head) 100%);
+  --bg-card-head: linear-gradient(to bottom in oklab, var(--color-card-head-top) 0%, var(--color-card-head) 100%);
+  /* the title bar: fine horizontal stripes (a light and a dark line, a gap), with the face left plain above and
+     below them */
+  --bg-dialog-head:
+    linear-gradient(
+      to bottom,
+      #dddddd 0,
+      #dddddd 0.25rem,
+      transparent 0.25rem,
+      transparent calc(100% - 0.25rem),
+      #dddddd calc(100% - 0.25rem)
+    ),
+    repeating-linear-gradient(to bottom, #ffffff 0, #ffffff 1px, #999999 1px, #999999 2px, #dddddd 2px, #dddddd 3px);
+  --bg-dialog-foot: none;
+  --bg-footer: none;
+  --bg-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23000000'/%3E%3C/svg%3E");
+  /* the default (primary) button: its heavier ring, a gap of the face and a 2 px black frame */
+  --shadow-btn: var(--bevel-raised), 0 0 0 1px #dddddd, 0 0 0 3px #000000;
+  --shadow-btn-2: var(--bevel-raised);
+  --shadow-brand-action: var(--bevel-raised), 0 0 0 1px #dddddd, 0 0 0 3px #000000;
+  --shadow-btn-danger: var(--bevel-raised);
+  --shadow-field-focus: 0 0 0 2px #9999cc;
+  --shadow-invalid: 0 0 0 2px rgba(160, 0, 0, 0.35);
+  --shadow-card: 1px 1px 0 rgba(0, 0, 0, 0.35);
+  --shadow-field: var(--bevel-sunken);
+  --shadow-table-head: var(--bevel-raised);
+  /* a window: the two-pixel relief inside the black frame and a hard drop shadow */
+  --shadow-dialog: inset 1px 1px #ffffff, inset -1px -1px #888888, 2px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-pop: 2px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-tip: 1px 1px 0 rgba(0, 0, 0, 0.35);
+  --shadow-app: 0 0 0 1px #000000;
+  --shadow-tabs: inset 0 -1px #000000;
+  /* folder tabs: each a raised face with a black outline; the current one is the window face and opens into it */
+  --shadow-tab:
+    inset 1px 0 #000, inset -1px 0 #000, inset 0 1px #000, inset 2px 0 #fff, inset 0 2px #fff, inset -2px 0 #999;
+  --shadow-tab-on:
+    inset 1px 0 #000, inset -1px 0 #000, inset 0 1px #000, inset 2px 0 #fff, inset 0 2px #fff, inset -2px 0 #999;
+  --shadow-subtab:
+    inset 1px 0 #000, inset -1px 0 #000, inset 0 1px #000, inset 2px 0 #fff, inset 0 2px #fff, inset -2px 0 #999;
+  --shadow-subtab-on: inset 1px 0 #000, inset -1px 0 #000, inset 0 1px #000, inset 2px 0 #fff, inset 0 2px #fff;
+  --shadow-cardtab:
+    inset 1px 0 #000, inset -1px 0 #000, inset 0 1px #000, inset 2px 0 #f2f2f2, inset 0 2px #f2f2f2, inset -2px 0 #999;
+  --shadow-cardtab-on:
+    inset 1px 0 #000, inset -1px 0 #000, inset 0 1px #000, inset 2px 0 #fff, inset 0 2px #fff, inset -2px 0 #999;
+  --shadow-card-hover: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  --shadow-nav-on: inset 3px 0 0 #3d3d8f;
+  --shadow-login-box: inset 1px 1px #ffffff, inset -1px -1px #888888, 2px 2px 0 rgba(0, 0, 0, 0.35);
+  --font-sans: 'Barlow', sans-serif;
+  --font-size-base: 0.8125rem;
+  --card-head-bar-w: 0px;
+  --card-head-size: 0.8125rem;
+  --card-head-weight: 600;
+  --card-head-transform: none;
+  --card-stripe: 0px;
+  --btn-hover-filter: none;
+  --shadow-btn-active: var(--bevel-pressed);
+  --tab-gap: 0.125rem;
+  --tab-inset-top: 0.1875rem;
+  --tabs-pad: 0.375rem;
+  --subtabs-line-w: 1px;
+  --subtabs-gap: 0.125rem;
+  --subtabs-pad: 0.25rem;
+  --subtab-inset-top: 0.1875rem;
+  --subtab-on-overlap: 1px;
+  --cardtabs-pad: 0.375rem;
+  --cardtabs-gap: 0.125rem;
+  --cardtab-inset-top: 0.1875rem;
+  --cardtab-on-overlap: 1px;
+  --cardtab-bar-w: 0px;
+  --cardtab-transform: none;
+  --placeholder-color: var(--color-fg-muted);
+  --dialog-line-w: 1px;
+  --dialog-head-bar-w: 1px;
+  --dialog-head-size: 0.8125rem;
+  --dialog-head-pad: 0.25rem 1.375rem 0.25rem 0.5rem;
+  --dialog-head-align: center;
+  /* the title on a plain patch of the face, centred over the stripes */
+  --dialog-title-flex: 0 1 auto;
+  --dialog-title-mx: auto;
+  --dialog-title-px: 0.5rem;
+  --dialog-title-bg: #dddddd;
+  /* the close box: square, at the left, with its own relief and a patch of face around it */
+  --dialog-x-order: -1;
+  --dialog-x-size: 0.875rem;
+  --dialog-x-line: 1px solid #000000;
+  --dialog-x-bg: #dddddd;
+  --dialog-x-bg-hover: #aaaaaa;
+  --bg-dialog-x: linear-gradient(135deg, #999999 0%, #f4f4f4 100%);
+  --bg-dialog-x-hover: none;
+  --dialog-x-shadow: inset 1px 1px #ffffff, inset -1px -1px #888888, 0 0 0 0.1875rem #dddddd;
+  --dialog-x-ink: transparent;
+  --dialog-x-ink-hover: transparent;
+  --header-line: #000000;
+  --lbl-transform: none;
+  --lbl-tracking: normal;
+  --toast-head-mix: 0%;
+  --toast-line-w: 1px;
+  --toast-bar-w: 3px;
+  --header-logo-dark-ink: block;
+  --header-logo-light-ink: none;
+  --login-logo-dark-ink: block;
+  --login-logo-light-ink: none;
+  --bevel-raised: inset 1px 1px #ffffff, inset -1px -1px #888888, inset 2px 2px #f4f4f4, inset -2px -2px #bbbbbb;
+  --bevel-sunken: inset 1px 1px #888888, inset -1px -1px #ffffff, inset 2px 2px #e0e0e0;
+  --bevel-pressed: inset 1px 1px #666666, inset -1px -1px #dddddd, inset 0 0 0 100vmax rgba(0, 0, 0, 0.18);
+}

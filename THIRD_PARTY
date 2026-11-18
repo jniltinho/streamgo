@@ -19,13 +19,17 @@ the .rpm recommends one (ffmpeg or ffmpeg-free); the container images install th
 GPL-2.0-or-later AND LGPL-2.1-or-later). Those ffmpeg builds include libx264 and are therefore licensed under the
 GNU GPL; their sources are the distributions' own (Alpine's aports, Debian's and Ubuntu's source packages).
 
-The web app embedded in the streamgo binary carries three typefaces, unmodified, as WOFF2 files of their Latin
-subset (frontend/src/assets/fonts, from the @fontsource packages 5.3.0), each under the SIL Open Font License 1.1;
-the licence texts are beside the files (LICENSE-Inter.txt, LICENSE-NotoSans.txt, LICENSE-JetBrainsMono.txt):
+The web app embedded in the streamgo binary carries six typefaces, unmodified, as WOFF2 files of their Latin
+subset (frontend/src/assets/fonts, from the @fontsource packages 5.3.0): Ubuntu under the Ubuntu Font Licence 1.0,
+the others under the SIL Open Font License 1.1; the licence texts are beside the files (LICENSE-Inter.txt,
+LICENSE-NotoSans.txt, LICENSE-JetBrainsMono.txt, LICENSE-Barlow.txt, LICENSE-OpenSans.txt, LICENSE-Ubuntu.txt):
 
   Inter            OFL-1.1   https://github.com/rsms/inter                      Copyright 2016 The Inter Project Authors
   Noto Sans        OFL-1.1   https://github.com/notofonts/latin-greek-cyrillic  Copyright 2022 The Noto Project Authors
   JetBrains Mono   OFL-1.1   https://github.com/JetBrains/JetBrainsMono         Copyright 2020 The JetBrains Mono Project Authors
+  Barlow           OFL-1.1   https://github.com/jpt/barlow                      Copyright 2017 The Barlow Project Authors
+  Open Sans        OFL-1.1   https://github.com/googlefonts/opensans            Copyright 2020 The Open Sans Project Authors
+  Ubuntu           UFL-1.0   https://design.ubuntu.com/font                     Copyright 2010-2011 Canonical Ltd.
 
 
 ====================================================================================================

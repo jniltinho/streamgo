@@ -32,9 +32,10 @@ First version of the application; everything is new.
   always shows the program as the largest 16:9 picture that fits.
 - **Web app**: sign-in, broadcasts, destinations, the studio (owner and guest views) and the guest join page, in
   English with a pt-BR catalog, with themed toasts and dialogs.
-- **Themes**: 22 themes over one role-token contract: StreamGo's own dark and light pair plus the 20 themes of
-  MeetHub's catalog, carried over with the theme system itself (a registry in the server, one CSS file per theme
-  family, the contrast matrix, lockstep, contract and contrast tests, three shared corner radii, more square than round).
+- **Themes**: 27 themes over one role-token contract: StreamGo's own dark and light pair, its macOS, Mac OS Retro,
+  Ubuntu and OBS Studio (dark and light) themes, and the 20 themes of MeetHub's catalog, carried over with the theme
+  system itself (a registry in the server, one CSS file per theme family, the contrast matrix, lockstep, contract and
+  contrast tests, three shared corner radii, more square than round).
 - **CLI and layout**: the Cobra command tree and repository layout of MeetHub, with the domain in `internal/core/`
   kept free of framework, database, media-server and process imports.
 - **Database**: SQLite by default, MariaDB or PostgreSQL by configuration, with the same behaviour and the same

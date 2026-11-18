@@ -48,7 +48,9 @@ function answer(ok: boolean) {
     @cancel.prevent="answer(false)"
   >
     <form @submit.prevent="answer(true)">
-      <div id="dlg-title" class="pnl-head">{{ cur.title }}</div>
+      <div class="pnl-head flex items-center">
+        <span id="dlg-title" class="pnl-title">{{ cur.title }}</span>
+      </div>
       <div class="pnl-body">
         <p id="dlg-msg" class="whitespace-pre-line" :class="{ 'mb-2 font-semibold text-err': cur.kind === 'typed' }">
           {{ cur.message }}

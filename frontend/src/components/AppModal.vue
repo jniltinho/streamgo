@@ -30,7 +30,7 @@ onBeforeUnmount(() => {
     @cancel.prevent="emit('close')"
   >
     <div class="pnl-head flex items-center">
-      <span id="app-modal-title" class="flex-1">{{ title }}</span>
+      <span id="app-modal-title" class="pnl-title">{{ title }}</span>
       <button type="button" class="icon-btn modal-x" :aria-label="t('Close')" @click="emit('close')">
         <X class="size-4" aria-hidden="true" />
       </button>

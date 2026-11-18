@@ -50,7 +50,7 @@ describe('style check', () => {
     const base = readFileSync(join(src, 'style.css'), 'utf8')
     const faces = [...base.matchAll(/@font-face\s*{[^}]*font-family:\s*'([^']+)'[^}]*url\(\.\/([^)]+)\)/g)]
     const bundled = new Set(faces.map((m) => m[1]))
-    expect([...bundled].sort()).toEqual(['Inter', 'JetBrains Mono', 'Noto Sans'])
+    expect([...bundled].sort()).toEqual(['Barlow', 'Inter', 'JetBrains Mono', 'Noto Sans', 'Open Sans', 'Ubuntu'])
     for (const m of faces) expect(statSync(join(src, m[2]!)).size, m[2]).toBeGreaterThan(1000)
     const stacks = css.flatMap((p) =>
       [...readFileSync(p, 'utf8').matchAll(/--font-(?:sans|mono):\s*([^;]+);/g)].map((m) => ({ p, stack: m[1]! })),

@@ -3,19 +3,20 @@
 ## ADDED Requirements
 
 ### Requirement: Theme catalog
-The system SHALL offer 22 themes, each with an id, a label and a `light` or `dark` scheme: StreamGo's own pair,
-`streamgo-dark` (default) and `streamgo-light`, and the 20 themes carried over from MeetHub's catalog with their
-ids, labels and looks.
+The system SHALL offer 27 themes, each with an id, a label and a `light` or `dark` scheme: StreamGo's own pair,
+`streamgo-dark` (default) and `streamgo-light`, the 20 themes carried over from MeetHub's catalog with their ids,
+labels and looks, and StreamGo's own `macos`, `macos-retro`, `ubuntu`, `obs-dark` and `obs-light`.
 
 #### Scenario: Catalog
 - **WHEN** the registry is listed
 - **THEN** it holds, in order, `streamgo-dark`, `streamgo-light`, `default`, `admanager`, `breeze`, `breeze-dark`,
   `violet`, `violet-dark`, `aurora`, `aurora-dark`, `crystal`, `crystal-dark`, `cone`, `classic-blue`,
-  `classic-gray`, `graphite`, `grafana`, `rabbitmq`, `matrix`, `winamp`, `pink-panther` and `high-contrast`
+  `classic-gray`, `graphite`, `grafana`, `rabbitmq`, `matrix`, `winamp`, `pink-panther`, `high-contrast`, `macos`,
+  `macos-retro`, `ubuntu`, `obs-dark` and `obs-light`
 
 #### Scenario: Theme list from the API
 - **WHEN** a client requests `GET /api/v1/themes`
-- **THEN** it receives the 22 ids, labels and schemes in catalog order, with `streamgo-dark` marked as the default
+- **THEN** it receives the 27 ids, labels and schemes in catalog order, with `streamgo-dark` marked as the default
 
 #### Scenario: Registry, styles and picker agree
 - **WHEN** the theme lockstep test runs
@@ -34,14 +35,37 @@ ids, labels and looks.
   a surface of their own with the theme's shadow, and its role tokens equal MeetHub's except the page, the text
   roles that stand on it, the links and the field focus
 
+#### Scenario: The macOS theme
+- **WHEN** the macOS theme is applied
+- **THEN** the header is a light unified toolbar with dark text, actions and selection are the system blue darkened
+  for contrast, a dialog is a sheet that slides down with its title centred and a red close light at its left, and
+  the text is set in Inter
+
+#### Scenario: The Mac OS Retro theme
+- **WHEN** the Mac OS Retro theme is applied
+- **THEN** the header is the Platinum menu bar, the page is the pale blue-purple desktop with its fine pattern, a
+  dialog has a striped title bar with the title on a plain patch and a square close box at its left, the primary
+  button carries the default button's ring, card tabs are folder tabs, and the text is set in Barlow
+
+#### Scenario: The Ubuntu theme
+- **WHEN** the Ubuntu theme is applied
+- **THEN** the header is the dark aubergine top bar with light text and an orange line under it, actions and
+  selection are Ubuntu orange darkened for contrast, a dialog's close button is an orange circle at the right of a
+  centred title, and the text is set in Ubuntu
+
+#### Scenario: The OBS Studio themes
+- **WHEN** the OBS Studio (dark) or OBS Studio (light) theme is applied
+- **THEN** surfaces are flat and nearly shadowless on a blue-grey (or light grey) window, buttons are flat grey,
+  actions, selection and the current tab are the OBS blue, and the text is set in Open Sans
+
 ### Requirement: Bundled fonts
 Every font family a theme or the program names SHALL be bundled with the web app, so the interface and the
 program's text look the same on any system; only a generic family follows as the fallback.
 
 #### Scenario: No system font
 - **WHEN** the theme files, the base stylesheet and the compositor are read
-- **THEN** every named family is Inter, Noto Sans or JetBrains Mono, each has its font files in the app, and each
-  stack ends in `sans-serif` or `monospace`
+- **THEN** every named family is Inter, Noto Sans, JetBrains Mono, Barlow, Ubuntu or Open Sans, each has its font
+  files in the app, and each stack ends in `sans-serif` or `monospace`
 
 #### Scenario: Fonts load
 - **WHEN** the app opens in the default, the Breeze and the Matrix theme
@@ -87,11 +111,11 @@ text, 3:1 for large text, icons, input borders and focus indicators), and `strea
 `high-contrast`, `crystal`, `crystal-dark` and `classic-blue` SHALL meet AAA (7:1 for text, 4.5:1 for large text).
 
 #### Scenario: Contrast test
-- **WHEN** the contrast test renders each of the 22 themes and measures every pair of the matrix
+- **WHEN** the contrast test renders each of the 27 themes and measures every pair of the matrix
 - **THEN** every pair meets its threshold and the list of pending failures is empty
 
 #### Scenario: Studio in every theme
-- **WHEN** the studio is rendered in each of the 22 themes
+- **WHEN** the studio is rendered in each of the 27 themes
 - **THEN** the on-air mark, the destination statuses, the on-stage marks and every control label meet the matrix
 
 ### Requirement: Theme picker and persistence

@@ -8,13 +8,14 @@ import (
 	"github.com/jniltinho/streamgo/internal/theme"
 )
 
-// TestCatalog is the ui-themes "Catalog" scenario: the 22 ids in order, one default.
+// TestCatalog is the ui-themes "Catalog" scenario: the 27 ids in order, one default.
 func TestCatalog(t *testing.T) {
 	t.Parallel()
 	want := []string{
 		"streamgo-dark", "streamgo-light", "default", "admanager", "breeze", "breeze-dark",
 		"violet", "violet-dark", "aurora", "aurora-dark", "crystal", "crystal-dark", "cone", "classic-blue",
 		"classic-gray", "graphite", "grafana", "rabbitmq", "matrix", "winamp", "pink-panther", "high-contrast",
+		"macos", "macos-retro", "ubuntu", "obs-dark", "obs-light",
 	}
 	all := theme.All()
 	if len(all) != len(want) {

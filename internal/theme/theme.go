@@ -38,6 +38,11 @@ var themes = []Theme{
 	{ID: "winamp", Label: "Winamp (dark)", Scheme: "dark"},
 	{ID: "pink-panther", Label: "Pink Panther", Scheme: "light"},
 	{ID: "high-contrast", Label: "High contrast (dark)", Scheme: "dark"},
+	{ID: "macos", Label: "macOS", Scheme: "light"},
+	{ID: "macos-retro", Label: "Mac OS Retro", Scheme: "light"},
+	{ID: "ubuntu", Label: "Ubuntu", Scheme: "light"},
+	{ID: "obs-dark", Label: "OBS Studio (dark)", Scheme: "dark"},
+	{ID: "obs-light", Label: "OBS Studio (light)", Scheme: "light"},
 }
 
 // All returns a copy of the catalog in display order.

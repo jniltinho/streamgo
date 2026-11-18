@@ -391,6 +391,10 @@
   /* where the close button sits (-1: left of the title, as on a Mac) and the colour of its cross (transparent: a
      face with no cross, the macOS light or the Platinum close box) */
   --dialog-x-order: 0;
+  /* its width when it is not a square (the three window lights of a Mac) and how far it pulls the title back
+     under it, so that the title stays centred over the whole bar */
+  --dialog-x-width: var(--dialog-x-size);
+  --dialog-x-pull: 0px;
   --dialog-x-ink: currentcolor;
   --dialog-x-ink-hover: currentcolor;
   /* the dialog title: its alignment, and as a patch (Platinum: the title on a plain patch over the stripes) its
@@ -741,8 +745,10 @@ body {
   --bg-dialog-x: none;
   --bg-dialog-x-hover: none;
   --dialog-x-shadow: none;
-  --dialog-x-ink: currentcolor; /* a close button drawn by its gradient (the macOS light) shows its cross instead */
+  --dialog-x-ink: currentcolor; /* a close button drawn by its artwork (the macOS lights) shows its cross instead */
   --dialog-x-ink-hover: currentcolor;
+  --dialog-x-width: var(--dialog-x-size);
+  --dialog-x-pull: 0px;
   --bg-page-size: 1.375rem 1.375rem;
   --bg-footer: none;
   --shadow-btn: none;
@@ -879,7 +885,8 @@ dialog.pnl.closing::backdrop {
 }
 .pnl-head .modal-x {
   order: var(--dialog-x-order);
-  width: var(--dialog-x-size);
+  width: var(--dialog-x-width);
+  margin-inline-end: var(--dialog-x-pull);
   height: var(--dialog-x-size);
   border: var(--dialog-x-line);
   border-radius: var(--radius-sm);

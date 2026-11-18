@@ -39,6 +39,7 @@ var themes = []Theme{
 	{ID: "pink-panther", Label: "Pink Panther", Scheme: "light"},
 	{ID: "high-contrast", Label: "High contrast (dark)", Scheme: "dark"},
 	{ID: "macos", Label: "macOS", Scheme: "light"},
+	{ID: "macos-dark", Label: "macOS (dark)", Scheme: "dark"},
 	{ID: "macos-retro", Label: "Mac OS Retro", Scheme: "light"},
 	{ID: "ubuntu", Label: "Ubuntu", Scheme: "light"},
 	{ID: "obs-dark", Label: "OBS Studio (dark)", Scheme: "dark"},

@@ -436,7 +436,7 @@ What StreamGo adds on top:
 Precedence: the user's saved preference, then the theme remembered in the browser, then `streamgo-dark`
 (`streamgo-light` when the browser prefers light). Guests have only the browser. The program drawn on the canvas
 does not follow the UI theme: it uses the broadcast's own accent colour, so viewers see the same picture whatever
-theme the owner uses. Because the studio must read well in 27 themes, including light and retro ones, its
+theme the owner uses. Because the studio must read well in 28 themes, including light and retro ones, its
 components use only roles and recipes; the mockups in `design/` fix the arrangement and the StreamGo pair, not
 literal colours in components.
 

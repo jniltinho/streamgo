@@ -56,7 +56,7 @@ signed-in header, which carry no theme or language control of their own.
 
 #### Scenario: Theme and language modal
 - **WHEN** "Theme and language" is opened
-- **THEN** the Theme tab shows the 27 themes without scrolling at 1280x720, and the Language tab the language
+- **THEN** the Theme tab shows the 28 themes without scrolling at 1280x720, and the Language tab the language
   choice
 
 ### Requirement: Profile and header

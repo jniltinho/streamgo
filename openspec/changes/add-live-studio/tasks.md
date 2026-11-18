@@ -53,7 +53,7 @@ counter into its video and plays a distinct tone.
   file; verify every `database` scenario, the `server-cli` "Idempotent" and "Single instance" scenarios, and a
   test that the three migration directories list the same versions
 - [x] 2.4 Declare only what more than one package depends on: the shared domain types and typed errors, the
-  broadcast repository interface, the per-broadcast lock, the `internal/theme` registry with its 27 entries, and
+  broadcast repository interface, the per-broadcast lock, the `internal/theme` registry with its 28 entries, and
   the `depguard` rule (each package defines its own ports with its first slice); verify the "Forbidden import in the core" scenario and the `ui-themes`
   "Catalog" scenario
 - [x] 2.5 Build `internal/httpserver`: Echo v5 with the error envelope, the route-pattern request log, the
@@ -143,7 +143,7 @@ counter into its video and plays a distinct tone.
   and Destinations tabs, the device controls and the invite link; verify the `studio-ui` "Studio screen for the
   owner", "The stage is the program" and "Program audio" scenarios and the `studio` "One hosting tab" scenario
   with Playwright using fake media devices and an axe accessibility check, and the `ui-themes` "Studio in every
-  theme" scenario over the 27 themes
+  theme" scenario over the 28 themes
 - [x] 4.3 Build the live controls: go live, publishing the program through the WHIP client, state and
   per-destination status polling, switching destinations while live, automatic re-publishing when
   `interrupted`, the "Resume broadcast" action, the hidden-tab warning, the browser check and the end confirmation;

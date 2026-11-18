@@ -3,20 +3,20 @@
 ## ADDED Requirements
 
 ### Requirement: Theme catalog
-The system SHALL offer 27 themes, each with an id, a label and a `light` or `dark` scheme: StreamGo's own pair,
+The system SHALL offer 28 themes, each with an id, a label and a `light` or `dark` scheme: StreamGo's own pair,
 `streamgo-dark` (default) and `streamgo-light`, the 20 themes carried over from MeetHub's catalog with their ids,
-labels and looks, and StreamGo's own `macos`, `macos-retro`, `ubuntu`, `obs-dark` and `obs-light`.
+labels and looks, and StreamGo's own `macos`, `macos-dark`, `macos-retro`, `ubuntu`, `obs-dark` and `obs-light`.
 
 #### Scenario: Catalog
 - **WHEN** the registry is listed
 - **THEN** it holds, in order, `streamgo-dark`, `streamgo-light`, `default`, `admanager`, `breeze`, `breeze-dark`,
   `violet`, `violet-dark`, `aurora`, `aurora-dark`, `crystal`, `crystal-dark`, `cone`, `classic-blue`,
   `classic-gray`, `graphite`, `grafana`, `rabbitmq`, `matrix`, `winamp`, `pink-panther`, `high-contrast`, `macos`,
-  `macos-retro`, `ubuntu`, `obs-dark` and `obs-light`
+  `macos-dark`, `macos-retro`, `ubuntu`, `obs-dark` and `obs-light`
 
 #### Scenario: Theme list from the API
 - **WHEN** a client requests `GET /api/v1/themes`
-- **THEN** it receives the 27 ids, labels and schemes in catalog order, with `streamgo-dark` marked as the default
+- **THEN** it receives the 28 ids, labels and schemes in catalog order, with `streamgo-dark` marked as the default
 
 #### Scenario: Registry, styles and picker agree
 - **WHEN** the theme lockstep test runs
@@ -43,11 +43,12 @@ labels and looks, and StreamGo's own `macos`, `macos-retro`, `ubuntu`, `obs-dark
   raised column heads, a dialog has a low caption with a raised gray close button, every toast has the navy
   caption, and its role tokens equal MeetHub's except the roles that refinement changes
 
-#### Scenario: The macOS theme
-- **WHEN** the macOS theme is applied
-- **THEN** the header is a light unified toolbar with dark text, actions and selection are the system blue darkened
-  for contrast, a dialog is a sheet that slides down with its title centred and a red close light at its left, and
-  the text is set in Inter
+#### Scenario: The macOS themes
+- **WHEN** the macOS or the macOS (dark) theme is applied
+- **THEN** the header is a flat unified toolbar (light with dark text, or dark with light text), actions and
+  selection are the system blue darkened for contrast, a dialog is a sheet that slides down with its title centred
+  over the whole bar and the three window lights (red, yellow, green) at its left, which close it as one control
+  and show their marks on hover, a confirmation dialog has no lights, and the text is set in Inter
 
 #### Scenario: The Mac OS Retro theme
 - **WHEN** the Mac OS Retro theme is applied
@@ -119,11 +120,11 @@ text, 3:1 for large text, icons, input borders and focus indicators), and `strea
 `high-contrast`, `crystal`, `crystal-dark` and `classic-blue` SHALL meet AAA (7:1 for text, 4.5:1 for large text).
 
 #### Scenario: Contrast test
-- **WHEN** the contrast test renders each of the 27 themes and measures every pair of the matrix
+- **WHEN** the contrast test renders each of the 28 themes and measures every pair of the matrix
 - **THEN** every pair meets its threshold and the list of pending failures is empty
 
 #### Scenario: Studio in every theme
-- **WHEN** the studio is rendered in each of the 27 themes
+- **WHEN** the studio is rendered in each of the 28 themes
 - **THEN** the on-air mark, the destination statuses, the on-stage marks and every control label meet the matrix
 
 ### Requirement: Theme picker and persistence

@@ -2,9 +2,10 @@
  * recipe parameters; the corners are the shared ones. Approximate values, adjusted for contrast where the original
  * colour is too light for text (the system blue, the highlight). */
 
-/* macOS: window grey #ececec, a unified light toolbar as the header, the system blue darkened to #0064d2 so that
-   white text on it reaches 5.6:1, hairline separators, sheets that slide down from the top with the red close
-   light at their left, translucent notification banners */
+/* macOS, light appearance (after the WhiteSur and MacTahoe GTK themes): window grey #f5f5f5 with white views, a
+   flat unified toolbar as the header, the system blue darkened to #0064d2 so that white text on it reaches 5.6:1,
+   hairline separators, sheets that slide down from the top with the three window lights at their left (the whole
+   group closes; their marks show on hover), translucent notification banners */
 :root[data-theme='macos'] {
   --color-fg: #1d1d1f;
   --color-on-page: #1d1d1f;
@@ -13,7 +14,7 @@
   --color-fg-subtle: #5e5e63;
   --color-link: #0058c4;
   --color-link-hover: #00449a;
-  --color-page: #ececec;
+  --color-page: #f5f5f5;
   --color-page-dots: transparent;
   --color-surface: #ffffff;
   --color-surface-2: #f5f5f7;
@@ -75,12 +76,12 @@
   --color-toast-err: #d70015;
   --color-toast-warn: #ffcc00;
   --color-toast-info: #0064d2;
-  --color-header-top: #f6f6f6;
-  --color-header: #e8e8e8;
+  --color-header-top: #fcfcfc;
+  --color-header: #f1f1f1;
   --color-on-header: #1d1d1f;
   --color-on-header-muted: #5e5e63;
   --color-on-header-subtle: #5e5e63;
-  --color-header-bar: #c6c6c6;
+  --color-header-bar: #d0d0d4;
   --color-header-link: #3a3a3c;
   --color-header-link-hover: #000000;
   --color-tabs-top: #f6f6f6;
@@ -149,7 +150,7 @@
   --color-decor-strong: #007aff;
   --color-scroll-thumb: #b6b6bb;
   --color-scroll-track: #f5f5f7;
-  --color-login-page: #ececec;
+  --color-login-page: #f5f5f5;
   --color-login-box: #ffffff;
   --color-login-box-line: #d8d8dc;
   --color-login-box-bar: #ffffff;
@@ -188,11 +189,11 @@
   /* the focus ring: a soft blue halo around the field */
   --shadow-field-focus: 0 0 0 3px rgba(0, 100, 210, 0.3);
   --shadow-invalid: 0 0 0 3px rgba(215, 0, 21, 0.25);
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 0 0 0.5px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-field: inset 0 0.5px 1px rgba(0, 0, 0, 0.1);
   --shadow-table-head: inset 0 -1px 0 #d8d8dc;
   /* a sheet: a soft, deep shadow and a thin outer line */
-  --shadow-dialog: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 10px 30px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.1);
+  --shadow-dialog: 0 0 0 0.5px rgba(0, 0, 0, 0.2), 0 18px 50px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.12);
   --shadow-pop: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.2);
   --shadow-tip: 0 2px 8px rgba(0, 0, 0, 0.18);
   --shadow-app: 0 1px 4px rgba(0, 0, 0, 0.12);
@@ -225,29 +226,28 @@
   --dialog-line-w: 0px;
   --dialog-head-bar-w: 1px;
   --dialog-head-size: 0.8125rem;
-  /* the title centred over the whole bar: the right padding matches the close light's room on the left */
-  --dialog-head-pad: 0.5rem 1.625rem 0.5rem 0.8125rem;
+  /* the title centred over the whole bar: the lights take no room of their own (the pull) and the title keeps
+     clear of them on both sides */
+  --dialog-head-pad: 0.5rem 0.8125rem;
   --dialog-head-align: center;
+  --dialog-title-px: 3.75rem;
   --dialog-rise: -0.75rem;
-  /* the close light: a red dot at the left, its cross showing on hover */
+  /* the window lights: red, yellow and green at the left, one control that closes */
   --dialog-x-order: -1;
-  --dialog-x-size: 0.8125rem;
+  --dialog-x-size: 0.75rem;
+  --dialog-x-width: 3.25rem;
+  --dialog-x-pull: -3.25rem;
   --dialog-x-line: 0 solid transparent;
   --dialog-x-bg: transparent;
   --dialog-x-bg-hover: transparent;
-  --bg-dialog-x: radial-gradient(
-    circle closest-side,
-    #ff5f57 0,
-    #ff5f57 calc(100% - 1.5px),
-    #e0443e calc(100% - 1px),
-    #e0443e 100%,
-    transparent calc(100% + 0.5px)
-  );
-  --bg-dialog-x-hover: var(--bg-dialog-x);
+  --bg-dialog-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 12'%3E%3Ccircle cx='6' cy='6' r='5.5' fill='%23ff5f57' stroke='%23e0443e' stroke-width='.5'/%3E%3Ccircle cx='26' cy='6' r='5.5' fill='%23febc2e' stroke='%23d89e24' stroke-width='.5'/%3E%3Ccircle cx='46' cy='6' r='5.5' fill='%2328c840' stroke='%231aab29' stroke-width='.5'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  --bg-dialog-x-hover: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 12'%3E%3Ccircle cx='6' cy='6' r='5.5' fill='%23ff5f57' stroke='%23e0443e' stroke-width='.5'/%3E%3Ccircle cx='26' cy='6' r='5.5' fill='%23febc2e' stroke='%23d89e24' stroke-width='.5'/%3E%3Ccircle cx='46' cy='6' r='5.5' fill='%2328c840' stroke='%231aab29' stroke-width='.5'/%3E%3Cg fill='none' stroke-width='1.1' stroke-linecap='round'%3E%3Cpath d='M3.9 3.9l4.2 4.2M8.1 3.9l-4.2 4.2' stroke='%237a1410'/%3E%3Cpath d='M23.2 6h5.6' stroke='%23855b00'/%3E%3Cpath d='M43.2 6h5.6M46 3.2v5.6' stroke='%230b6417'/%3E%3C/g%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
   --dialog-x-ink: transparent;
-  --dialog-x-ink-hover: #5a0a07;
+  --dialog-x-ink-hover: transparent;
   --dialog-x-shadow: none;
-  --header-line: #c6c6c6;
+  --header-line: #d0d0d4;
   --lbl-transform: none;
   --lbl-tracking: normal;
   /* notifications: a translucent light banner, the title in the state's colour and a bar at its left */
@@ -260,6 +260,268 @@
   --header-logo-light-ink: none;
   --login-logo-dark-ink: block;
   --login-logo-light-ink: none;
+}
+
+/* macOS, dark appearance: window #1e1e1e with views and sheets a step lighter, a dark unified toolbar with a black
+   hairline under it, grey push buttons with a light top edge, the same blue for actions (white text on it keeps
+   5.6:1) and the brighter system blue #0a84ff for marks, links and focus lightened for the dark ground */
+:root[data-theme='macos-dark'] {
+  --color-fg: #dfdfdf;
+  --color-on-page: #dfdfdf;
+  --color-fg-strong: #ffffff;
+  --color-fg-muted: #a9a9ae;
+  --color-fg-subtle: #a9a9ae;
+  --color-link: #6cb4ff;
+  --color-link-hover: #9ccbff;
+  --color-page: #1e1e1e;
+  --color-page-dots: transparent;
+  --color-surface: #2a2a2c;
+  --color-surface-2: #323234;
+  --color-surface-3: #3a3a3c;
+  --color-row-alt: #2f2f31;
+  --color-row-hover: #3a3a3c;
+  --color-line: #444446;
+  --color-line-soft: #38383a;
+  --color-field: #3a3a3c;
+  --color-on-field: #ffffff;
+  --color-field-line: #8e8e93;
+  --color-field-focus: #4a9eff;
+  --color-check-line: #8e8e93;
+  --color-autofill: #ffffff;
+  --color-action: #0064d2;
+  --color-action-top: #0a6ee0;
+  --color-action-line: #2b7de0;
+  --color-on-action: #ffffff;
+  --color-action-2: #464649;
+  --color-action-2-top: #4c4c4f;
+  --color-action-2-line: #5e5e61;
+  --color-action-2-hover-line: #8e8e93;
+  --color-on-action-2: #ffffff;
+  --color-danger: #d70015;
+  --color-danger-top: #e01b2d;
+  --color-danger-line: #c00013;
+  --color-on-danger: #ffffff;
+  --color-brand-action: #0064d2;
+  --color-brand-action-top: #0a6ee0;
+  --color-brand-action-hover: #0058c4;
+  --color-on-brand-action: #ffffff;
+  --color-accent: #0a84ff;
+  --color-accent-strong: #409cff;
+  --color-selection: #0064d2;
+  --color-on-selection: #ffffff;
+  --color-focus: #5aa9ff;
+  --color-ok: #32d74b;
+  --color-err: #ffa19b; /* light enough to read on a push button too (the studio's Leave button) */
+  --color-warn: #ffd60a;
+  --color-ok-fill: #1e7a34;
+  --color-err-fill: #d70015;
+  --color-warn-fill: #ffcc00;
+  --color-on-ok-fill: #ffffff;
+  --color-on-err-fill: #ffffff;
+  --color-on-warn-fill: #1d1d1f;
+  --color-on-neutral-fill: #ffffff;
+  --color-on-strong-fill: #ffffff;
+  --color-on-toast: #ffffff;
+  --color-on-toast-warn: #1d1d1f;
+  --color-err-soft: #4a2325;
+  --color-on-err-soft: #ffb3ad;
+  --color-neutral-fill: #6e6e73;
+  --color-strong-fill: #0064d2;
+  --color-ok-soft: #1f3d27;
+  --color-on-ok-soft: #9fe3ae;
+  --color-warn-soft: #463a12;
+  --color-on-warn-soft: #ffe08a;
+  --color-toast-ok: #1e7a34;
+  --color-toast-err: #d70015;
+  --color-toast-warn: #ffcc00;
+  --color-toast-info: #0064d2;
+  --color-header-top: #3a3a3c;
+  --color-header: #323234;
+  --color-on-header: #f5f5f7;
+  --color-on-header-muted: #b4b4b9;
+  --color-on-header-subtle: #b4b4b9;
+  --color-header-bar: #0f0f0f;
+  --color-header-link: #d4d4d8;
+  --color-header-link-hover: #ffffff;
+  --color-tabs-top: #3a3a3c;
+  --color-tabs: #323234;
+  --color-tab: transparent;
+  --color-on-tab: #d4d4d8;
+  --color-tab-hover: #48484b;
+  --color-on-tab-hover: #ffffff;
+  --color-tab-divider: transparent;
+  --color-on-tab-aux: #d4d4d8;
+  --color-on-tab-aux-hover: #ffffff;
+  --color-tab-on-top: #5c5c5f;
+  --color-tab-on: #5c5c5f;
+  --color-on-tab-on: #ffffff;
+  --color-tab-on-icon: #8cc4ff;
+  --color-footer-top: #3a3a3c;
+  --color-footer: #323234;
+  --color-footer-bar: #0f0f0f;
+  --color-on-footer: #d4d4d8;
+  --color-footer-strong: #ffffff;
+  --color-nav-on: #48484b;
+  --color-on-nav-on: #ffffff;
+  --color-nav-on-line: #444446;
+  --color-card-head-top: #323234;
+  --color-card-head: #323234;
+  --color-card-head-bar: #444446;
+  --color-on-card-head: #f5f5f7;
+  --color-table-head-top: #2a2a2c;
+  --color-table-head: #2a2a2c;
+  --color-on-table-head: #d4d4d8;
+  --color-dialog-line: #000000;
+  --color-dialog-face: #2c2c2e;
+  --color-dialog-foot: #2c2c2e;
+  --color-on-dialog: #dfdfdf;
+  --color-dialog-head-top: #3c3c3e;
+  --color-dialog-head: #343436;
+  --color-dialog-head-bar: #1a1a1a;
+  --color-on-dialog-head: #f5f5f7;
+  --color-backdrop: rgba(0, 0, 0, 0.45);
+  --color-pop-line: #505053;
+  --color-tooltip: #3a3a3c;
+  --color-on-tooltip: #f5f5f7;
+  --color-tooltip-bar: #505053;
+  --color-on-pop: #ffffff;
+  --color-on-selection-muted: #ffffff;
+  --color-card-hover-line: #8e8e93;
+  --color-subtab-line: #444446;
+  --color-cardtabs: #1c1c1e;
+  --color-cardtabs-line: #444446;
+  --color-cardtab: transparent;
+  --color-on-cardtab: #dfdfdf;
+  --color-cardtab-hover: #3a3a3c;
+  --color-cardtab-on: #636366;
+  --color-on-cardtab-on: #ffffff;
+  --color-cardtab-bar: #0a84ff;
+  --color-subtab: transparent;
+  --color-on-subtab: #d4d4d8;
+  --color-subtab-hover: #3a3a3c;
+  --color-subtab-on: #48484b;
+  --color-on-subtab-on: #ffffff;
+  --color-chart-1: #0a84ff;
+  --color-decor-ok: #30d158;
+  --color-decor-err: #ff453a;
+  --color-decor-warn: #ffd60a;
+  --color-decor-muted: #8e8e93;
+  --color-decor-strong: #0a84ff;
+  --color-scroll-thumb: #6a6a6e;
+  --color-scroll-track: #2a2a2c;
+  --color-login-page: #1e1e1e;
+  --color-login-box: #2c2c2e;
+  --color-login-box-line: #444446;
+  --color-login-box-bar: #2c2c2e;
+  --color-on-login-box: #dfdfdf;
+  --color-on-login-box-strong: #ffffff;
+  --color-on-login-box-muted: #a9a9ae;
+  --color-on-login-box-faint: #a9a9ae;
+  --color-login-title: #ffffff;
+  --color-login-field-line: #8e8e93;
+  --color-login-focus: #5aa9ff;
+  --color-logo-plate: transparent;
+  --bg-page: none;
+  --bg-header: linear-gradient(to bottom in oklab, var(--color-header-top) 0%, var(--color-header) 100%);
+  --bg-tabs: none;
+  --bg-tab-on: none;
+  --bg-action: linear-gradient(to bottom in oklab, var(--color-action-top) 0%, var(--color-action) 100%);
+  --bg-action-hover: linear-gradient(var(--color-action) 0%, var(--color-action) 100%);
+  --bg-action-2: none;
+  --bg-danger: linear-gradient(to bottom in oklab, var(--color-danger-top) 0%, var(--color-danger) 100%);
+  --bg-brand-action: linear-gradient(
+    to bottom in oklab,
+    var(--color-brand-action-top) 0%,
+    var(--color-brand-action) 100%
+  );
+  --bg-table-head: none;
+  --bg-card-head: none;
+  --bg-dialog-head: linear-gradient(to bottom in oklab, var(--color-dialog-head-top) 0%, var(--color-dialog-head) 100%);
+  --bg-dialog-foot: none;
+  --bg-footer: linear-gradient(to bottom in oklab, var(--color-footer-top) 0%, var(--color-footer) 100%);
+  --bg-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23d4d4d8' stroke-width='1.5'/%3E%3C/svg%3E");
+  /* controls: a hairline of shadow under each, the push button's light top edge */
+  --shadow-btn: 0 0.5px 1px rgba(0, 0, 0, 0.5), inset 0 0.5px 0 rgba(255, 255, 255, 0.22);
+  --shadow-btn-2: 0 0.5px 1px rgba(0, 0, 0, 0.45), inset 0 0.5px 0 rgba(255, 255, 255, 0.14);
+  --shadow-brand-action: 0 0.5px 1px rgba(0, 0, 0, 0.5), inset 0 0.5px 0 rgba(255, 255, 255, 0.22);
+  --shadow-btn-danger: 0 0.5px 1px rgba(0, 0, 0, 0.5), inset 0 0.5px 0 rgba(255, 255, 255, 0.22);
+  /* the focus ring: a soft blue halo around the field */
+  --shadow-field-focus: 0 0 0 3px rgba(10, 132, 255, 0.4);
+  --shadow-invalid: 0 0 0 3px rgba(255, 69, 58, 0.35);
+  --shadow-card: 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-field: inset 0 0.5px 1px rgba(0, 0, 0, 0.3);
+  --shadow-table-head: inset 0 -1px 0 #444446;
+  /* a sheet: a deep shadow, a dark outer line and a faint light edge inside it */
+  --shadow-dialog:
+    0 0 0 0.5px rgba(0, 0, 0, 0.8), inset 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 18px 50px rgba(0, 0, 0, 0.55);
+  --shadow-pop:
+    0 0 0 0.5px rgba(0, 0, 0, 0.8), inset 0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-tip: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-app: 0 1px 4px rgba(0, 0, 0, 0.4);
+  --shadow-tabs: inset 0 -1px #444446;
+  --shadow-tab-on: inset 0 -2px 0 #0a84ff;
+  --shadow-subtab-on: inset 0 -2px 0 #0a84ff;
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-nav-on: 0 0 #0000;
+  --shadow-login-box:
+    0 0 0 0.5px rgba(0, 0, 0, 0.8), inset 0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 12px 32px rgba(0, 0, 0, 0.45);
+  --font-sans: 'Inter', sans-serif;
+  --font-size-base: 0.8125rem;
+  --card-head-bar-w: 0px;
+  --card-head-size: 0.8125rem;
+  --card-head-weight: 600;
+  --card-head-transform: none;
+  --card-stripe: 0.1875rem;
+  --btn-hover-filter: none;
+  --shadow-btn-active: inset 0 0 0 100vmax rgba(255, 255, 255, 0.12);
+  /* the segmented control: a dark track with the chosen segment raised in grey */
+  --cardtabs-pad: 0.1875rem;
+  --cardtabs-gap: 0.1875rem;
+  --shadow-cardtab: 0 0 #0000;
+  --shadow-cardtab-on: 0 0.5px 1.5px rgba(0, 0, 0, 0.5), inset 0 0.5px 0 rgba(255, 255, 255, 0.14);
+  --cardtab-inset-top: 0px;
+  --cardtab-on-overlap: 0px;
+  --cardtab-bar-w: 0px;
+  --cardtab-transform: none;
+  --subtabs-line-w: 1px;
+  --placeholder-color: var(--color-fg-muted);
+  --dialog-line-w: 0px;
+  --dialog-head-bar-w: 1px;
+  --dialog-head-size: 0.8125rem;
+  /* the title centred over the whole bar: the lights take no room of their own (the pull) and the title keeps
+     clear of them on both sides */
+  --dialog-head-pad: 0.5rem 0.8125rem;
+  --dialog-head-align: center;
+  --dialog-title-px: 3.75rem;
+  --dialog-rise: -0.75rem;
+  /* the window lights: red, yellow and green at the left, one control that closes */
+  --dialog-x-order: -1;
+  --dialog-x-size: 0.75rem;
+  --dialog-x-width: 3.25rem;
+  --dialog-x-pull: -3.25rem;
+  --dialog-x-line: 0 solid transparent;
+  --dialog-x-bg: transparent;
+  --dialog-x-bg-hover: transparent;
+  --bg-dialog-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 12'%3E%3Ccircle cx='6' cy='6' r='5.5' fill='%23ff5f57' stroke='%23e0443e' stroke-width='.5'/%3E%3Ccircle cx='26' cy='6' r='5.5' fill='%23febc2e' stroke='%23d89e24' stroke-width='.5'/%3E%3Ccircle cx='46' cy='6' r='5.5' fill='%2328c840' stroke='%231aab29' stroke-width='.5'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  --bg-dialog-x-hover: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 12'%3E%3Ccircle cx='6' cy='6' r='5.5' fill='%23ff5f57' stroke='%23e0443e' stroke-width='.5'/%3E%3Ccircle cx='26' cy='6' r='5.5' fill='%23febc2e' stroke='%23d89e24' stroke-width='.5'/%3E%3Ccircle cx='46' cy='6' r='5.5' fill='%2328c840' stroke='%231aab29' stroke-width='.5'/%3E%3Cg fill='none' stroke-width='1.1' stroke-linecap='round'%3E%3Cpath d='M3.9 3.9l4.2 4.2M8.1 3.9l-4.2 4.2' stroke='%237a1410'/%3E%3Cpath d='M23.2 6h5.6' stroke='%23855b00'/%3E%3Cpath d='M43.2 6h5.6M46 3.2v5.6' stroke='%230b6417'/%3E%3C/g%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  --dialog-x-ink: transparent;
+  --dialog-x-ink-hover: transparent;
+  --dialog-x-shadow: none;
+  --header-line: #0f0f0f;
+  --lbl-transform: none;
+  --lbl-tracking: normal;
+  /* notifications: a translucent dark banner, the title in the state's colour and a bar at its left */
+  --toast-head-mix: 0%;
+  --toast-alpha: 86%;
+  --toast-blur: 1.25rem;
+  --toast-line-w: 1px;
+  --toast-bar-w: 3px;
+  --header-logo-dark-ink: none;
+  --header-logo-light-ink: block;
+  --login-logo-dark-ink: none;
+  --login-logo-light-ink: block;
 }
 
 /* Mac OS Retro (Platinum, Mac OS 8/9): window face #dddddd with the two-pixel relief, black hairline frames, the

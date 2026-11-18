@@ -73,7 +73,7 @@ To put it on a server for guests elsewhere, or to install without Docker, follow
 | 📡 **Multistreaming** | Up to 5 RTMP or RTMPS destinations per broadcast by default (10 at most). The form fills in the usual address of YouTube, Twitch, Facebook and Instagram; you check it and paste the stream key, which is encrypted at rest. |
 | 🔁 **Made to stay on air** | A destination that drops is retried; a program that disappears pauses the broadcast, which resumes when it is back within two minutes (the default), even across a server restart. |
 | 🖥️ **Any screen** | The interface scales from Full HD to 4K monitors and uses the whole window. Each broadcast goes out in 720p, 1080p or 1440p (QHD) at 30 fps, chosen in the studio up to the limit the operator sets. |
-| 🎨 **27 themes, two languages** | Light, dark and 25 more themes; English and Brazilian Portuguese; every control reachable by keyboard, with automated accessibility checks. |
+| 🎨 **28 themes, two languages** | Light, dark and 26 more themes; English and Brazilian Portuguese; every control reachable by keyboard, with automated accessibility checks. |
 | 📦 **Runs your way** | One Docker image, Docker Compose, a `.deb`, an `.rpm` or the plain binary (linux/amd64), with SQLite, MariaDB or PostgreSQL. |
 
 ## 📸 Screenshots

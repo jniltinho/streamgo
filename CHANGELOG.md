@@ -8,8 +8,8 @@ are the section of that version.
 
 ### Added
 
-- **Five new themes, 27 in all** — macOS (today's light appearance: a unified toolbar, sheets with the red close
-  light, translucent notifications), Mac OS Retro (Platinum: striped title bars, the square close box, folder tabs,
+- **Six new themes, 28 in all** — macOS in its light and dark appearance (a flat unified toolbar, sheets with the
+  three window lights, translucent notifications), Mac OS Retro (Platinum: striped title bars, the square close box, folder tabs,
   the default button's ring), Ubuntu (Yaru: the aubergine top bar, Ubuntu orange, the Ubuntu typeface) and OBS
   Studio in its dark and light appearance (flat docks, the OBS blue, Open Sans). They bring three bundled
   typefaces: Barlow, Ubuntu and Open Sans.

@@ -21,9 +21,11 @@ const lk = vi.hoisted(() => {
   return {
     FakeTrack,
     room: null as null | Record<string, unknown>,
-    /** what switchActiveDevice answers for a device id: true, false, or 'throw' */
-    switching: new Map<string, boolean | 'throw'>(),
+    /** whether the capture of a device id works: true, false, 'throw', or a promise of one (settled by the test) */
+    switching: new Map<string, boolean | 'throw' | Promise<boolean | 'throw'>>(),
     switched: [] as string[],
+    /** the devices listed, the browser's default first (Firefox-like: no 'default' entry) */
+    devices: {} as Record<string, { deviceId: string; label: string; kind: string }[]>,
   }
 })
 
@@ -68,23 +70,17 @@ vi.mock('livekit-client', () => {
     }
     async switchActiveDevice(kind: string, id: string) {
       lk.switched.push(`${kind}:${id}`)
-      const r = lk.switching.get(id) ?? true
+      const r = await (lk.switching.get(id) ?? true)
       if (r === 'throw') throw new DOMException('refused', 'NotReadableError')
-      // a working switch of the microphone replaces its capture, as LiveKit's restartTrack does
+      // '' captures the browser's default device; a working switch of the microphone replaces its capture, as
+      // LiveKit's restartTrack does
+      const used = id || lk.devices[kind]![0]!.deviceId
       if (r && kind === 'audioinput' && this.mic.track && !this.mic.isMuted)
-        this.mic.track = { mediaStreamTrack: new lk.FakeTrack('audio', id) }
-      return r
+        this.mic.track = { mediaStreamTrack: new lk.FakeTrack('audio', used) }
+      // LiveKit's LocalTrack.setDeviceId: the id asked for must be the capture's own, so '' never matches
+      return r && used === id
     }
-    static getLocalDevices = async (kind: string) =>
-      kind === 'audioinput'
-        ? [
-            { deviceId: 'm1', label: 'Mic One', kind },
-            { deviceId: 'm2', label: 'Mic Two', kind },
-          ]
-        : [
-            { deviceId: 'front', label: 'Front', kind },
-            { deviceId: 'back', label: 'Back', kind },
-          ]
+    static getLocalDevices = async (kind: string) => lk.devices[kind]!
   }
   return {
     Room,
@@ -150,6 +146,16 @@ beforeEach(() => {
   FakeAudioContext.all = []
   lk.switching.clear()
   lk.switched = []
+  lk.devices = {
+    audioinput: [
+      { deviceId: 'm1', label: 'Mic One', kind: 'audioinput' },
+      { deviceId: 'm2', label: 'Mic Two', kind: 'audioinput' },
+    ],
+    videoinput: [
+      { deviceId: 'front', label: 'Front', kind: 'videoinput' },
+      { deviceId: 'back', label: 'Back', kind: 'videoinput' },
+    ],
+  }
   vi.stubGlobal('AudioContext', FakeAudioContext)
   vi.stubGlobal(
     'MediaStream',
@@ -201,8 +207,63 @@ describe('device switch (chooseDevice: the menus and the selects)', () => {
   it('Default is the browser default, not a device id that must exist exactly', async () => {
     const s = await join()
     await s.chooseDevice('audio', 'm2')
+    lk.switched = []
     expect(await s.chooseDevice('audio', '')).toBe('ok')
+    expect(s.micId).toBe('') // the app's choice stays Default
+    expect(lk.switched).toEqual(['audioinput:m1']) // asked for by the default device's id, which LiveKit can check
+    expect(room().mic.track.mediaStreamTrack.label).toBe('m1')
+  })
+
+  it("Default in Chrome: its 'default' entry is the device asked for", async () => {
+    lk.devices.audioinput!.unshift({ deviceId: 'default', label: 'Default - Mic Two', kind: 'audioinput' })
+    const s = await join()
+    await s.chooseDevice('audio', 'm1')
+    lk.switched = []
+    expect(await s.chooseDevice('audio', '')).toBe('ok')
+    expect(lk.switched).toEqual(['audioinput:default'])
+  })
+
+  it('A failed switch whose previous choice was Default goes back to Default and keeps the device on', async () => {
+    const s = await join()
+    lk.switching.set('m2', false)
+    expect(await s.chooseDevice('audio', 'm2')).toBe('previous')
     expect(s.micId).toBe('')
+    expect(s.mic).toBe(true)
+    expect(room().mic.isMuted).toBe(false)
+  })
+
+  it('A then B quickly: B works and A fails late, B stays in use and is what is shown', async () => {
+    lk.devices.audioinput!.push({ deviceId: 'm3', label: 'Mic Three', kind: 'audioinput' })
+    const s = await join()
+    let failA!: (v: boolean) => void
+    lk.switching.set('m2', new Promise((r) => (failA = r)))
+    const a = s.chooseDevice('audio', 'm2')
+    const b = s.chooseDevice('audio', 'm3')
+    await tick()
+    failA(false)
+    expect(await a).toBe('previous')
+    expect(await b).toBe('ok')
+    expect(s.micId).toBe('m3')
+    expect(room().mic.track.mediaStreamTrack.label).toBe('m3') // the hardware too
+    expect(lk.switched.at(-1)).toBe('audioinput:m3')
+  })
+
+  it('a switch that completes after leaving changes nothing, also in a studio joined afterwards', async () => {
+    let s = await join()
+    let done!: (v: boolean) => void
+    lk.switching.set('m2', new Promise((r) => (done = r)))
+    const late = s.chooseDevice('audio', 'm2')
+    await tick()
+    await s.leave()
+    s = await join()
+    const analysers = FakeAudioContext.all.flatMap((c) => c.analysers).length
+    lk.switched = []
+    done(true)
+    expect(await late).toBe('ok')
+    expect(s.micId).toBe('')
+    expect(s.mic).toBe(true)
+    expect(lk.switched).toEqual([]) // no restore reached the new room
+    expect(FakeAudioContext.all.flatMap((c) => c.analysers)).toHaveLength(analysers)
   })
 
   it('Chosen while off: the device is kept for later and the camera stays off', async () => {
@@ -413,12 +474,61 @@ describe('sound cues in the room', () => {
     FakeAudioContext.initial = 'running'
   })
 
-  it('the cue player is closed when the studio is left', async () => {
+  it('the cue player is closed when the studio is closed', async () => {
     const s = await join()
     room().emit('ParticipantConnected', remote('bruno'))
     await tick()
     const ctx = FakeAudioContext.all.find((c) => c.oscillators.length)!
     s.close()
     expect(ctx.state).toBe('closed')
+  })
+
+  // the "You left" page, a tab that lost the studio, a lost connection: the page stays, the studio is gone
+  for (const [name, end] of [
+    ['left on purpose', (s: ReturnType<typeof useStudio>) => s.leave()],
+    ['taken over by another tab', () => room().emit('Disconnected', 'DUPLICATE_IDENTITY')],
+    ['connection lost', () => room().emit('Disconnected')],
+  ] as const)
+    it(`the cue player and its listeners are released when the studio ends: ${name}`, async () => {
+      const s = await join()
+      const ctx = FakeAudioContext.all.at(-1)! // the cue player's, started by the click
+      await end(s)
+      expect(s.phase).toBe('ended')
+      expect(ctx.state).toBe('closed')
+      const contexts = FakeAudioContext.all.length
+      document.dispatchEvent(new Event('pointerdown'))
+      document.dispatchEvent(new KeyboardEvent('keydown'))
+      expect(FakeAudioContext.all).toHaveLength(contexts) // a click creates no context
+      s.devices = { audio: [], video: [] }
+      navigator.mediaDevices.dispatchEvent(new Event('devicechange'))
+      await tick()
+      expect(s.devices.audio).toHaveLength(0)
+    })
+
+  it('A cue already sounding stops at once when the program goes on air', async () => {
+    await join()
+    setStage(false)
+    room().emit('ParticipantConnected', remote('bruno'))
+    await tick()
+    const osc = FakeAudioContext.all.flatMap((c) => c.oscillators).at(-1)!
+    expect(osc.stopped).toBeCloseTo(0.25)
+    await vi.advanceTimersByTimeAsync(50)
+    osc.context.currentTime = 0.05
+    setStage(true)
+    expect(osc.stopped).toBe(0.05)
+    expect(osc.context.gains.at(-1)!.outputs).toEqual([]) // cut from the speakers now
+  })
+
+  it('A cue already sounding stops at once when Sounds is turned off; with Sounds while on air it plays on', async () => {
+    const s = await join()
+    s.setCuePrefs({ sounds: true, whileOnAir: true })
+    setStage(false)
+    room().emit('ParticipantConnected', remote('bruno'))
+    await tick()
+    const osc = FakeAudioContext.all.flatMap((c) => c.oscillators).at(-1)!
+    setStage(true)
+    expect(osc.stopped).toBeCloseTo(0.25) // wanted on air: not cut
+    s.setCuePrefs({ sounds: false, whileOnAir: true })
+    expect(osc.stopped).toBe(0)
   })
 })

@@ -60,9 +60,14 @@ export interface CuePlayerOptions {
   now?: () => number
 }
 
+// a cue is wanted with sounds on, and while the program is on air only with whileOnAir on
+const wanted = (prefs: CuePrefs, onAir: boolean) => prefs.sounds && (!onAir || prefs.whileOnAir)
+
 export class CuePlayer {
   private ctx: AudioContext | null = null
   private lastPresence = -Infinity
+  // the tones still sounding, so a change that silences cues cuts them instead of letting them finish
+  private readonly playing = new Set<{ osc: OscillatorNode; gain: GainNode }>()
   private readonly createContext: () => AudioContext
   private readonly now: () => number
 
@@ -92,7 +97,7 @@ export class CuePlayer {
    * has passed since the last joined or left cue played. It reports whether the cue was played.
    */
   play(cue: Cue, prefs: CuePrefs, onAir: boolean): boolean {
-    if (!prefs.sounds || (onAir && !prefs.whileOnAir)) return false
+    if (!wanted(prefs, onAir)) return false
     const ctx = this.ctx
     if (!ctx || ctx.state !== 'running') return false
     const presence = cue === 'joined' || cue === 'left'
@@ -113,14 +118,34 @@ export class CuePlayer {
     gain.gain.linearRampToValueAtTime(CUE_PEAK, t + 0.01)
     gain.gain.linearRampToValueAtTime(0, end - 0.01)
     osc.connect(gain).connect(ctx.destination)
-    osc.onended = () => gain.disconnect()
+    const tone = { osc, gain }
+    this.playing.add(tone)
+    osc.onended = () => {
+      gain.disconnect()
+      this.playing.delete(tone)
+    }
     osc.start(t)
     osc.stop(end)
     return true
   }
 
+  /** hush stops at once the tones still sounding when the listener no longer wants cues: sounds off, or on air */
+  hush(prefs: CuePrefs, onAir: boolean): void {
+    if (wanted(prefs, onAir)) return
+    for (const { osc, gain } of this.playing) {
+      gain.disconnect()
+      try {
+        osc.stop()
+      } catch {
+        /* already stopped */
+      }
+    }
+    this.playing.clear()
+  }
+
   /** close closes the context; the player can be started again */
   close(): void {
+    this.playing.clear()
     void this.ctx?.close().catch(() => {})
     this.ctx = null
     this.lastPresence = -Infinity

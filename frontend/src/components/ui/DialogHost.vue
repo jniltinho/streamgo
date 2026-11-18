@@ -33,7 +33,13 @@ watch(
   (req, prev) => {
     if (req && !prev) opener = document.activeElement as HTMLElement | null
     if (req) return
-    opener?.focus?.()
+    // the opener may have gone with a modal its parent closed meanwhile: then the modal still open takes the focus
+    if (opener?.isConnected) opener.focus?.()
+    else {
+      const modals = document.querySelectorAll<HTMLElement>('[role=dialog], [role=alertdialog]')
+      const top = modals[modals.length - 1]
+      ;(top?.querySelector<HTMLElement>('input, select, textarea, button:not(.modal-x)') ?? top)?.focus()
+    }
     opener = null
   },
   { flush: 'post' }, // after the dialog left the page, which is no longer inert

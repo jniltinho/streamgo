@@ -14,6 +14,14 @@ const answer = ref('')
 async function ask() {
   answer.value = String(await askConfirm('Rotate the gallery link?', { danger: true, ok: 'Rotate' }))
 }
+
+// a confirmation whose modal is unmounted by its parent while it shows: the test closes it with galleryLeave() and
+// reads the answer from galleryAnswer
+function askOrphan() {
+  const w = window as unknown as Record<string, unknown>
+  w.galleryLeave = () => emit('close')
+  w.galleryAnswer = askConfirm('Rotate the gallery link?', { danger: true, ok: 'Rotate' })
+}
 </script>
 
 <template>
@@ -28,6 +36,9 @@ async function ask() {
         Another modal
       </button>
       <button type="button" class="btn-ghost" data-open="ask" @click="ask">Ask</button>
+      <button v-if="props.level === 2" type="button" class="btn-ghost" data-open="orphan" @click="askOrphan">
+        Ask, then go
+      </button>
       <button type="button" class="btn-ghost" data-open="toast" @click="toast.info('Shown over the modal.')">
         Toast
       </button>

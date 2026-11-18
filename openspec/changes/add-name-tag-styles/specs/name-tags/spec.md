@@ -25,7 +25,9 @@ be part of the stage state, so the program and every participant's view follow i
 
 #### Scenario: Readable on any brand colour
 - **WHEN** the solid style is drawn with a very light brand colour, and with a very dark one
-- **THEN** the name is near black on the light one and white on the dark one, at 4.5:1 or more against the plate
+- **THEN** the name is black on the light one and white on the dark one, at 4.5:1 or more against the plate
+- **WHEN** it is drawn with any other colour, including the greys where white and black contrast about the same
+- **THEN** the name is still at 4.5:1 or more against the plate
 
 #### Scenario: A long name
 - **WHEN** a name wider than its tile is drawn in any style
@@ -92,6 +94,9 @@ The owner SHALL write a second line for each person, which the two-lines style s
 - **WHEN** a tagline of 61 characters, or one with a control character, is sent
 - **THEN** the answer is 422 with the field `tagline` and the stage is unchanged; a text with spaces around it is
   stored trimmed
+- **WHEN** a tagline patch has a null or missing `text`, a missing `identity`, or a field other than the two
+- **THEN** the answer is 422 with the field `tagline` and the stage is unchanged: only an explicit empty text
+  removes a line
 
 #### Scenario: One at a time
 - **WHEN** two taglines are set one after the other for two people

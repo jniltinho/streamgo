@@ -216,6 +216,10 @@ export const useStudio = defineStore('studio', () => {
   let cues: CuePlayer | null = null
   // joined and left cues are for people arriving after the room's first population, outside a reconnection
   let presenceCues = false
+  // the room or the preview the devices belong to: it changes when either goes, so a late device switch is dropped
+  let session = 0
+  // one device switch at a time per kind, its restore included (design U3)
+  const switching = { audio: Promise.resolve(), video: Promise.resolve() }
 
   const onStage = computed(() => stage.value?.sources ?? [])
   const isOnStage = (s: StageSource) => onStage.value.some((x) => x.p === s.p && x.k === s.k)
@@ -247,6 +251,7 @@ export const useStudio = defineStore('studio', () => {
   function setCuePrefs(p: CuePrefs) {
     cuePrefs.value = { ...p }
     saveCuePrefs(storage(), cuePrefs.value)
+    cues?.hush(cuePrefs.value, !!stage.value?.on_air)
   }
 
   // on air and off air: a change of stage.on_air after the first stage state; the state found on arrival plays
@@ -254,6 +259,7 @@ export const useStudio = defineStore('studio', () => {
   watch(
     () => stage.value?.on_air,
     (now, before) => {
+      cues?.hush(cuePrefs.value, !!now) // a tone already sounding stops on air
       if (now === undefined || before === undefined || now === before) return
       cue(now ? 'onAir' : 'offAir')
     },
@@ -595,6 +601,7 @@ export const useStudio = defineStore('studio', () => {
   function cleanup() {
     clearTimeout(poll)
     presenceCues = false
+    release()
     stopMeter()
     void stopPublishing() // the studio closes: another tab, or this one once reconnected, publishes
     room = null
@@ -621,13 +628,19 @@ export const useStudio = defineStore('studio', () => {
     void r?.disconnect()
     mix?.close()
     mix = null
+    release()
+    people.value = []
+    phase.value = 'idle'
+  }
+
+  /** release lets go of what only an open studio needs: the cue player, the gesture that starts it, the device watch */
+  function release() {
     cues?.close()
     cues = null
     document.removeEventListener('pointerdown', resumeAudio, true)
     document.removeEventListener('keydown', resumeAudio, true)
     unwatchDevices()
-    people.value = []
-    phase.value = 'idle'
+    session++
   }
 
   /** leave disconnects on purpose */
@@ -714,7 +727,14 @@ export const useStudio = defineStore('studio', () => {
   // refused it or LiveKit reports it did not take
   async function switchTo(kind: 'audio' | 'video', id: string): Promise<boolean> {
     try {
-      if (room) return await room.switchActiveDevice(kind === 'audio' ? 'audioinput' : 'videoinput', id, id !== '')
+      const r = room
+      if (r) {
+        const k = kind === 'audio' ? 'audioinput' : 'videoinput'
+        // LiveKit checks the switch by comparing the id asked for with the capture's: '' never matches, so Default
+        // is asked for by the id of the browser's default device ('default' in Chrome, the first listed otherwise)
+        const target = id || (await defaultDevice(k))
+        return await r.switchActiveDevice(k, target, target !== '')
+      }
       const track = preview.value.find((t) => t.kind === kind) as LocalAudioTrack | LocalVideoTrack | undefined
       await track?.restartTrack({ deviceId: id ? { exact: id } : undefined })
       return true
@@ -723,17 +743,38 @@ export const useStudio = defineStore('studio', () => {
     }
   }
 
+  async function defaultDevice(kind: MediaDeviceKind): Promise<string> {
+    const list = await Room.getLocalDevices(kind, false).catch(() => [])
+    return (list.find((d) => d.deviceId === 'default') ?? list[0])?.deviceId ?? ''
+  }
+
   /**
    * chooseDevice switches the microphone or the camera (the device menus and the settings' selects), in the preview
    * before joining or in the room. With the device off, the choice is kept for the next time it is turned on. The
    * chosen id is kept only once the switch worked; otherwise the previous device is started again, and when that
-   * fails too the control is turned off. The answer says which happened.
+   * fails too the control is turned off. The answer says which happened. Choices of one kind run one after the
+   * other, each with its restore; one made for a room or a preview that has gone since changes nothing ('ok').
    */
-  async function chooseDevice(kind: 'audio' | 'video', id: string): Promise<DeviceSwitch> {
+  function chooseDevice(kind: 'audio' | 'video', id: string): Promise<DeviceSwitch> {
+    const mine = session
+    const op = switching[kind].then(() => switchDevice(kind, id, () => session === mine))
+    switching[kind] = op.then(
+      () => {},
+      () => {},
+    )
+    return op
+  }
+
+  async function switchDevice(kind: 'audio' | 'video', id: string, current: () => boolean): Promise<DeviceSwitch> {
+    if (!current()) return 'ok'
     const chosen = kind === 'audio' ? micId : camId
     const previous = chosen.value
     let result: DeviceSwitch = 'ok'
-    if (!(await switchTo(kind, id))) result = (await switchTo(kind, previous)) ? 'previous' : 'unavailable'
+    if (!(await switchTo(kind, id))) {
+      if (!current()) return 'ok'
+      result = (await switchTo(kind, previous)) ? 'previous' : 'unavailable'
+    }
+    if (!current()) return 'ok'
     if (result === 'ok') chosen.value = id
     if (result === 'unavailable') {
       if (room) {
@@ -742,6 +783,7 @@ export const useStudio = defineStore('studio', () => {
       } else {
         for (const t of preview.value) if (t.kind === kind) await t.mute().catch(() => {})
       }
+      if (!current()) return 'ok'
       if (kind === 'audio') mic.value = false
       else cam.value = false
     }
@@ -783,6 +825,7 @@ export const useStudio = defineStore('studio', () => {
   }
 
   function stopPreview() {
+    session++
     stopMeter()
     for (const t of preview.value) t.stop()
     preview.value = []

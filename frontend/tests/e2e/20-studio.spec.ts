@@ -857,6 +857,28 @@ const programPeak = (page: Page, ms: number) =>
     }
     return peak
   }, ms)
+/** armPeak starts sampling the program taps in the page every 20 ms and resolves once the first sample is taken;
+ * stopPeak stops it and gives the loudest sample since */
+const armPeak = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __taps: AnalyserNode[]; __peak: { max: number; timer: number } }
+    const sample = () => {
+      for (const a of w.__taps) {
+        const d = new Float32Array(a.fftSize)
+        a.getFloatTimeDomainData(d)
+        for (const v of d) w.__peak.max = Math.max(w.__peak.max, Math.abs(v))
+      }
+    }
+    w.__peak = { max: 0, timer: 0 }
+    sample()
+    w.__peak.timer = window.setInterval(sample, 20)
+  })
+const stopPeak = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __peak: { max: number; timer: number } }
+    clearInterval(w.__peak.timer)
+    return w.__peak.max
+  })
 const cues = (page: Page) => page.evaluate(() => (window as unknown as { __cues: number }).__cues)
 const resetCues = (page: Page) => page.evaluate(() => ((window as unknown as { __cues: number }).__cues = 0))
 
@@ -981,10 +1003,12 @@ test.describe('Studio interactions', () => {
     const page = await guest.newPage()
     await page.goto(b.invite_url)
     await page.getByLabel('Your name').fill('Dora Som')
+    await armPeak(studio) // before the join: the cue cannot play before the measure starts
     await page.getByRole('button', { name: 'Enter studio' }).click()
-    const peak = programPeak(studio, 2500)
     await expect(card(studio, 'Dora Som')).toBeVisible({ timeout: 20_000 })
-    expect(await peak).toBe(0)
+    await expect.poll(() => cues(studio)).toBe(1)
+    await studio.waitForTimeout(500) // the whole cue (250 ms) under the measure
+    expect(await stopPeak(studio)).toBe(0)
     expect(await cues(studio)).toBe(1)
     expect(await cues(page)).toBe(0)
     // the taps do measure the program: with the host on stage it carries the tone

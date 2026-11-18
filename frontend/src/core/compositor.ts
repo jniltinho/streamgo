@@ -30,6 +30,7 @@ const DEFAULT_ACCENT = '#3d41cf'
 export const ACCENTS = [DEFAULT_ACCENT, '#b3b8ff', '#4ade80', '#fbbf24', '#f0464f', '#f2f4fb'] as const
 const WHITE = '#ffffff'
 const INK = '#111318'
+const BLACK = '#000000'
 const TAG = 'rgba(0, 0, 0, 0.62)'
 const STRIP = 'rgba(0, 0, 0, 0.6)'
 const SHADOW = 'rgba(0, 0, 0, 0.9)'
@@ -332,10 +333,14 @@ function luminance(hex: string): number {
   return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!
 }
 
-/** inkOn is the text colour for a plate of colour bg: white or near black, whichever contrasts more */
+/**
+ * inkOn is the text colour for a plate of colour bg: white or black, whichever contrasts more. With pure black the
+ * better of the two is always 4.5:1 or more (the worst plate, at the crossover, gives about 4.58:1); a near black
+ * is not enough there.
+ */
 export function inkOn(bg: string): string {
   const l = luminance(/^#[0-9a-f]{6}$/i.test(bg) ? bg : DEFAULT_ACCENT)
-  return 1.05 / (l + 0.05) >= (l + 0.05) / (luminance(INK) + 0.05) ? WHITE : INK
+  return 1.05 / (l + 0.05) >= (l + 0.05) / 0.05 ? WHITE : BLACK
 }
 
 /**

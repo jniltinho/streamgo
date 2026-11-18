@@ -22,7 +22,7 @@ are the section of that version.
 - **Motion** — the dock's icons turn when they change, the speaking mark moves and the live mark pulses; none of it
   with "reduce motion" or the flat look.
 - **Name tag styles** — the Brand tab offers five lower-third styles, chosen from small previews of the program:
-  Bar (as before), Solid (a plate in the brand colour, its text white or near black for contrast), Strip, Text
+  Bar (as before), Solid (a plate in the brand colour, its text white or black for contrast), Strip, Text
   only and Two lines. Every participant's view follows the choice, and a reload keeps it.
 - **Names off shared screens** — a second switch in the Brand tab takes the name tags off shared screens and keeps
   them on the cameras.

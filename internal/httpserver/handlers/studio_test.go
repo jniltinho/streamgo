@@ -259,6 +259,14 @@ func TestNameTagRoute(t *testing.T) {
 		{"control character", `{"tagline":{"identity":"` + rafael.Identity + `","text":"Head\u0007"}}`, "tagline"},
 		{"null tagline", `{"tagline":null}`, "tagline"},
 		{"tagline as a string", `{"tagline":"CEO"}`, "tagline"},
+		// malformed patches never remove a saved line: only an explicit "text":"" does
+		{"null text", `{"tagline":{"identity":"` + rafael.Identity + `","text":null}}`, "tagline"},
+		{"missing text", `{"tagline":{"identity":"` + rafael.Identity + `"}}`, "tagline"},
+		{"misspelt text", `{"tagline":{"identity":"` + rafael.Identity + `","txt":""}}`, "tagline"},
+		{"unknown nested field", `{"tagline":{"identity":"` + rafael.Identity + `","text":"x","bold":true}}`, "tagline"},
+		{"missing identity", `{"tagline":{"text":""}}`, "tagline"},
+		{"null identity", `{"tagline":{"identity":null,"text":""}}`, "tagline"},
+		{"text as a number", `{"tagline":{"identity":"` + rafael.Identity + `","text":3}}`, "tagline"},
 		{"guest of another broadcast", `{"tagline":{"identity":"` + other.Identity + `","text":"CEO"}}`, "tagline"},
 		{"unknown identity", `{"tagline":{"identity":"guest-nobody","text":"CEO"}}`, "tagline"},
 	}

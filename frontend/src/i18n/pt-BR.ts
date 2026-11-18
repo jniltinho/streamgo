@@ -110,6 +110,7 @@ const catalog: Catalog = {
   'Second line: {name}': 'Segunda linha: {name}',
   'Second line of {name}': 'Segunda linha de {name}',
   'Role or company': 'Cargo ou empresa',
+  'Use at most {n} characters.': 'Use no máximo {n} caracteres.',
   'Shown under the name with the Two lines style.': 'Aparece sob o nome no estilo Duas linhas.',
   Settings: 'Configurações',
   'Your profile': 'Seu perfil',

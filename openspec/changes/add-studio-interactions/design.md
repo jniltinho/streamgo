@@ -93,6 +93,14 @@ are both failures; the chosen id is committed only after success; on failure it 
 when that fails too, the control shows off and a toast says the device is unavailable. The menu's checked item
 and the selects always show what is really in use.
 
+- **Default.** LiveKit checks a switch by comparing the id asked for with the capture's own, so the app's empty
+  Default never matches. Default stays `''` in the store, and the switch asks for the browser's default device by
+  its id: the `default` entry Chrome lists, otherwise the first device listed (the default, by the Media Capture
+  specification).
+- **One at a time.** Switches of one kind run one after the other, each with its restore, so an earlier choice
+  that fails late cannot undo a later one. Each is bound to the room or preview it was made in: one that finishes
+  after that room or preview is gone changes nothing.
+
 ### U4. The microphone meter
 
 The store already measures a level for the microphone of the preview before joining (`micLevel`), with an
@@ -153,7 +161,9 @@ gain of at most 0.15.
   suppressed is never played later.
 - **Starting the audio.** The context is created and resumed from the same user gestures that already resume
   `AudioMix` (joining, the dock's buttons). A context that is not running drops the cue: nothing is queued,
-  nothing throws. The context is closed and its listeners removed when the studio is left.
+  nothing throws. The context is closed and its listeners removed when the studio is left, also when the page
+  stays (the "You left" page, a tab that lost the studio, a lost connection). A tone still sounding when cues stop
+  being wanted (the program goes on air, or Sounds is turned off) is stopped at once.
 - **Events.** Joined and left come from LiveKit's `ParticipantConnected` and `ParticipantDisconnected` for remote
   participants, after the room's first population is done; not from the length of the people list, a track, a
   mute, a screen share, a reconnection or one's own leaving. A join or leave cue plays only when at least one second has passed

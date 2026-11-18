@@ -16,10 +16,12 @@ const dist = join(dirname(fileURLToPath(import.meta.url)), '../../web/dist')
 const manifest = JSON.parse(readFileSync(join(dist, '.vite/manifest.json'), 'utf8'))
 const gz = (file) => gzipSync(readFileSync(join(dist, file)), { level: 9 }).length
 
-// every file a chunk loads before it runs: itself, its CSS, and the same for each chunk it imports statically
+// every file a chunk loads before it runs: itself, its CSS, and the same for each chunk it imports statically. A key
+// missing from the manifest is an error: a moved route or a lost import would otherwise measure as nothing.
 function closure(key, seen = new Set()) {
   const c = manifest[key]
-  if (!c || seen.has(c.file)) return seen
+  if (!c) throw new Error(`size check: ${key} is not in the build's manifest (moved or renamed? update this script)`)
+  if (seen.has(c.file)) return seen
   seen.add(c.file)
   for (const css of c.css ?? []) seen.add(css)
   for (const i of c.imports ?? []) closure(i, seen)
@@ -27,11 +29,15 @@ function closure(key, seen = new Set()) {
 }
 const total = (files) => [...files].reduce((n, f) => n + gz(f), 0)
 
-const entry = Object.keys(manifest).find((k) => manifest[k].isEntry)
+const entries = Object.keys(manifest).filter((k) => manifest[k].isEntry)
+if (entries.length !== 1) throw new Error(`size check: the build has ${entries.length} entries, not one`)
+const app = closure(entries[0])
+// a route opened cold loads the entry and everything the route imports
+const route = (key) => total(new Set([...app, ...closure(key)]))
 const sizes = {
-  entry: total(closure(entry)),
-  studio: total(closure('src/views/StudioView.vue')),
-  guest: total(closure('src/views/JoinView.vue')),
+  entry: total(app),
+  studio: route('src/views/StudioView.vue'),
+  guest: route('src/views/JoinView.vue'),
 }
 rmSync(join(dist, '.vite'), { recursive: true, force: true }) // the manifest is not part of the embedded app
 

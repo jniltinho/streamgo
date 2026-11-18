@@ -42,8 +42,9 @@ with an ellipsis when it does not fit the tile.
 
 Readability does not depend on the picture behind: Bar, Solid and Two lines have their own plate; Strip has a
 translucent black strip at 60 %; Text has a dark shadow around white letters. A Solid plate takes the brand
-colour, which the owner picks freely: the text on it is white or near black, whichever contrasts more with that
-colour.
+colour, which the owner picks freely: the text on it is white or black, whichever contrasts more with that
+colour: with pure black, the better of the two reaches 4.5:1 for every colour (about 4.58:1 at
+the crossover, near #777777), which a near black does not.
 
 ### N4. Screens
 

@@ -173,6 +173,44 @@ test.describe('Dialogs and toasts on UI SDK', () => {
     await expect(lower).toBeHidden()
   })
 
+  test('A modal unmounted by its parent while its confirmation shows', async ({ page }) => {
+    // what the page hides from input and from assistive technology on its own, with no dialog
+    const hidden = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('[inert], [aria-hidden=true], [data-inert]')].map(
+          (el) => `${el.tagName}.${el.getAttribute('class')}:${el.hasAttribute('inert')}`,
+        ),
+      )
+    const before = await hidden()
+    await page.locator('[data-open=modal]').click()
+    const lower = page.getByRole('dialog', { name: 'Gallery modal 1' })
+    await lower.locator('[data-open=upper]').click()
+    const upper = page.getByRole('dialog', { name: 'Gallery modal 2' })
+    await upper.locator('[data-open=orphan]').click()
+    const confirm = page.getByRole('alertdialog', { name: 'Confirmation' })
+    await expect(confirm).toBeVisible()
+    await page.evaluate(() => (window as unknown as { galleryLeave: () => void }).galleryLeave())
+    await expect(upper).toBeHidden()
+    // the confirmation still shows, keeps the focus, and settles
+    await expect(confirm).toBeVisible()
+    expect(await holdsFocus(confirm)).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(confirm).toBeHidden()
+    expect(await answer(page, 'galleryAnswer')).toBe(false)
+    // the focus lands in the modal still open, which is still modal
+    await expect.poll(() => holdsFocus(lower)).toBe(true)
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('Tab')
+      expect(await holdsFocus(lower)).toBe(true)
+    }
+    await page.keyboard.press('Escape')
+    await expect(lower).toBeHidden()
+    // nothing stays inert: the page answers clicks and keys again
+    expect(await hidden()).toEqual(before)
+    await page.locator('[data-open=modal]').click()
+    await expect(lower).toBeVisible()
+  })
+
   test('A confirmation behaves as before', async ({ page }) => {
     await page.locator('[data-open=confirm]').focus()
     await run(
@@ -362,4 +400,42 @@ test.describe('Dialogs and toasts on UI SDK', () => {
     await expect(before).toHaveCount(0)
     await expect(modal).toBeVisible()
   })
+
+  // F6 reaches the toasts over a trapping modal, F6 again goes back, Tab moves inside the toast, Escape closes the
+  // toast only and the focus returns into the modal
+  for (const order of ['toast after the modal', 'toast before the modal'] as const)
+    test(`A toast over a modal, by keyboard: ${order}`, async ({ page }) => {
+      const modal = page.getByRole('dialog', { name: 'Gallery modal 1' })
+      const text = order === 'toast after the modal' ? 'Shown over the modal.' : 'Shown before the modal.'
+      if (order === 'toast before the modal') await run(page, `m.toast.info('${text}')`)
+      await page.locator('[data-open=modal]').focus()
+      await page.keyboard.press('Enter')
+      await expect(modal.getByLabel('Name')).toBeFocused()
+      if (order === 'toast after the modal') {
+        await modal.locator('[data-open=toast]').focus()
+        await page.keyboard.press('Enter')
+        await modal.getByLabel('Name').focus()
+      }
+      const card = page.locator('.toast', { hasText: text })
+      await expect(card).toBeVisible()
+      await page.keyboard.press('F6')
+      await expect.poll(() => holdsFocus(card)).toBe(true)
+      await page.keyboard.press('F6')
+      await expect(modal.getByLabel('Name')).toBeFocused()
+      await page.keyboard.press('F6')
+      await expect(card).toBeFocused() // the newest toast itself
+      await page.keyboard.press('Tab')
+      await expect(card.getByRole('button', { name: 'Close' })).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(card).toHaveCount(0)
+      await expect(modal).toBeVisible() // Escape closed the toast, not the modal
+      await expect.poll(() => holdsFocus(modal)).toBe(true)
+      await expect(modal.getByLabel('Name')).toBeFocused()
+      for (let i = 0; i < 4; i++) {
+        await page.keyboard.press('Tab')
+        expect(await holdsFocus(modal)).toBe(true)
+      }
+      await page.keyboard.press('Escape')
+      await expect(modal).toBeHidden()
+    })
 })

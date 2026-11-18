@@ -219,7 +219,9 @@ test('Readable on any brand colour', async ({ page }) => {
       return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
     }
     const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
-    const colours = ['#f2f4fb', '#fbbf24', '#ffff00', '#101030', '#000000', '#3d41cf', '#808080', '#4ade80', '#f0464f', '#b3b8ff']
+    // the presets, extremes, the white/black crossover (#777777, #7a7a7a) and every grey
+    const greys = Array.from({ length: 256 }, (_, i) => '#' + i.toString(16).padStart(2, '0').repeat(3))
+    const colours = ['#f2f4fb', '#fbbf24', '#ffff00', '#101030', '#000000', '#3d41cf', '#808080', '#4ade80', '#f0464f', '#b3b8ff', '#777777', '#7a7a7a', ...greys]
     return {
       light: L.inkOn('#f2f4fb'), dark: L.inkOn('#101030'),
       ratios: colours.map((c) => ratio(c, L.inkOn(c))),
@@ -229,46 +231,59 @@ test('Readable on any brand colour', async ({ page }) => {
   `,
   )
   test.info().annotations.push({ type: 'contrast', description: JSON.stringify(r) })
-  expect(r.light).toBe('#111318') // near black on the light one
+  expect(r.light).toBe('#000000') // black on the light one
   expect(r.dark).toBe('#ffffff') // white on the dark one
-  for (const x of r.ratios) expect(x).toBeGreaterThanOrEqual(4.5)
+  expect(Math.min(...r.ratios)).toBeGreaterThanOrEqual(4.5)
   expect(r.lightText).toBeLessThanOrEqual(30)
   expect(r.darkText).toBeGreaterThanOrEqual(240)
 })
 
 test('A long name', async ({ page }) => {
-  const r = await run<{ texts: string[]; outside: number }[]>(
+  // every layout's smallest tile, from one to six sources (studio.max_on_stage), in the smallest program frame
+  // (720p) and in a guest's preview (960x540), each drawn in every style
+  const r = await run<{ where: string; texts: string[]; outside: number }[]>(
     page,
     `
     await document.fonts.load("600 19px 'Inter'")
     const out = []
-    for (const style of L.NAME_STYLES) {
-      const canvas = Object.assign(document.createElement('canvas'), { width: 1280, height: 720 })
-      const g = canvas.getContext('2d')
-      g.fillStyle = '#00ff00'; g.fillRect(0, 0, 1280, 720)
-      g.fillStyle = '#808080'; g.fillRect(100, 100, 200, 120)
+    const long = 'Maria Aparecida dos Santos Albuquerque de Oliveira '.repeat(6).trim() // wider than any tile
+    for (const [W, H] of [[1280, 720], [960, 540]]) {
+      const canvas = Object.assign(document.createElement('canvas'), { width: W, height: H })
+      const g = canvas.getContext('2d', { willReadFrequently: true })
       const texts = []
       const fill = g.fillText.bind(g)
       g.fillText = (t, x, y) => { texts.push(t); fill(t, x, y) }
-      const long = 'Maria Aparecida dos Santos Albuquerque de Oliveira'
-      L.drawNameTag(g, { x: 100, y: 100, w: 200, h: 120 }, long, long, '#ff8800', style)
-      const d = g.getImageData(0, 0, 1280, 720).data
-      let outside = 0
-      for (let y = 0; y < 720; y++) for (let x = 0; x < 1280; x++) {
-        if (x >= 100 && x < 300 && y >= 100 && y < 220) continue
-        const i = (y * 1280 + x) * 4
-        if (d[i] !== 0 || d[i + 1] !== 255 || d[i + 2] !== 0) outside++
+      for (const layout of L.LAYOUTS) {
+        const tiles = []
+        for (let n = 1; n <= 6; n++) {
+          const sources = Array.from({ length: n }, (_, i) => ({ p: 'p' + i, k: i === n - 1 ? 'screen' : 'camera' }))
+          tiles.push(...L.layoutRects(layout, sources, W, H).map((x) => x.rect))
+        }
+        const t = tiles.reduce((a, b) => (b.w * b.h < a.w * a.h ? b : a))
+        for (const style of L.NAME_STYLES) {
+          g.fillStyle = '#00ff00'; g.fillRect(0, 0, W, H)
+          g.fillStyle = '#808080'; g.fillRect(t.x, t.y, t.w, t.h)
+          texts.length = 0
+          L.drawNameTag(g, t, long, long, '#ff8800', style)
+          const d = g.getImageData(0, 0, W, H).data
+          let outside = 0
+          for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+            if (x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h) continue
+            const i = (y * W + x) * 4
+            if (d[i] !== 0 || d[i + 1] !== 255 || d[i + 2] !== 0) outside++
+          }
+          out.push({ where: W + 'x' + H + ' ' + layout + ' ' + JSON.stringify(t) + ' ' + style, texts: [...texts], outside })
+        }
       }
-      out.push({ texts, outside })
     }
     return out
   `,
   )
-  expect(r).toHaveLength(5)
-  for (const { texts, outside } of r) {
-    expect(outside).toBe(0) // nothing drawn outside the tile
-    expect(texts.length).toBeGreaterThan(0)
-    for (const t of texts) expect(t.endsWith('…')).toBe(true)
+  expect(r).toHaveLength(2 * 6 * 5)
+  for (const { where, texts, outside } of r) {
+    expect(outside, where).toBe(0) // nothing drawn outside the tile
+    expect(texts.length, where).toBeGreaterThan(0)
+    for (const t of texts) expect(t.endsWith('…'), where).toBe(true)
   }
 })
 

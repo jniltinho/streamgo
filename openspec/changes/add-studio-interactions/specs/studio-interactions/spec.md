@@ -40,6 +40,16 @@ control, without opening the settings.
 - **THEN** the previous camera is started again, the menu and the select show the previous camera, and an error
   toast says the chosen one could not be used
 
+#### Scenario: Default
+- **WHEN** Default is chosen while another microphone is in use, or a switch fails while Default was the choice
+- **THEN** the browser's default microphone is in use, the menu and the select show Default, and no error is shown;
+  a failed switch goes back to Default and the control stays on
+
+#### Scenario: Two choices in a row
+- **WHEN** one camera is chosen, then another before the first switch has finished, and the first one fails
+- **THEN** the second camera is in use and is what the menu and the select show; a switch that finishes after the
+  studio or the preview was left changes nothing, also in a studio joined afterwards
+
 #### Scenario: Neither device can be used
 - **WHEN** the switch fails and the previous camera cannot be started again either
 - **THEN** the Camera control shows off, the toast says the camera is unavailable, and nothing claims a camera is
@@ -76,7 +86,8 @@ The studio SHALL show a person the level of their own microphone while it is on,
 
 #### Scenario: Leaving
 - **WHEN** the room disconnects, the person leaves, or another tab takes the studio over
-- **THEN** the analyser is stopped and nothing of it remains
+- **THEN** the analyser is stopped and nothing of it remains; the cue player is closed, and a click on the page
+  that stays afterwards starts no audio
 
 #### Scenario: After a switch
 - **WHEN** the person chooses another microphone, or the connection is made again
@@ -148,6 +159,8 @@ SHALL be silent while the program is on air unless the listener turned them on.
 - **WHEN** the program goes on air, and a guest joins while it is on air
 - **THEN** that participant hears neither cue; nothing is played later for them; when the program goes off air
   they hear the off-air cue, and a join after that is heard
+- **WHEN** a cue is still sounding when the program goes on air, or when Sounds is turned off
+- **THEN** it stops at once
 
 #### Scenario: On air and off air
 - **GIVEN** an owner or a guest with "Sounds while on air" on
@@ -197,6 +210,9 @@ Every modal, the confirmation and alert dialogs and the toasts SHALL be built on
 - **WHEN** Settings, or a confirmation, opens over it, and Escape is pressed
 - **THEN** only the upper one closed, focus is inside the lower one, the lower one is still modal, and the two had
   different title ids
+- **WHEN** a modal is closed by its parent while a confirmation it opened still shows
+- **THEN** the confirmation stays and settles; once it closes, focus is inside the modal still open, and nothing
+  of the page stays inert after that one closes
 
 #### Scenario: A confirmation behaves as before
 - **WHEN** a destructive confirmation opens

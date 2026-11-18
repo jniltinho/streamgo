@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -92,10 +93,7 @@ func decodePatch(body io.Reader) (studio.Patch, error) {
 				err = core.Invalid(k, "Must be true or false.")
 			}
 		case "tagline":
-			err = json.Unmarshal(v, &p.Tagline)
-			if p.Tagline == nil {
-				err = core.Invalid(k, "Must be {identity, text}.")
-			}
+			p.Tagline, err = decodeTagline(v)
 		case "sources":
 			err = json.Unmarshal(v, &p.Sources)
 			if p.Sources == nil {
@@ -117,4 +115,19 @@ func decodePatch(body io.Reader) (studio.Patch, error) {
 		}
 	}
 	return p, nil
+}
+
+// decodeTagline reads {identity, text}: both present as strings and nothing else, so a
+// malformed patch is refused instead of reading as an empty text, which removes the line.
+func decodeTagline(v json.RawMessage) (*studio.Tagline, error) {
+	var t struct {
+		Identity *string `json:"identity"`
+		Text     *string `json:"text"`
+	}
+	dec := json.NewDecoder(bytes.NewReader(v))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&t); err != nil || t.Identity == nil || *t.Identity == "" || t.Text == nil {
+		return nil, core.Invalid("tagline", "Must be {identity, text}.")
+	}
+	return &studio.Tagline{Identity: *t.Identity, Text: *t.Text}, nil
 }

@@ -41,7 +41,7 @@ export class FakeOscillator extends FakeNode {
   start(at: number) {
     this.started = at
   }
-  stop(at: number) {
+  stop(at = this.context.currentTime) {
     this.stopped = at
   }
 }

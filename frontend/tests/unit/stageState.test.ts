@@ -1,6 +1,6 @@
 // The stage state of design D1: parsing ignores unknown fields; an older version is dropped.
 import { describe, expect, it } from 'vitest'
-import { parseStage, StageFeed } from '@/core/stageState'
+import { parseStage, StageFeed, taglineFits } from '@/core/stageState'
 
 const state = (v: number, extra: object = {}) => ({
   v,
@@ -90,5 +90,15 @@ describe('StageFeed', () => {
     feed.accept(state(2))
     expect(feed.accept('garbage')).toBe(false)
     expect(feed.current?.v).toBe(2)
+  })
+})
+
+describe('taglineFits', () => {
+  it('counts characters as the server does (code points, trimmed), not UTF-16 units', () => {
+    expect(taglineFits('😀'.repeat(60))).toBe(true) // 120 UTF-16 units: maxlength would allow only 30
+    expect(taglineFits('😀'.repeat(61))).toBe(false)
+    expect(taglineFits('é'.repeat(60))).toBe(true)
+    expect(taglineFits(`  ${'a'.repeat(60)}  `)).toBe(true)
+    expect(taglineFits('a'.repeat(61))).toBe(false)
   })
 })

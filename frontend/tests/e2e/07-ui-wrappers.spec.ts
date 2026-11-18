@@ -124,13 +124,18 @@ test.describe('Tooltips', () => {
   })
 
   test('Hover: shown after 500 ms of rest, hidden when the pointer leaves', async ({ page }) => {
+    // the page's own clock, moved by the test: the delay is measured, not raced
+    await page.clock.install()
+    await openGallery(page)
     const button = page.locator('[data-gallery-tip]')
     const t = tip(page, 'Device settings')
     await button.hover()
-    await page.waitForTimeout(250)
+    await page.clock.runFor(450)
     await expect(t).toBeHidden()
-    await expect(t).toBeVisible({ timeout: 1000 })
+    await page.clock.runFor(100)
+    await expect(t).toBeVisible()
     await page.mouse.move(2, 2)
+    await page.clock.runFor(500)
     await expect(t).toBeHidden()
   })
 })
@@ -180,8 +185,29 @@ test.describe('State motion', () => {
 
   test('A control changes: its icon moves for at most 300 ms, transform and opacity only', async ({ page }) => {
     await openGallery(page)
+    // read when the animation starts: a 300 ms animation may be over by the time a later read runs
+    await page.locator('[data-gallery-toggle]').evaluate((button) => {
+      const w = window as unknown as { started: { duration: number; props: string[] }[] }
+      w.started = []
+      ;(button as HTMLElement).addEventListener('animationstart', (e) => {
+        const a = (e.target as Element)
+          .getAnimations()
+          .find((x) => x instanceof CSSAnimation && x.animationName === e.animationName)!
+        const effect = a.effect as KeyframeEffect
+        const skip = ['offset', 'easing', 'composite', 'computedOffset']
+        const props = [
+          ...new Set(effect.getKeyframes().flatMap((k) => Object.keys(k).filter((p) => !skip.includes(p)))),
+        ]
+        w.started.push({ duration: Number(effect.getTiming().duration), props })
+      })
+    })
     await page.locator('[data-gallery-toggle]').click()
-    const control = (await animations(page)).filter((a) => a.what === 'control')
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { started: unknown[] }).started.length))
+      .toBeGreaterThan(0)
+    const control = await page.evaluate(
+      () => (window as unknown as { started: { duration: number; props: string[] }[] }).started,
+    )
     expect(control.length).toBe(1)
     expect(control[0]!.duration).toBeLessThanOrEqual(300)
     expect(control[0]!.props.sort()).toEqual(['opacity', 'transform'])

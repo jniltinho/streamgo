@@ -7,6 +7,9 @@ export type SourceKind = 'camera' | 'screen'
 /** the styles of the name tags (design N1); the first is the default */
 export const NAME_STYLES = ['bar', 'solid', 'strip', 'text', 'two-line'] as const
 export type NameStyle = (typeof NAME_STYLES)[number]
+/** a second line holds at most this many characters (Unicode code points, trimmed), as the server counts them */
+export const MAX_TAGLINE = 60
+export const taglineFits = (text: string) => [...text.trim()].length <= MAX_TAGLINE
 
 export interface StageSource {
   /** participant identity: host-<user id> or guest-<guest id> */

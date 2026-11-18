@@ -5,6 +5,7 @@ import { computed, ref, useId } from 'vue'
 import { IdCard } from '@lucide/vue'
 import UiPopover from '@/components/ui/UiPopover.vue'
 import { type Person, studioError, useStudio } from '@/stores/studio'
+import { MAX_TAGLINE, taglineFits } from '@/core/stageState'
 import { toast } from '@/feedback/toasts'
 import { t } from '@/i18n'
 
@@ -14,6 +15,8 @@ const saved = computed(() => studio.stage?.taglines[props.person.identity] ?? ''
 const text = ref('')
 const busy = ref(false)
 const field = useId()
+// counted in characters as the server does: maxlength counts UTF-16 units, so an emoji would count twice
+const tooLong = computed(() => !taglineFits(text.value))
 
 async function save(value: string, close: () => void) {
   busy.value = true
@@ -37,22 +40,27 @@ async function save(value: string, close: () => void) {
   >
     <template #trigger><IdCard class="size-4" aria-hidden="true" /></template>
     <template #default="{ close }">
-      <form class="grid gap-2" @submit.prevent="save(text, close)">
+      <form class="grid gap-2" @submit.prevent="tooLong || save(text, close)">
         <label class="lbl" :for="field">{{ t('Role or company') }}</label>
         <input
           :id="field"
           v-model="text"
           class="inp"
-          maxlength="60"
           autocomplete="off"
+          :aria-invalid="tooLong"
           :aria-describedby="`${field}-hint`"
         />
-        <p :id="`${field}-hint`" class="studio-meta">{{ t('Shown under the name with the Two lines style.') }}</p>
+        <p :id="`${field}-hint`" class="studio-meta">
+          {{ t('Shown under the name with the Two lines style.') }}
+          <span v-if="tooLong" class="field-error block">{{
+            t('Use at most {n} characters.', { n: MAX_TAGLINE })
+          }}</span>
+        </p>
         <div class="flex justify-end gap-2">
           <button v-if="saved" type="button" class="btn-ghost" :disabled="busy" @click="save('', close)">
             {{ t('Remove') }}
           </button>
-          <button type="submit" class="btn" :disabled="busy">{{ t('Save') }}</button>
+          <button type="submit" class="btn" :disabled="busy || tooLong">{{ t('Save') }}</button>
         </div>
       </form>
     </template>

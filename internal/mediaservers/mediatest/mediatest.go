@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -109,35 +111,53 @@ func Listeners(home, component string, pid int) []string {
 	return strings.Split(strings.TrimSpace(string(b)), "\n")
 }
 
-// FreePorts returns n distinct ports free at this moment on every address, over TCP and over UDP both, as the
-// media ports need.
+// Ports handed out by FreePorts: below the kernel's ephemeral range (32768 and up), so neither a listener on port 0
+// nor an outgoing connection (the readiness checks make many) ever takes one between the choice and the bind.
+const (
+	portsFrom  = 20000
+	portsBlock = 500 // each test binary counts through one block, chosen at random: two packages rarely share one
+	portBlocks = 24
+)
+
+// nextPort is the last port handed out by this test binary. shortcut: process-wide state of a test helper, so
+// parallel tests never get the same port; a test that needs more than a block of ports would need a bigger block.
+var nextPort atomic.Int64
+
+// FreePorts returns n distinct ports free at this moment on every address, over TCP and over UDP both (the media
+// ports need both), none of them given to another test of this binary.
 func FreePorts(t testing.TB, n int) []int {
 	t.Helper()
+	nextPort.CompareAndSwap(0, int64(portsFrom+rand.IntN(portBlocks)*portsBlock)) //nolint:gosec // not a secret
 	var ports []int
-	var held []func()
-	defer func() {
-		for _, c := range held {
-			c()
-		}
-	}()
 	for tries := 0; len(ports) < n; tries++ {
-		if tries > 100*n {
+		if tries > portsBlock {
 			t.Fatal("no port free over TCP and UDP")
 		}
-		l, err := net.Listen("tcp", ":0") //nolint:noctx,gosec // a media port: on every address, as the servers bind it
-		if err != nil {
-			t.Fatal(err)
+		p := int(nextPort.Add(1))
+		if p >= portsFrom+portBlocks*portsBlock {
+			nextPort.CompareAndSwap(int64(p), portsFrom)
+			continue
 		}
-		held = append(held, func() { _ = l.Close() })
-		p := l.Addr().(*net.TCPAddr).Port
-		u, err := net.ListenPacket("udp", ":"+strconv.Itoa(p)) //nolint:noctx // a test helper
-		if err != nil {
-			continue // taken over UDP: another one
+		if free(p) {
+			ports = append(ports, p)
 		}
-		held = append(held, func() { _ = u.Close() })
-		ports = append(ports, p)
 	}
 	return ports
+}
+
+// free reports whether port p can be bound on every address over TCP and over UDP.
+func free(p int) bool {
+	l, err := net.Listen("tcp", ":"+strconv.Itoa(p)) //nolint:noctx,gosec // a media port: on every address, as the servers bind it
+	if err != nil {
+		return false
+	}
+	defer func() { _ = l.Close() }()
+	u, err := net.ListenPacket("udp", ":"+strconv.Itoa(p)) //nolint:noctx,gosec // the same
+	if err != nil {
+		return false
+	}
+	_ = u.Close()
+	return true
 }
 
 func fake(component string) int {

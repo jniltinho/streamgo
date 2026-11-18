@@ -71,11 +71,9 @@ func newStack(t *testing.T, extraEnv ...string) *stack {
 			t.Logf("the supervisor's log:\n%.20000s", s.logs.String())
 		}
 	})
-	media := mediatest.FreePorts(t, 3) // free over TCP and UDP
-	internal, err := mediaservers.FreePorts(context.Background(), 4, media...)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// all seven from the fixture's own ports: outside the ephemeral range the readiness checks' connections use
+	ports := mediatest.FreePorts(t, 7)
+	internal, media := ports[:4], ports[4:]
 	s.setup = mediaservers.Setup{
 		Dir:    t.TempDir(),
 		NodeIP: "127.0.0.1",

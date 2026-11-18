@@ -36,10 +36,12 @@ single: ## Build dist/streamgo-single: the executable packed with UPX, LiveKit a
 	docker build $(BUILD_ARGS) --target single-export --output type=local,dest=$(DIST) .
 	@ls -l $(DIST)/streamgo-single
 
-# with dist/packages (make package of the same version: its .tar.gz must be there), it also checks the single file is
-# smaller than the .tar.gz
+# when dist/packages holds the .tar.gz of this very version (make package), it also checks the single file is smaller
+# than it; packages of another version left in dist/ are ignored here (the workflow always gives the directory, and
+# a missing archive fails there)
+PACKAGE_VERSION := $(subst -,.,$(patsubst v%,%,$(VERSION)))
 test-single: single tools ## Smoke test the single file in a clean Debian: ready, sign-in, a studio, the key kept, SIGKILL, damage
-	packaging/single-smoke.sh $(DIST)/streamgo-single '$(VERSION)' $(wildcard $(DIST)/packages)
+	packaging/single-smoke.sh $(DIST)/streamgo-single '$(VERSION)' $(if $(wildcard $(DIST)/packages/streamgo_$(PACKAGE_VERSION)_linux_amd64.tar.gz),$(DIST)/packages)
 
 IMAGE ?= streamgo
 image: ## Build the runtime image $(IMAGE):$(VERSION) (non-root, with ffmpeg)

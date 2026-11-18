@@ -13,27 +13,27 @@ The packages are built for linux/amd64 only. To install the same files by hand o
 ## 1. Download and verify
 
 Each release on GitHub carries four files: the `.deb`, the `.rpm`, the `.tar.gz` and `SHA256SUMS`. Download the
-`.deb` and the checksums of the version you want (here 0.2.0):
+`.deb` and the checksums of the version you want (here 0.3.0):
 
 ```bash
-curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.2.0/streamgo_0.2.0_amd64.deb
+curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.3.0/streamgo_0.3.0_amd64.deb
 ```
 
 ```bash
-curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.2.0/SHA256SUMS
+curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.3.0/SHA256SUMS
 ```
 
 ```bash
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
-The last command must print `streamgo_0.2.0_amd64.deb: OK`. Anything else means the file is damaged or not the
+The last command must print `streamgo_0.3.0_amd64.deb: OK`. Anything else means the file is damaged or not the
 one published: do not install it.
 
 ## 2. Install
 
 ```bash
-sudo apt install ./streamgo_0.2.0_amd64.deb
+sudo apt install ./streamgo_0.3.0_amd64.deb
 ```
 
 The `./` matters: it tells apt to install the file, not to look for a package of that name. apt also installs the
@@ -264,10 +264,10 @@ sudo userdel streamgo
 ## The `.rpm`: AlmaLinux, Rocky Linux and the RHEL family
 
 The `.rpm` holds the same files and services. Download and verify it as in section 1
-(`streamgo-0.2.0-1.x86_64.rpm`), then:
+(`streamgo-0.3.0-1.x86_64.rpm`), then:
 
 ```bash
-sudo dnf install ./streamgo-0.2.0-1.x86_64.rpm
+sudo dnf install ./streamgo-0.3.0-1.x86_64.rpm
 ```
 
 The `.rpm` does not depend on ffmpeg, it only recommends `(ffmpeg or ffmpeg-free)`: the RHEL family has no ffmpeg

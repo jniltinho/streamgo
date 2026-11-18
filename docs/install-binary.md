@@ -23,11 +23,11 @@ StreamGo checks ffmpeg when it starts and refuses to start, naming what is missi
 ## 2. Download, verify and extract
 
 ```bash
-curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.2.0/streamgo_0.2.0_linux_amd64.tar.gz
+curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.3.0/streamgo_0.3.0_linux_amd64.tar.gz
 ```
 
 ```bash
-curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.2.0/SHA256SUMS
+curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.3.0/SHA256SUMS
 ```
 
 ```bash
@@ -35,7 +35,7 @@ sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 ```bash
-tar -xzf streamgo_0.2.0_linux_amd64.tar.gz -C /opt
+tar -xzf streamgo_0.3.0_linux_amd64.tar.gz -C /opt
 ```
 
 This creates `/opt/streamgo`:

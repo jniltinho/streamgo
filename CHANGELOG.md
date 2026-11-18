@@ -6,6 +6,13 @@ are the section of that version.
 
 ## [Unreleased]
 
+—
+
+## [0.3.0] — 2026-11-18
+
+**Six new themes (28 in all) — macOS light and dark, Mac OS Retro, Ubuntu and OBS Studio dark and light — the
+Windows XP and 98 themes refined, and fonts bundled with the app.**
+
 ### Added
 
 - **Six new themes, 28 in all** — macOS in its light and dark appearance (a flat unified toolbar, sheets with the

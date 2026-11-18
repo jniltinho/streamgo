@@ -884,6 +884,9 @@ dialog.pnl.closing::backdrop {
   background: var(--dialog-title-bg);
 }
 .pnl-head .modal-x {
+  /* above the title: a theme may lay the title over the whole bar, and the click must still land here */
+  position: relative;
+  z-index: 1;
   order: var(--dialog-x-order);
   width: var(--dialog-x-width);
   margin-inline-end: var(--dialog-x-pull);

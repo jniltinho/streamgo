@@ -218,6 +218,22 @@ test.describe('every theme', () => {
     expect(await close.evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none')
   })
 
+  // A theme may move the close control and lay the title over the whole bar (the Mac themes): the control must stay
+  // the thing a click lands on.
+  test('every theme: a click on the close control of a dialog closes it', async ({ page }) => {
+    await stubApi(page, ANA)
+    await page.goto('/broadcasts')
+    const dialog = page.getByRole('dialog', { name: 'Settings' })
+    for (const theme of themeCatalog) {
+      await page.evaluate((id) => document.documentElement.setAttribute('data-theme', id), theme.id)
+      await page.getByRole('button', { name: 'Settings' }).click()
+      await expect(dialog).toBeVisible()
+      // a real click: it fails when another element lies over the control
+      await dialog.getByRole('button', { name: 'Close' }).click({ timeout: 3000 })
+      await expect(dialog, `the Settings dialog closes in ${theme.id}`).toBeHidden()
+    }
+  })
+
   test('streamgo-dark is the chosen design palette', async ({ page }) => {
     const want: Record<string, string> = {
       page: '#0c1020',

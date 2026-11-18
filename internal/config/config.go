@@ -44,6 +44,7 @@ type Config struct {
 	MediaMTX MediaMTX `toml:"mediamtx"`
 	Studio   Studio   `toml:"studio"`
 	Output   Output   `toml:"output"`
+	Media    Media    `toml:"media"`
 	// Secret holds STREAMGO_SECRET_KEY, which seals stored secrets (destinations, invite links).
 	Secret Secret `toml:"secret"`
 }
@@ -103,6 +104,14 @@ type Output struct {
 	AllowPrivateDestinations bool     `toml:"allow_private_destinations"`
 }
 
+// Media holds the settings of the media servers `streamgo up` runs; the server alone ignores them.
+type Media struct {
+	NodeIP         string `toml:"node_ip"`          // address browsers reach the media ports at; empty: the default route's
+	LiveKitTCPPort int    `toml:"livekit_tcp_port"` // LiveKit's WebRTC over TCP
+	LiveKitUDPPort int    `toml:"livekit_udp_port"` // LiveKit's WebRTC over UDP
+	WebRTCPort     int    `toml:"webrtc_port"`      // MediaMTX's WebRTC, UDP and TCP
+}
+
 // Secret is the key section; its only field is read from STREAMGO_SECRET_KEY.
 type Secret struct {
 	Key string `toml:"key" secret:"true"`
@@ -159,6 +168,7 @@ func Default() *Config {
 			StartTimeout:     Duration(30 * time.Second),
 			ReconnectGrace:   Duration(120 * time.Second),
 		},
+		Media: Media{LiveKitTCPPort: 7881, LiveKitUDPPort: 7882, WebRTCPort: 8189},
 	}
 }
 
@@ -315,6 +325,18 @@ func (c *Config) Validate() error {
 	between("output.max_concurrent", c.Output.MaxConcurrent, 1, 32)
 	durationBetween("output.start_timeout", c.Output.StartTimeout, 5*time.Second, 5*time.Minute)
 	durationBetween("output.reconnect_grace", c.Output.ReconnectGrace, 10*time.Second, 30*time.Minute)
+
+	if c.Media.NodeIP != "" {
+		if _, err := netip.ParseAddr(c.Media.NodeIP); err != nil {
+			bad("media.node_ip", "must be an IP address, got %q", c.Media.NodeIP)
+		}
+	}
+	between("media.livekit_tcp_port", c.Media.LiveKitTCPPort, 1, 65535)
+	between("media.livekit_udp_port", c.Media.LiveKitUDPPort, 1, 65535)
+	between("media.webrtc_port", c.Media.WebRTCPort, 1, 65535)
+	if c.Media.WebRTCPort == c.Media.LiveKitTCPPort || c.Media.WebRTCPort == c.Media.LiveKitUDPPort {
+		bad("media.webrtc_port", "must differ from media.livekit_tcp_port and media.livekit_udp_port, got %d", c.Media.WebRTCPort)
+	}
 
 	// never the value: only whether it is there and its length
 	switch {

@@ -20,7 +20,9 @@ Layout and conventions follow MeetHub (github.com/jniltinho/meethub, MIT); the p
    `web/dist/*` (except `.gitkeep`), binaries, `config.toml`, `.env` or databases.
 5. **Secrets only from the environment** (`STREAMGO_SECRET_KEY`, `STREAMGO_DATABASE_DSN`, the LiveKit and MediaMTX
    credentials). The loader refuses them in `config.toml`. Never write a secret to a versioned file, a log or test
-   output.
+   output. The one file the binary reads secrets from is `<data_dir>/streamgo.env` (`NAME=value` lines read as data,
+   for variables the environment lacks), which `streamgo up` creates with mode 0600 on its first start and never
+   rewrites a value of.
 6. **Authorization lives in the server**: every broadcast, destination and stage route checks ownership in the core
    and answers 404 when the user does not own it.
 7. **Same behaviour on the three databases**: e-mails stored lower-cased, timestamps in UTC, JSON as text, ids as

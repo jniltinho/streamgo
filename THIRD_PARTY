@@ -1,6 +1,8 @@
-THIRD-PARTY SOFTWARE IN STREAMGO'S PACKAGES AND ALL-IN-ONE IMAGE
+THIRD-PARTY SOFTWARE IN STREAMGO'S PACKAGES, ALL-IN-ONE IMAGE AND SINGLE FILE
 
-The Linux packages (/opt/streamgo/bin) and the all-in-one image (/usr/local/bin) carry two media servers, unmodified:
+The Linux packages (/opt/streamgo/bin), the all-in-one image (/usr/local/bin) and the single file of a release
+(streamgo_X.Y.Z_linux_amd64, compressed with zstd after the executable; `streamgo up` unpacks them byte for byte)
+carry two media servers, unmodified:
 the static linux/amd64 binaries of their official container images, pinned by image digest and checked by SHA-256
 when the Dockerfile copies them out (the "media" stage; the checksums below are the binaries'):
 
@@ -13,6 +15,14 @@ when the Dockerfile copies them out (the "media" stage; the checksums below are 
                            image:  bluenviron/mediamtx:1.21.4@sha256:c730bccdbc8739f8f0c13cefe9bea8b61926f599b88fa4d0d229baa91846c7bc
                            binary: mediamtx sha256 e64868f1cfedc3d4d3d009021216c8d1b5d4dcac94562e07ce1665a04f76c72c
 
+LiveKit's NOTICE file of v1.13.10 is in this repository as third_party/livekit/NOTICE; `streamgo licenses` prints
+it, with this file, StreamGo's LICENSE and NOTICE and the font licences.
+
+The executable of the single file is packed with UPX (https://upx.github.io, GPL-2.0-or-later with the UPX
+exception), which compresses it and unpacks it in memory when it starts. The UPX licence exception lets a program
+packed with UPX be distributed under the program's own terms; no UPX code is part of StreamGo's source, and the
+packages, images and small archive carry the unpacked executable.
+
 ffmpeg is not part of StreamGo and is never built by it. The .deb depends on the distribution's ffmpeg package and
 the .rpm recommends one (ffmpeg or ffmpeg-free); the container images install their base distribution's package
 (Alpine's in the runtime and all-in-one images; its package records the licence, `apk info -a ffmpeg`:
@@ -22,7 +32,8 @@ GNU GPL; their sources are the distributions' own (Alpine's aports, Debian's and
 The web app embedded in the streamgo binary carries six typefaces, unmodified, as WOFF2 files of their Latin
 subset (frontend/src/assets/fonts, from the @fontsource packages 5.3.0): Ubuntu under the Ubuntu Font Licence 1.0,
 the others under the SIL Open Font License 1.1; the licence texts are beside the files (LICENSE-Inter.txt,
-LICENSE-NotoSans.txt, LICENSE-JetBrainsMono.txt, LICENSE-Barlow.txt, LICENSE-OpenSans.txt, LICENSE-Ubuntu.txt):
+LICENSE-NotoSans.txt, LICENSE-JetBrainsMono.txt, LICENSE-Barlow.txt, LICENSE-OpenSans.txt, LICENSE-Ubuntu.txt;
+copies in third_party/fonts are embedded in the executable for `streamgo licenses`):
 
   Inter            OFL-1.1   https://github.com/rsms/inter                      Copyright 2016 The Inter Project Authors
   Noto Sans        OFL-1.1   https://github.com/notofonts/latin-greek-cyrillic  Copyright 2022 The Noto Project Authors

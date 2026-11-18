@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"log/slog"
 	"net"
@@ -54,14 +55,13 @@ func newServerCmd(c *cli) *cobra.Command {
 	return cmd
 }
 
-// runServer checks the configuration and the host, wires the server and runs it until ctx
-// ends. onListen, when not nil, receives the bound address.
+// runServer checks the configuration and the host, takes the instance lock of the data directory and runs the
+// server until ctx ends. onListen, when not nil, receives the bound address.
 func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.Addr)) error {
 	cfg, err := c.config()
 	if err != nil {
 		return err
 	}
-	logger := c.logger()
 	if err := config.CheckDataDir(cfg.Server.DataDir); err != nil {
 		return err
 	}
@@ -70,13 +70,20 @@ func (c *cli) runServer(ctx context.Context, noMigrate bool, onListen func(net.A
 		return err
 	}
 	defer func() { _ = instance.Close() }()
-	tlsConfig, err := serverTLS(cfg, logger)
+	tlsConfig, err := serverTLS(cfg, c.logger())
 	if err != nil {
 		return err
 	}
 	if err := config.CheckFFmpeg(ctx, cfg.Output.FFmpegPath); err != nil {
 		return err
 	}
+	return c.serve(ctx, cfg, tlsConfig, noMigrate, onListen)
+}
+
+// serve wires the server and runs it until ctx ends. The caller holds the instance lock (server and up take it
+// before anything else) and has checked the TLS settings and ffmpeg.
+func (c *cli) serve(ctx context.Context, cfg *config.Config, tlsConfig *tls.Config, noMigrate bool, onListen func(net.Addr)) error {
+	logger := c.logger()
 	logger.Info("starting streamgo", "version", buildinfo.Version, "database", cfg.Database.Driver)
 
 	db, err := openStore(ctx, cfg)

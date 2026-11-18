@@ -21,17 +21,82 @@ const EnvPrefix = "STREAMGO_"
 // DefaultPaths are tried in order when no --config path is given.
 var DefaultPaths = []string{"config.toml", "/etc/streamgo/config.toml"}
 
-// Load builds the configuration from defaults, the TOML file and the
-// environment (os.LookupEnv), then validates it. path is the --config value;
-// when empty, DefaultPaths are tried and a missing file is not an error.
+// Load builds the configuration from defaults, the TOML file, the environment (os.LookupEnv)
+// and <data_dir>/streamgo.env, then validates it. path is the --config value; when empty,
+// DefaultPaths are tried and a missing file is not an error.
 func Load(path string) (*Config, error) {
-	return LoadWith(path, os.LookupEnv, os.ReadFile)
+	return Source{Path: path}.Load()
 }
 
 // LoadWith is Load with injectable environment lookup and file reading, for tests.
 func LoadWith(path string, lookup func(string) (string, bool), readFile func(string) ([]byte, error)) (*Config, error) {
+	return Source{Path: path, Lookup: lookup, ReadFile: readFile}.Load()
+}
+
+// Source says where a configuration comes from.
+type Source struct {
+	Path     string                       // the --config value; empty: DefaultPaths
+	Override func(*Config)                // the flags the user gave, applied over the environment
+	Lookup   func(string) (string, bool)  // nil: os.LookupEnv
+	ReadFile func(string) ([]byte, error) // nil: os.ReadFile
+}
+
+// Raw is the first step of the bootstrap: defaults, the TOML file, the environment and the
+// overrides, without the env file and without validation. It tells where the data directory is.
+func (s Source) Raw() (*Config, error) {
+	return s.build(s.lookup())
+}
+
+// Load is the whole bootstrap: Raw, then <data_dir>/streamgo.env for the variables the
+// environment lacks, then validation.
+func (s Source) Load() (*Config, error) {
+	raw, err := s.Raw()
+	if err != nil {
+		return nil, err
+	}
+	cfg := raw
+	if dir := raw.Server.DataDir; dir != "" {
+		vars, err := ReadEnvFile(EnvFilePath(dir), s.readFile())
+		if err != nil {
+			return nil, err
+		}
+		if len(vars) > 0 {
+			env := s.lookup()
+			if cfg, err = s.build(func(k string) (string, bool) {
+				if v, ok := env(k); ok {
+					return v, true
+				}
+				v, ok := vars[k]
+				return v, ok
+			}); err != nil {
+				return nil, err
+			}
+			cfg.Server.DataDir = dir // the file lives in the data directory: it cannot move it
+		}
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid configuration:\n%w", err)
+	}
+	return cfg, nil
+}
+
+func (s Source) lookup() func(string) (string, bool) {
+	if s.Lookup != nil {
+		return s.Lookup
+	}
+	return os.LookupEnv
+}
+
+func (s Source) readFile() func(string) ([]byte, error) {
+	if s.ReadFile != nil {
+		return s.ReadFile
+	}
+	return os.ReadFile
+}
+
+func (s Source) build(lookup func(string) (string, bool)) (*Config, error) {
 	cfg := Default()
-	data, file, err := readConfigFile(path, readFile)
+	data, file, err := readConfigFile(s.Path, s.readFile())
 	if err != nil {
 		return nil, err
 	}
@@ -46,8 +111,8 @@ func LoadWith(path string, lookup func(string) (string, bool), readFile func(str
 	if err := applyEnv(cfg, lookup); err != nil {
 		return nil, err
 	}
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid configuration:\n%w", err)
+	if s.Override != nil {
+		s.Override(cfg)
 	}
 	return cfg, nil
 }

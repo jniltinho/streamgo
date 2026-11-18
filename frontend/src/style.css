@@ -954,6 +954,12 @@ dialog.pnl.closing::backdrop {
   --k: var(--color-toast-err);
   --kt: var(--color-err);
 }
+/* (outside the components layer, as the defaults on .toast are: a layered rule would lose to them) */
+.toast.info {
+  --k: var(--color-toast-info);
+  --ok: var(--color-on-toast-info);
+  --kt: var(--color-link);
+}
 .toast.warn {
   --k: var(--color-toast-warn);
   --ok: var(--color-on-toast-warn);
@@ -1116,12 +1122,7 @@ dialog.pnl.closing::backdrop {
 }
 
 @layer components {
-  /* ── MeetHub feedback additions: the info toast, inline alerts and field errors (roles only) ─────────────────── */
-  .toast.info {
-    --k: var(--color-toast-info);
-    --ok: var(--color-on-toast-info);
-    --kt: var(--color-link);
-  }
+  /* ── MeetHub feedback additions: inline alerts and field errors (roles only) ─────────────────── */
   .toast-close {
     display: inline-flex;
     padding: 0.0625rem;

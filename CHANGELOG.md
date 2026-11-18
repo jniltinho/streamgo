@@ -24,6 +24,10 @@ are the section of that version.
   button shadows, sentence-case labels and a blue field focus. Every theme now paints the two headers with its
   header colours, and tables stand on a surface of their own with the theme's shadow.
 
+### Fixed
+
+- **The information toast has its own colour** — it was painted with the success colours in every theme.
+
 ## [0.2.0] — 2026-11-17
 
 **Accounts and output settings move into the app: administrators manage users and the output's quality in the

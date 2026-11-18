@@ -276,7 +276,7 @@
   --color-on-selection: #ffffff;
   --color-focus: #284cb8;
   --color-ok: #156434;
-  --color-err: #b8283b;
+  --color-err: #9c1c2e; /* readable on the button grey too (the studio's Leave button) */
   --color-warn: #8a5300;
   --color-ok-fill: #156434;
   --color-err-fill: #b8283b;

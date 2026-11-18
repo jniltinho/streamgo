@@ -17,6 +17,13 @@ test('toasts: four kinds, errors announced assertively, close button', async ({ 
   await expect(page.locator('.toast')).toHaveCount(4)
   await expect(page.locator('.toast.err')).toHaveAttribute('aria-live', 'assertive')
   await expect(page.locator('.toast.info')).toHaveAttribute('aria-live', 'polite')
+  // the info toast carries its own colour, not the success default
+  const fill = (sel: string, name: string) =>
+    page
+      .locator(sel)
+      .first()
+      .evaluate((el, n) => getComputedStyle(el).getPropertyValue(n).trim(), name)
+  expect(await fill('.toast.info', '--k')).toBe(await fill('html', '--color-toast-info'))
   await page.locator('.toast.err').getByRole('button', { name: 'Close' }).click()
   await expect(page.locator('.toast')).toHaveCount(3)
 })

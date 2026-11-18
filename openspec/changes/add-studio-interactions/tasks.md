@@ -7,17 +7,22 @@
   `THIRD_PARTY`; `skills-lock.json` and the line in `AGENTS.md` (design U1a)
 - [ ] 1.2 `UiMenu.vue`, `UiTooltip.vue`, `UiMeter.vue` with their recipes on role tokens in `style.css`; the matrix
   recipes for the new pairs; gallery entries for the three
-- [ ] 1.3 The size test: the entry chunk before and after, the budget, the numbers in the proposal
+- [ ] 1.3 The size check after `vp build` in `make check` (design U8): entry and route totals after gzip, before
+  and after, the ceilings, the numbers in the proposal
 
 ## 2. The studio
 
-- [ ] 2.1 Device menus on Mic and Camera in `ControlsDock.vue` (design U3); tests for every scenario of "Device
-  menus"
-- [ ] 2.2 The microphone meter (design U4); tests for every scenario of "Microphone meter"
-- [ ] 2.3 Tooltips on the icon-only controls of the studio (design U5); tests for "Tooltips"
-- [ ] 2.4 State motion in `style.css` (design U6); tests for "State motion"
-- [ ] 2.5 `frontend/src/core/cues.ts`, the two preferences in `PreferencesModal.vue`, both catalogs (design U7);
-  unit tests for every scenario of "Sound cues", a real-studio check that a guest's join is heard once
+- [ ] 2.1 `studio.chooseDevice()` handles refusal and failure, restores the previous device, reports unavailable
+  (design U3); unit tests for "A device that cannot be used" and "Neither device can be used", for the menu and the
+  selects
+- [ ] 2.2 Device menus on Mic and Camera in `ControlsDock.vue` (design U3); tests for every other scenario of
+  "Device menus", with a two-device fixture, for the owner and for a guest
+- [ ] 2.3 The microphone meter on the generalised analyser (design U4); tests for every scenario of "Microphone meter"
+- [ ] 2.4 Tooltips on the controls design U5 lists; tests for "Tooltips"
+- [ ] 2.5 State motion in `style.css` (design U6); tests for "State motion"
+- [ ] 2.6 `frontend/src/core/cues.ts`, its wiring to the room's events and the broadcast's state, the Sounds
+  section of `DeviceSettingsModal.vue`, both catalogs (design U7); unit tests for every scenario of "Sound cues",
+  a real-studio check that a guest's join is heard once and that the program's output is unchanged by a cue
 
 ## 3. Dialogs and toasts on UI SDK
 
@@ -32,8 +37,10 @@
 
 ## 4. Validation and checks
 
-- [ ] 4.1 The real studio suite in every theme with a menu open and a tooltip shown ("In every theme")
-- [ ] 4.2 The owner tries the slice on the local stack; what the owner changes is applied
+- [ ] 4.1 The real studio suite in every theme with a menu open, a tooltip shown and the meter half full; both
+  languages; a guest in Firefox (run by hand with the session's driver, not in the CI)
+- [ ] 4.2 The owner tries the slice on the local stack with the walkthrough of design U9; what the owner changes
+  is applied
 - [ ] 4.3 `CHANGELOG.md`; `docs/README.md` (UI SDK: what it is used for, https://github.com/vercel-labs/ui, the
   upgrade steps of design U1b); `make check && make test`, the browser suites,
   `openspec validate add-studio-interactions --strict`

@@ -3,64 +3,102 @@
 ## ADDED Requirements
 
 ### Requirement: Device menus
-A person in the studio SHALL choose their microphone and their camera from a menu beside each control, without
-opening the settings.
+A person in the studio, owner or guest, SHALL choose their microphone and their camera from a menu beside each
+control, without opening the settings.
 
 #### Scenario: Choose another microphone
-- **GIVEN** two microphones and the browser's permission
-- **WHEN** the person opens the menu beside Mic and chooses the second
+- **GIVEN** two microphones, the browser's permission, and Default checked
+- **WHEN** the person opens the menu beside Mic and chooses the second microphone
 - **THEN** their audio comes from the second microphone, the menu closes, focus returns to the arrow, and the
-  second is the checked item the next time the menu opens
+  second is the checked item in the menu and the selected one in the settings dialog's select
 
 #### Scenario: Keyboard
-- **WHEN** the arrow beside Camera has focus and the person presses Enter, the down arrow, Enter
-- **THEN** the menu opened, the second camera was chosen and focus is on the arrow again; Escape in an open menu
-  closes it and changes nothing
+- **GIVEN** the cameras "Front" and "Back" in that order after Default, Default checked, focus on the arrow beside
+  Camera
+- **WHEN** the person presses Enter, the down arrow twice, Enter
+- **THEN** the menu opened with focus on Default, "Back" was chosen, the menu closed and focus is on the arrow;
+  Escape in an open menu closes it and changes nothing
 
-#### Scenario: No permission yet
-- **GIVEN** a browser that has not been allowed to use the microphone
-- **WHEN** the person looks at the arrow beside Mic
-- **THEN** it is disabled and its tooltip says the microphone must be allowed first
+#### Scenario: Chosen while off
+- **GIVEN** the camera off
+- **WHEN** the person chooses another camera in the menu
+- **THEN** the camera stays off, and turning it on uses the chosen one
+
+#### Scenario: Labels not given yet
+- **GIVEN** a browser that lists devices without labels
+- **WHEN** the menu opens
+- **THEN** its items are numbered ("Microphone 1"), and after a toggle that made the browser grant permission the
+  next opening shows the real names
+
+#### Scenario: Nothing to choose
+- **GIVEN** no camera, or camera permission denied
+- **WHEN** the arrow beside Camera gets keyboard focus
+- **THEN** it is focusable and marked disabled, opens nothing, and its tooltip says why
 
 #### Scenario: A device that cannot be used
-- **WHEN** switching to a chosen camera fails
-- **THEN** an error toast says so and the camera in use is still the previous one
+- **WHEN** switching to a chosen camera is refused or reports failure
+- **THEN** the previous camera is started again, the menu and the select show the previous camera, and an error
+  toast says the chosen one could not be used
+
+#### Scenario: Neither device can be used
+- **WHEN** the switch fails and the previous camera cannot be started again either
+- **THEN** the Camera control shows off, the toast says the camera is unavailable, and nothing claims a camera is
+  in use
 
 #### Scenario: A device unplugged
-- **WHEN** a microphone is unplugged while the menu is closed
+- **WHEN** a microphone is unplugged
 - **THEN** the menu no longer lists it the next time it opens
 
+#### Scenario: A long list in a small window
+- **GIVEN** a window of 1280 by 720 and twelve microphones with long names
+- **WHEN** the menu opens
+- **THEN** it is wholly inside the window, scrolls inside itself, and the page has no scrollbar
+
 ### Requirement: Microphone meter
-The studio SHALL show a person the level of their own microphone while it is on.
+The studio SHALL show a person the level of their own microphone while it is on, before joining and in the room.
 
 #### Scenario: Heard
-- **GIVEN** a microphone that is on and receives a steady tone
-- **WHEN** the person looks at the meter beside Mic
-- **THEN** it shows a level above empty and its text value for screen readers says the microphone is heard
+- **GIVEN** a microphone that is on and receives a steady tone at half of full scale
+- **WHEN** one second has passed
+- **THEN** the meter shows more than a quarter of its range and its text value says the microphone is heard
+
+#### Scenario: Silent
+- **GIVEN** a microphone that is on and receives silence
+- **THEN** the meter is empty and its text value says silent
 
 #### Scenario: Off
-- **WHEN** the microphone is off
-- **THEN** the meter is empty and nothing reads the microphone
+- **WHEN** the microphone is turned off, or the tab is hidden
+- **THEN** the meter is empty and stops sampling, and the capture and what is published are untouched
+
+#### Scenario: After a switch
+- **WHEN** the person chooses another microphone, or the connection is made again
+- **THEN** the meter follows the microphone now in use
 
 #### Scenario: It does not change the program
 - **WHEN** the meter runs while the broadcast is live
-- **THEN** the program's audio graph has no node of the meter
+- **THEN** its analyser is connected to no destination and the program's output measures the same with and
+  without it
 
 ### Requirement: Tooltips
-Every control of the studio that shows only an icon SHALL show its name in a themed tooltip, on hover and on
-keyboard focus.
+The dock's Device settings button and device arrows, the icon buttons of the studio header, the layout thumbnails
+and the icon marks of a backstage card SHALL show their name in a themed tooltip, on hover and on keyboard focus.
 
 #### Scenario: Focus
 - **WHEN** the Device settings button gets keyboard focus
 - **THEN** a tooltip with "Device settings" shows at once in the theme's tooltip colours, the button has no `title`
-  attribute, and Escape hides the tooltip
+  attribute and keeps its accessible name, and Escape hides the tooltip until the button is entered again
 
-#### Scenario: Buttons with text
-- **WHEN** a control already shows its name as text
-- **THEN** it has no tooltip
+#### Scenario: Hover
+- **WHEN** the pointer rests on a layout thumbnail for 500 ms, then leaves
+- **THEN** the tooltip with the layout's name showed, then hid
+
+#### Scenario: Buttons with text, and reasons
+- **WHEN** a control already shows its name as text, or carries a `title` that gives a reason or an error
+- **THEN** it has no name tooltip, and the reason or the error is still there
 
 ### Requirement: State motion
-Controls and marks SHALL move when their state changes, and SHALL NOT when the person asked for reduced motion.
+The dock's controls, the speaking mark and the live mark SHALL move when their state changes, and SHALL NOT when
+the person asked for reduced motion.
 
 #### Scenario: A control changes
 - **WHEN** the microphone is turned off
@@ -71,32 +109,46 @@ Controls and marks SHALL move when their state changes, and SHALL NOT when the p
 - **THEN** that person's speaking mark is animated, and the live mark pulses
 
 #### Scenario: Reduced motion
-- **GIVEN** the browser asks for reduced motion, or the app is in flat mode
+- **GIVEN** the browser asks for reduced motion, or the app is in flat mode, also when that starts while an effect
+  runs
 - **WHEN** the same things happen
-- **THEN** no animation runs and every state is still told by its icon and its text
+- **THEN** none of the three effects runs, every state is still told by its icon and its text, and the meter still
+  shows the level
 
 ### Requirement: Sound cues
 The studio SHALL play a short sound on the listener's own device when someone joins or leaves the backstage and
-when the broadcast starts or ends, and a cue SHALL never be part of the program.
+when the broadcast starts or ends; the cue player SHALL never be connected to the program mix, and cues SHALL be
+silent during a broadcast unless the listener turned them on.
 
 #### Scenario: Someone joins
-- **GIVEN** sounds on and the audio already started by a click
+- **GIVEN** sounds on, no broadcast running, and the audio started by a click
 - **WHEN** a guest joins the backstage
-- **THEN** the others in the studio hear the join cue once, and the guest does not
+- **THEN** the owner and the other guests hear the join cue once, and the guest who joined does not
 
-#### Scenario: Never in the program
-- **WHEN** a cue plays while the broadcast is live
-- **THEN** the program's audio graph has no node of the cue player, which has an audio context of its own
+#### Scenario: Not a join
+- **WHEN** the listener enters a studio that already has people, a participant shares a screen, mutes, or the
+  connection is made again
+- **THEN** no join or leave cue plays
 
-#### Scenario: Silent for the host while live
-- **GIVEN** an owner with "Sounds while live" off (the default)
-- **WHEN** a guest joins during a live broadcast
-- **THEN** the owner hears no cue, and hears it again once the broadcast is over
+#### Scenario: Not wired to the program
+- **WHEN** a cue plays while the broadcast is live with "Sounds during a broadcast" on
+- **THEN** the cue player's audio context is not the mix's, no node connects the two, and the program's output
+  measured from the mix is the same with and without the cue
 
-#### Scenario: Turned off
-- **GIVEN** "Sounds" turned off in Settings
+#### Scenario: Silent during a broadcast
+- **GIVEN** any participant with "Sounds during a broadcast" off (the default)
+- **WHEN** a guest joins while the broadcast is starting, live or interrupted
+- **THEN** that participant hears no cue; nothing is played later for it; a join after the broadcast ended is
+  heard
+
+#### Scenario: Turned off, from inside the studio
+- **GIVEN** an owner or a guest who turned "Sounds" off in the studio's Device settings dialog
 - **WHEN** anything that has a cue happens, also after a reload
 - **THEN** no cue plays
+
+#### Scenario: Storage that cannot be used
+- **GIVEN** a browser that blocks storage, or a stored value that is not a preference
+- **THEN** sounds are on and sounds during a broadcast are off
 
 #### Scenario: Audio not started
 - **GIVEN** a tab where nothing was clicked yet
@@ -105,7 +157,11 @@ when the broadcast starts or ends, and a cue SHALL never be part of the program.
 
 #### Scenario: Many at once
 - **WHEN** five guests join within one second
-- **THEN** one join cue plays
+- **THEN** the first join plays a cue and the other four do not
+
+#### Scenario: Short and quiet
+- **WHEN** a cue plays
+- **THEN** it lasts at most 250 ms and its gain never passes 0.15
 
 ### Requirement: Dialogs and toasts on UI SDK
 Every modal, the confirmation and alert dialogs and the toasts SHALL be built on UI SDK inside `AppModal.vue`,
@@ -169,8 +225,14 @@ UI SDK SHALL be used at one exact version and only through StreamGo's wrapper co
   restore and read it before changing a `Ui*` wrapper
 
 #### Scenario: Size
-- **WHEN** the app is built
-- **THEN** its entry chunk is within the budget the size test states
+- **WHEN** the production app is built
+- **THEN** the entry, and the studio and guest routes with the shared chunks they import and their CSS, measured
+  after gzip from the build manifest, are each within the ceiling the size check states, and the check ran in
+  `make check`
+
+#### Scenario: The lock file
+- **WHEN** the dependencies are installed with `npm ci`
+- **THEN** they install from the committed `package-lock.json`
 
 #### Scenario: Notice
 - **WHEN** `THIRD_PARTY` is read
@@ -187,8 +249,19 @@ The menus, the tooltips and the meter SHALL be styled by role tokens and SHALL m
 theme.
 
 #### Scenario: Contrast
-- **WHEN** the studio is rendered in each theme with a device menu open and a tooltip shown
-- **THEN** the accessibility check finds no violation and the contrast matrix holds for the new pairs
+- **WHEN** the studio is rendered in each of the 28 themes with a device menu open (an item highlighted, one
+  checked, one focused), a tooltip shown and the meter half full
+- **THEN** the accessibility check finds no violation and the contrast matrix holds for the new pairs, the meter's
+  fill against its track among them
+
+#### Scenario: Both languages
+- **WHEN** the studio is used in English and in Brazilian Portuguese, also after the language changes while it is
+  open
+- **THEN** the menus, the tooltips, the meter's text value and the sound settings are in that language
+
+#### Scenario: A guest in Firefox
+- **WHEN** a guest joins in Firefox
+- **THEN** the device menus, the tooltips and the meter work for that guest
 
 #### Scenario: Tokens only
 - **WHEN** the recipes of the three wrappers are read

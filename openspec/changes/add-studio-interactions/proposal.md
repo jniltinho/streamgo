@@ -31,8 +31,11 @@ A first slice, in the studio, that the owner validates on a local stack before a
 - **Icons that react** (StreamGo's own CSS): a short motion when a control changes state, an animated mark while
   someone speaks, a pulse on the live mark. None of it with "reduce motion" on.
 - **Sound cues** (StreamGo's own, synthesised, no audio file): someone joins or leaves, the broadcast starts or
-  ends. They play on the listener's own device and are never part of the program. A switch in Settings turns them
-  off; for the host they are silent while live unless the host turns them on.
+  ends. They play on the listener's own device and are never wired to the program. Because speakers and a shared
+  screen can still carry a sound into the program, cues are silent for everyone while a broadcast runs, unless a
+  person turns them on. The switches are in the studio's Device settings, for owners and guests.
+- **A device switch that fails safely**: choosing a microphone or a camera that cannot be used goes back to the
+  previous one, in the menus and in the settings dialog alike.
 
 - **Dialogs and toasts on UI SDK** (the owner's decision): every modal, the confirmation and alert dialogs and the
   toasts keep their look in the 28 themes and their behaviour, and get their focus handling, dismissal and
@@ -78,13 +81,15 @@ None formally (`add-live-studio` is not archived yet); `studio-ui` gains what th
 
 - `frontend/package.json`: the Vue adapter and the core, as UI SDK's install guide gives them for Vue
   (`npm install @ui-sdk/vue @ui-sdk/core`), each at an exact version; a lint rule that allows importing
-  them only under `frontend/src/components/ui/`; a test that fails when the built app grows beyond a stated budget.
+  them only under `frontend/src/components/ui/`; a check after the production build that fails when the entry or a route grows beyond a stated ceiling;
+  `package-lock.json`.
 - `AppModal.vue`, `ui/DialogHost.vue` and `ui/ToastStack.vue` rebuilt on UI SDK behind the same props, events and
   feedback API (`toast.*`, `askConfirm`, `showAlert`); the dialog and toast recipes of `style.css` moved from the
   native `<dialog>` to the elements UI SDK renders, for every theme.
 - New `frontend/src/components/ui/UiMenu.vue`, `UiTooltip.vue`, `UiMeter.vue`; `ControlsDock.vue`,
-  `BackstageRow.vue`, `StudioHeader.vue`; a small cue player in `frontend/src/core/` (no Vue import) and a
-  preference in `PreferencesModal.vue`; both translation catalogs; `style.css` (motion, the three wrappers' recipes
+  `BackstageRow.vue`, `StudioHeader.vue`, `LayoutPicker.vue`; `stores/studio.ts` (the device switch, the meter's
+  analyser, the cue events); a small cue player in `frontend/src/core/` (no Vue import) and a Sounds section in
+  `DeviceSettingsModal.vue`; both translation catalogs; `style.css` (motion, the three wrappers' recipes
   with role tokens).
 - UI SDK's agent skill (`npx skills@latest add vercel-labs/ui --skill ui-sdk`): `skills-lock.json` at the
   repository root records its source and commit, and a line in `AGENTS.md` tells agents to restore and read it

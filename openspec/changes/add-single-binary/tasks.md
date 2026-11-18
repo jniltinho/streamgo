@@ -38,9 +38,9 @@
   proposal
 - [x] 4.2 `packaging/single-smoke.sh` (design B12: a clean Debian, an unprivileged user, an observer that stays
   alive): "A working studio", the key kept, "Upgrade", "The parent is killed"; `make test-single`
-- [ ] 4.3 `.github/workflows/packages.yml` builds the single file and runs its smoke test on every push to
+- [x] 4.3 `.github/workflows/packages.yml` builds the single file and runs its smoke test on every push to
   `main`, gathers the six files in one directory, writes `SHA256SUMS` last and publishes by expected file names
-- [ ] 4.4 `.claude/skills/create-release/SKILL.md`: the checks, the expected files, the downloads and the notes
+- [x] 4.4 `.claude/skills/create-release/SKILL.md`: the checks, the expected files, the downloads and the notes
 
 ## 5. Docs and checks
 

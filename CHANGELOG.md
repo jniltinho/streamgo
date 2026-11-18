@@ -6,6 +6,13 @@ are the section of that version.
 
 ## [Unreleased]
 
+—
+
+## [0.4.0] — 2026-11-18
+
+**One file runs the whole studio: `streamgo up` starts LiveKit, MediaMTX and the server, and a release now has a
+single 68 MB executable and a 14 MB StreamGo-only archive beside the packages.**
+
 ### Added
 
 - **`streamgo up`** — one command runs the whole studio: on the first start it creates the secret key and the

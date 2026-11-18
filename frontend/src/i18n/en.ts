@@ -19,6 +19,7 @@ const catalog: Catalog = {
   'Join the studio': 'Join the studio',
   Main: 'Main',
   Notice: 'Notice',
+  Notifications: 'Notifications',
   OK: 'OK',
   'Safety confirmation': 'Safety confirmation',
   'Sign in': 'Sign in',

@@ -150,12 +150,18 @@ how.
 
 ### UI SDK in the web app
 
-The studio's device menus, its tooltips and the microphone meter are built on
-[UI SDK](https://github.com/vercel-labs/ui) (`@ui-sdk/vue` and `@ui-sdk/core`, Apache-2.0): unstyled components that
-bring the keyboard, focus and screen-reader behaviour, styled by StreamGo's own recipes on the theme roles. It is a
-young library (a beta), so it is held at one exact version and used only inside the wrappers of
-`frontend/src/components/ui/` (`UiMenu`, `UiTooltip`, `UiMeter`) and `AppModal.vue`; a lint rule fails
-`make check` on an import anywhere else. Its default stylesheet is not used.
+The studio's device menus, its tooltips and the microphone meter, every modal, the confirmation and alert dialogs
+and the toasts are built on [UI SDK](https://github.com/vercel-labs/ui) (`@ui-sdk/vue` and `@ui-sdk/core`,
+Apache-2.0): unstyled components that bring the keyboard, focus and screen-reader behaviour, styled by StreamGo's own
+recipes on the theme roles. It is a young library (a beta), so it is held at one exact version and used only inside
+the wrappers of `frontend/src/components/ui/` (`UiMenu`, `UiTooltip`, `UiMeter`, `DialogHost`, `ToastStack`) and
+`AppModal.vue`; a lint rule fails `make check` on an import anywhere else. Its default stylesheet is not used.
+
+Two things in the recipes depend on what the library renders, and are the first to check after an upgrade: a dialog
+is a `div` in the top layer whose browser box the library resets, so `.pnl` in `style.css` gives it back the box a
+native modal `<dialog>` had (in the `base` layer, under the components' own sizes); and the toast region lists the
+newest toast first, so `#toasts` reverses it. `feedback/toasts.ts` stays the one clock and limit of the toasts: the
+library's toaster only mirrors its list, with no timer of its own.
 
 An upgrade is one commit, never a version bump alone:
 
@@ -163,8 +169,8 @@ An upgrade is one commit, never a version bump alone:
    `frontend/`, with `package-lock.json`; read its changelog (https://ui-sdk.dev/docs/core/changelog) and the
    installed docs (`frontend/node_modules/@ui-sdk/vue/docs/llms.txt`);
 2. the wrappers adjusted to what changed, and the version in `THIRD_PARTY`;
-3. `make check` and `make test`, the browser suites (`02-themes`, `07-ui-wrappers`, `10-app-pages` and the studio
-   suite on a stack);
+3. `make check` and `make test`, the browser suites (`02-themes`, `03-feedback`, `07-ui-wrappers`, `10-app-pages`
+   and the studio suite on a stack);
 4. the size numbers: `make check` prints the gzip sizes of the entry and of the studio and guest routes and fails
    above their ceilings, which are in `frontend/scripts/size-check.mjs`; a growth that is wanted raises them there,
    10 % above the new measure, in the same commit.

@@ -27,6 +27,10 @@ are the section of that version.
 - The web app uses UI SDK (https://github.com/vercel-labs/ui, Apache-2.0, 0.1.0-beta.10) for the menus, tooltips
   and the meter, inside its own wrappers; `make check` now also fails when the app's entry or the studio and guest
   pages grow past a stated size.
+- Every modal, the confirmations, the alerts and the toasts are built on UI SDK too, with the same behaviour and look
+  in every theme. A screen reader now hears each toast once, from one live region (errors interrupt, the rest wait
+  for a pause); F6 moves to the newest toast and back, and Escape closes the toast that has the focus. Two modals
+  open at once no longer share one title id. The app's first download grows by about 50 kB (gzip).
 
 ## [0.4.0] — 2026-11-18
 

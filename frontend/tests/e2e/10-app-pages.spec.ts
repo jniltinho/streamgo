@@ -1,7 +1,7 @@
 // web-shell: the sign-in, the signed-in shell, the broadcasts and destinations pages, their language switch, their
 // feedback and their scale on large screens (task 3.F). The API is the fake of pages-api.ts.
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { ANA } from './helpers'
 import { broadcast, fakeApi, PASSWORD } from './pages-api'
 
@@ -508,14 +508,14 @@ test.describe('no page scrollbar, modals below the top', () => {
       await fakeApi(page, ANA, false)
       await page.setViewportSize(size)
       await page.goto('/login')
-      const fits = (sel: string) =>
-        page.locator(sel).evaluate((el) => el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth)
-      expect(await fits('html')).toBe(true)
-      expect(await fits('.auth-page')).toBe(true)
+      const fits = (loc: Locator) =>
+        loc.evaluate((el) => el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth)
+      expect(await fits(page.locator('html'))).toBe(true)
+      expect(await fits(page.locator('.auth-page'))).toBe(true)
       await page.getByRole('button', { name: 'Theme and language' }).click()
-      const dialog = page.locator('dialog[open]')
+      const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
-      expect(await fits('dialog[open]')).toBe(true) // the 28 themes show without scrolling
+      expect(await fits(dialog)).toBe(true) // the 28 themes show without scrolling
       const top = await dialog.evaluate((el) => el.getBoundingClientRect().top)
       expect(Math.abs(top - size.height * 0.05)).toBeLessThanOrEqual(8) // 5% below the top (the rise animation ends there)
     })

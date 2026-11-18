@@ -9,6 +9,7 @@ import UiMenu from '@/components/ui/UiMenu.vue'
 import UiMeter from '@/components/ui/UiMeter.vue'
 import UiTooltip from '@/components/ui/UiTooltip.vue'
 import ThemePicker from '@/components/ThemePicker.vue'
+import GalleryModal from '@/components/GalleryModal.vue'
 import { askConfirm, confirmTyped, showAlert } from '@/feedback/dialogs'
 import { toast } from '@/feedback/toasts'
 
@@ -29,6 +30,7 @@ const mics = [
 const mic = ref('')
 // the state motion (design U6): a dock icon that changes with its pressed state, the speaking mark, the live mark
 const pressed = ref(true)
+const modal = ref(false)
 
 function allToasts() {
   toast.success('Saved successfully.')
@@ -62,7 +64,9 @@ function allToasts() {
       >
         Typed confirm
       </button>
+      <button type="button" class="btn-ghost" data-open="modal" @click="modal = true">Modal</button>
     </div>
+    <GalleryModal v-if="modal" :level="1" @close="modal = false" />
     <div class="grid max-w-xl gap-2">
       <UiAlert kind="info" title="Information">The studio opens in the next version.</UiAlert>
       <UiAlert kind="success" title="Success">Destination saved.</UiAlert>

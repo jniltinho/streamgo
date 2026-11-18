@@ -849,27 +849,39 @@ body {
   border-bottom-width: var(--nav-on-last-line-w);
 }
 
-/* panel <dialog> (port of the legacy .pnlDialog) */
-dialog.pnl {
+/* a dialog's panel (port of the legacy .pnlDialog): the content UI SDK's Dialog and Alert Dialog put in the top
+   layer (AppModal, DialogHost), open while it has data-open */
+@layer base {
+  /* the box a native modal <dialog> had from the browser, under the component's own utilities */
+  .pnl {
+    inset: 0;
+    width: fit-content;
+    height: fit-content;
+    max-width: calc(100% - 6px - 2em);
+    max-height: calc(100% - 6px - 2em);
+    overflow: auto;
+  }
+}
+.pnl {
   @apply border-2 border-dialog-line bg-dialog-face p-0 text-on-dialog shadow-(--shadow-dialog);
   border-width: var(--dialog-line-w);
   /* 5% of the window height from the top (--dialog-top), centred horizontally, in every theme */
   margin: calc(var(--view-h) * var(--dialog-top)) auto auto;
 }
-dialog.pnl::backdrop {
+.pnl::backdrop {
   background: var(--color-backdrop);
 }
 /* opening like the pages: fade in rising 6 px, the backdrop fading in; .closing (Modal.vue) fades both out */
-dialog.pnl[open] {
+.pnl[data-open] {
   animation: pnl-in 0.15s ease;
 }
-dialog.pnl[open]::backdrop {
+.pnl[data-open]::backdrop {
   animation: pnl-fade 0.15s ease;
 }
-dialog.pnl.closing {
+.pnl.closing {
   animation: pnl-out 0.15s ease forwards;
 }
-dialog.pnl.closing::backdrop {
+.pnl.closing::backdrop {
   animation: pnl-fade 0.15s ease reverse forwards;
 }
 @keyframes pnl-in {
@@ -889,10 +901,10 @@ dialog.pnl.closing::backdrop {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  dialog.pnl[open],
-  dialog.pnl[open]::backdrop,
-  dialog.pnl.closing,
-  dialog.pnl.closing::backdrop {
+  .pnl[data-open],
+  .pnl[data-open]::backdrop,
+  .pnl.closing,
+  .pnl.closing::backdrop {
     animation: none;
   }
 }
@@ -955,6 +967,16 @@ dialog.pnl.closing::backdrop {
   color: inherit;
   background: transparent;
   border: 0;
+}
+/* UI SDK's region lists the newest first (--toast-index 0): the oldest stays on top, and a newer toast is painted
+   over the shadow of the one above it, as before */
+#toasts > ol {
+  display: flex;
+  flex-direction: column-reverse;
+}
+#toasts .toast {
+  position: relative;
+  z-index: calc(100 - var(--toast-index));
 }
 .toast {
   /* the state of the toast: fill, text on the fill, state text color */

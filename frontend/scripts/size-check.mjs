@@ -7,9 +7,10 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 
-// measured on 2026-11-18 with UI SDK 0.1.0-beta.10 (entry 98733, studio 307538, guest 304177; before UI SDK 95845,
-// 255463 and 252181), plus 10 %
-const CEILINGS = { entry: 108606, studio: 338292, guest: 334595 }
+// measured on 2026-11-18 with UI SDK 0.1.0-beta.10 and the dialogs and toasts on it (entry 148915, studio 325082,
+// guest 321742; with the menus, tooltips and meter only 98733, 307538 and 304177; before UI SDK 95845, 255463 and
+// 252181), plus 10 %
+const CEILINGS = { entry: 163807, studio: 357590, guest: 353916 }
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '../../web/dist')
 const manifest = JSON.parse(readFileSync(join(dist, '.vite/manifest.json'), 'utf8'))

@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { themeCatalog } from '../../src/themes/catalog'
 import { ANA, recordFirstTheme, stubApi } from './helpers'
 
@@ -90,7 +90,7 @@ async function radii(page: Page) {
     ]
     return {
       controls: of('.btn, .btn-ghost, .btn-danger, .inp'),
-      containers: of('.card, .alert, .toast, .stage, dialog.pnl'),
+      containers: of('.card, .alert, .toast, .stage, .pnl'),
     }
   })
 }
@@ -232,6 +232,69 @@ test.describe('every theme', () => {
       await dialog.getByRole('button', { name: 'Close' }).click({ timeout: 3000 })
       await expect(dialog, `the Settings dialog closes in ${theme.id}`).toBeHidden()
     }
+  })
+
+  // studio-interactions "The look in every theme" (design U10): the modal and the confirmation on UI SDK keep each
+  // theme's title bar, its place below the top and its backdrop; the close control closes; a centred title is centred.
+  test('The look in every theme', async ({ page }) => {
+    await stubApi(page, ANA)
+    await page.goto('/broadcasts')
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    const confirm = page.getByRole('alertdialog', { name: 'Confirmation' })
+    // the bar's alignment, the centres of the title's text and of the bar, the top, the backdrop and its role colour
+    const look = (dialog: Locator) =>
+      dialog.evaluate((el) => {
+        const head = el.querySelector('.pnl-head')!
+        const title = el.querySelector('.pnl-title')!
+        const range = document.createRange()
+        range.selectNodeContents(title)
+        const text = range.getBoundingClientRect()
+        const bar = head.getBoundingClientRect()
+        const probe = document.createElement('i')
+        probe.style.color = 'var(--color-backdrop)'
+        document.body.append(probe)
+        const backdrop = getComputedStyle(probe).color
+        probe.remove()
+        return {
+          centred: getComputedStyle(head).textAlign === 'center',
+          off: Math.abs(text.left + text.width / 2 - (bar.left + bar.width / 2)),
+          top: el.getBoundingClientRect().top,
+          backdrop: getComputedStyle(el, '::backdrop').backgroundColor,
+          want: backdrop,
+        }
+      })
+    const centred: string[] = []
+    for (const theme of themeCatalog) {
+      await page.evaluate((id) => document.documentElement.setAttribute('data-theme', id), theme.id)
+      await page.getByRole('button', { name: 'Settings' }).click()
+      await expect(settings).toBeVisible()
+      await page.waitForTimeout(200) // the entry: rising into place
+      const m = await look(settings)
+      if (m.centred) {
+        centred.push(theme.id)
+        expect(m.off, `the title is centred in the bar in ${theme.id}`).toBeLessThanOrEqual(2)
+      }
+      expect(Math.abs(m.top - 1080 * 0.05), `5% below the top in ${theme.id}`).toBeLessThanOrEqual(1)
+      expect(m.backdrop, `the backdrop in ${theme.id}`).toBe(m.want)
+      // a real click: it fails when another element lies over the control
+      await settings.getByRole('button', { name: 'Close' }).click({ timeout: 3000 })
+      await expect(settings, `the Settings dialog closes in ${theme.id}`).toBeHidden()
+
+      await page.evaluate(async (dialogs) => {
+        const m = await import(dialogs)
+        void m.askConfirm('Delete the broadcast Weekly Product Live?', { danger: true, ok: 'Delete' })
+      }, '/src/feedback/dialogs.ts')
+      await expect(confirm).toBeVisible()
+      await page.waitForTimeout(200)
+      // (its centring is not checked: a bar without a close control is 7 px off in macos-retro, as it was on the
+      // native <dialog>, a matter of that theme's parameters)
+      const c = await look(confirm)
+      expect(Math.abs(c.top - 1080 * 0.05), `the confirmation 5% below the top in ${theme.id}`).toBeLessThanOrEqual(1)
+      expect(c.backdrop).toBe(c.want)
+      await page.keyboard.press('Escape')
+      await expect(confirm).toBeHidden()
+    }
+    expect(centred.sort()).toEqual(['macos', 'macos-dark', 'macos-retro', 'ubuntu'])
   })
 
   test('streamgo-dark is the chosen design palette', async ({ page }) => {

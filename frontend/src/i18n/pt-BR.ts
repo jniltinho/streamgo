@@ -20,6 +20,7 @@ const catalog: Catalog = {
   'Join the studio': 'Entrar no estúdio',
   Main: 'Principal',
   Notice: 'Aviso',
+  Notifications: 'Notificações',
   OK: 'OK',
   'Safety confirmation': 'Confirmação de segurança',
   'Sign in': 'Entrar',

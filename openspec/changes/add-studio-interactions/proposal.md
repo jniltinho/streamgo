@@ -71,11 +71,14 @@ Not planned:
 Measured on the production build by `frontend/scripts/size-check.mjs` (bytes after gzip, the route totals with the
 shared chunks they import and their CSS), run by `make check`:
 
-| | Before UI SDK | With this change | Ceiling |
-|---|---|---|---|
-| Entry | 95 845 | 98 733 | 108 606 |
-| Studio route | 255 463 | 307 538 | 338 292 |
-| Guest route | 252 181 | 304 177 | 334 595 |
+| | Before UI SDK | Menus, tooltips, meter | With dialogs and toasts | Ceiling |
+|---|---|---|---|---|
+| Entry | 95 845 | 98 733 | 148 915 | 163 807 |
+| Studio route | 255 463 | 307 538 | 325 082 | 357 590 |
+| Guest route | 252 181 | 304 177 | 321 742 | 353 916 |
+
+Dialogs and toasts (design U10) are mounted by the app's root, so the library's shared chunk moves into the entry:
+the entry grows by 50 182 B and the routes by about 17.5 kB each.
 
 ## Capabilities
 

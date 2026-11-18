@@ -7,10 +7,10 @@ RHEL family the packages do all of this for you: see [Install from the Linux pac
 
 Two other downloads may suit you better (both from release 0.4.0 on):
 
-- **The single file** `streamgo_0.4.0_linux_amd64` (68 MB) carries StreamGo, LiveKit and MediaMTX in one
+- **The single file** `streamgo_0.5.0_linux_amd64` (68 MB) carries StreamGo, LiveKit and MediaMTX in one
   executable, and `streamgo up` runs the three with no units or settings to lay out: see
   [Install the single file](install-single.md).
-- **StreamGo alone**, `streamgo-server_0.4.0_linux_amd64.tar.gz` (14 MB): the executable, the example
+- **StreamGo alone**, `streamgo-server_0.5.0_linux_amd64.tar.gz` (14 MB): the executable, the example
   configuration and the notices, for a host that already runs LiveKit and MediaMTX. Its `streamgo up` runs the
   `livekit-server` and `mediamtx` beside the executable, or else in `PATH`.
 
@@ -32,11 +32,11 @@ StreamGo checks ffmpeg when it starts and refuses to start, naming what is missi
 ## 2. Download, verify and extract
 
 ```bash
-curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.4.0/streamgo_0.4.0_linux_amd64.tar.gz
+curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.5.0/streamgo_0.5.0_linux_amd64.tar.gz
 ```
 
 ```bash
-curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.4.0/SHA256SUMS
+curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.5.0/SHA256SUMS
 ```
 
 ```bash
@@ -44,7 +44,7 @@ sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 ```bash
-tar -xzf streamgo_0.4.0_linux_amd64.tar.gz -C /opt
+tar -xzf streamgo_0.5.0_linux_amd64.tar.gz -C /opt
 ```
 
 This creates `/opt/streamgo`:

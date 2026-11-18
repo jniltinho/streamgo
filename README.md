@@ -58,7 +58,7 @@ docker exec -it streamgo streamgo user add --email you@example.com --name "Your 
 LiveKit and MediaMTX; ffmpeg comes from your distribution:
 
 ```bash
-curl -Lo streamgo https://github.com/jniltinho/streamgo/releases/download/v0.4.0/streamgo_0.4.0_linux_amd64
+curl -Lo streamgo https://github.com/jniltinho/streamgo/releases/download/v0.5.0/streamgo_0.5.0_linux_amd64
 ```
 
 ```bash

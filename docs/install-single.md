@@ -1,7 +1,7 @@
 # Install the single file
 
 This guide installs StreamGo from one downloaded file, on a linux/amd64 host with systemd, without Docker and
-without a package. The file `streamgo_0.4.0_linux_amd64` is the StreamGo executable with the official LiveKit and
+without a package. The file `streamgo_0.5.0_linux_amd64` is the StreamGo executable with the official LiveKit and
 MediaMTX executables of the release appended to it. Its `streamgo up` command runs the whole studio:
 
 - on the first start it creates the secret key and the credentials the three programs share in
@@ -39,11 +39,11 @@ On the RHEL family, the distribution's own repositories have no ffmpeg with libx
 ## 2. Download and verify
 
 ```bash
-curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.4.0/streamgo_0.4.0_linux_amd64
+curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.5.0/streamgo_0.5.0_linux_amd64
 ```
 
 ```bash
-curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.4.0/SHA256SUMS
+curl -LO https://github.com/jniltinho/streamgo/releases/download/v0.5.0/SHA256SUMS
 ```
 
 ```bash
@@ -51,20 +51,20 @@ sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 ```bash
-install -m 0755 streamgo_0.4.0_linux_amd64 /usr/local/bin/streamgo
+install -m 0755 streamgo_0.5.0_linux_amd64 /usr/local/bin/streamgo
 ```
 
 ```bash
 streamgo version
 ```
 
-It prints `streamgo v0.4.0 (commit …, built …)`. `version`, `licenses` and `--help` read no configuration and
+It prints `streamgo v0.5.0 (commit …, built …)`. `version`, `licenses` and `--help` read no configuration and
 unpack nothing.
 `streamgo licenses` prints the licences and notices of StreamGo, LiveKit, MediaMTX and the bundled fonts, which a
 single file cannot ship beside itself.
 
 The file is 68 MB. A host that already runs LiveKit and MediaMTX does not need it: the
-`streamgo-server_0.4.0_linux_amd64.tar.gz` archive (14 MB) holds StreamGo alone, the example configuration
+`streamgo-server_0.5.0_linux_amd64.tar.gz` archive (14 MB) holds StreamGo alone, the example configuration
 and the notices.
 
 ## 3. A user and a data directory
@@ -293,7 +293,7 @@ set. A setting of LiveKit or MediaMTX beyond these flags needs the packages or C
 Download and verify the new file as in [section 2](#2-download-and-verify), then:
 
 ```bash
-install -m 0755 streamgo_0.4.0_linux_amd64 /usr/local/bin/streamgo
+install -m 0755 streamgo_0.5.0_linux_amd64 /usr/local/bin/streamgo
 ```
 
 ```bash
@@ -346,4 +346,4 @@ A destination's address and stream key are an argument of its relay process; see
 | [The `.tar.gz` archive](install-binary.md) | The packages' layout on another distribution |
 | [Docker Compose](install-docker.md) | A host with Docker, MariaDB or PostgreSQL in containers, or settings of the media servers beyond the flags of `up` |
 | [The all-in-one image](install-docker.md#the-all-in-one-image) | One container on a host with Docker |
-| `streamgo-server_0.4.0_linux_amd64.tar.gz` | A host that already runs LiveKit and MediaMTX: its `streamgo up` runs the `livekit-server` and `mediamtx` beside the executable, or else in `PATH`, and `streamgo server` uses media servers you run yourself |
+| `streamgo-server_0.5.0_linux_amd64.tar.gz` | A host that already runs LiveKit and MediaMTX: its `streamgo up` runs the `livekit-server` and `mediamtx` beside the executable, or else in `PATH`, and `streamgo server` uses media servers you run yourself |

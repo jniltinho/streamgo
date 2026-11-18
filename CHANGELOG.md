@@ -6,6 +6,13 @@ are the section of that version.
 
 ## [Unreleased]
 
+—
+
+## [0.5.0] — 2026-11-18
+
+**A livelier studio: device menus, a microphone meter, sound cues and five lower-third styles, with the controls,
+the dialogs and the toasts now built on UI SDK.**
+
 ### Added
 
 - **Device menus in the studio** — an arrow beside Mic and Camera lists the microphones or the cameras, Default

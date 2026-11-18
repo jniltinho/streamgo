@@ -27,16 +27,16 @@
 
 ## 3. Dialogs and toasts on UI SDK
 
-- [ ] 3.1 `ToastStack.vue` on UI SDK's Toast, driven by the list of `feedback/toasts.ts` (design U10: one timer
+- [x] 3.1 `ToastStack.vue` on UI SDK's Toast, driven by the list of `feedback/toasts.ts` (design U10: one timer
   authority, one announcement path); tests for "Toasts behave as before", "Announced once" and "A toast over a
   modal"
-- [ ] 3.2 `DialogHost.vue`: confirmations on Alert Dialog (focus on Cancel, the typed guard), alerts on Dialog, the
+- [x] 3.2 `DialogHost.vue`: confirmations on Alert Dialog (focus on Cancel, the typed guard), alerts on Dialog, the
   queue kept; tests for the four scenarios of confirmations and alerts
-- [ ] 3.3 `AppModal.vue` on Dialog behind its props, events and slots; the shared dialog recipes moved from
+- [x] 3.3 `AppModal.vue` on Dialog behind its props, events and slots; the shared dialog recipes moved from
   `dialog.pnl` to the element the library renders; tests for "A modal behaves as before", "A modal over a modal"
   and "The look in every theme" (the close control and the title's centre in every theme); a screenshot of a
   modal, a confirmation and the toasts in each theme
-- [ ] 3.4 A component that cannot meet a scenario keeps its implementation; the report says which and why, and
+- [x] 3.4 A component that cannot meet a scenario keeps its implementation; the report says which and why, and
   lists every existing assertion whose structure changed
 
 ## 4. Validation and checks

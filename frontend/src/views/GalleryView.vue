@@ -12,6 +12,7 @@ import UiRadioGroup from '@/components/ui/UiRadioGroup.vue'
 import UiSwitch from '@/components/ui/UiSwitch.vue'
 import UiTooltip from '@/components/ui/UiTooltip.vue'
 import ThemePicker from '@/components/ThemePicker.vue'
+import GalleryModal from '@/components/GalleryModal.vue'
 import { askConfirm, confirmTyped, showAlert } from '@/feedback/dialogs'
 import { toast } from '@/feedback/toasts'
 
@@ -43,6 +44,7 @@ const tagStyles = [
 const tagStyle = ref('bar')
 const tagline = ref('')
 const draft = ref('')
+const modal = ref(false)
 
 function allToasts() {
   toast.success('Saved successfully.')
@@ -76,7 +78,9 @@ function allToasts() {
       >
         Typed confirm
       </button>
+      <button type="button" class="btn-ghost" data-open="modal" @click="modal = true">Modal</button>
     </div>
+    <GalleryModal v-if="modal" :level="1" @close="modal = false" />
     <div class="grid max-w-xl gap-2">
       <UiAlert kind="info" title="Information">The studio opens in the next version.</UiAlert>
       <UiAlert kind="success" title="Success">Destination saved.</UiAlert>

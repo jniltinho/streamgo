@@ -199,6 +199,34 @@ test.describe('owner studio', () => {
     await studio.getByRole('button', { name: 'Done' }).click()
   })
 
+  // studio-interactions "A modal over a modal" (design U10): a confirmation over Invite closes alone
+  test('A modal over a modal: a confirmation over Invite', async () => {
+    await studio.getByRole('toolbar').getByRole('button', { name: 'Invite', exact: true }).click()
+    const invite = studio.getByRole('dialog', { name: 'Invite guests' })
+    await expect(invite).toBeVisible()
+    const rotate = invite.getByRole('button', { name: 'New link' })
+    await rotate.click()
+    const confirm = studio.getByRole('alertdialog', { name: 'Confirmation' })
+    await expect(confirm).toBeVisible()
+    await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused()
+    const ids = await studio.locator('.pnl').evaluateAll((els) => els.map((el) => el.getAttribute('aria-labelledby')))
+    expect(ids).toHaveLength(2)
+    expect(new Set(ids).size).toBe(2)
+    await studio.keyboard.press('Escape')
+    await expect(confirm).toBeHidden()
+    await expect(invite).toBeVisible()
+    await expect(rotate).toBeFocused()
+    await expect(invite.locator('[data-invite-url]')).toHaveValue(b.invite_url) // not rotated
+    // still modal: Tab stays inside
+    for (let i = 0; i < 6; i++) {
+      await studio.keyboard.press('Tab')
+      expect(await invite.evaluate((el) => el.contains(document.activeElement))).toBe(true)
+    }
+    await studio.keyboard.press('Escape')
+    await expect(invite).toBeHidden()
+    await expect(studio.getByRole('toolbar').getByRole('button', { name: 'Invite', exact: true })).toBeFocused()
+  })
+
   test('Keyboard only: add to stage, change the layout and show a banner, with a visible focus', async () => {
     await studio.locator('body').click({ position: { x: 5, y: 5 } }) // start from the top of the page
     await tabTo(studio, studio.getByRole('button', { name: 'Add to stage: Bruno Reis' }))

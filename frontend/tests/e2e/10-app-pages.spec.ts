@@ -362,6 +362,11 @@ test.describe('users (add-user-management)', () => {
     await confirm.getByRole('button', { name: 'Disable' }).click()
     await expect(page.locator('.toast').last()).toContainText('Bruno Lima disabled.')
     await expect(row.nth(3)).toHaveText('Disabled')
+    // one row says "Disable" and the other "Enable": the buttons still line up from row to row
+    const left = (name: string) =>
+      page.getByRole('button', { name, exact: true }).evaluate((el) => Math.round(el.getBoundingClientRect().left))
+    expect(await left(`Edit ${ANA.name}`)).toBe(await left('Edit Bruno Lima'))
+    expect(await left(`Disable ${ANA.name}`)).toBe(await left('Enable Bruno Lima'))
     await page.getByRole('button', { name: 'Enable Bruno Lima' }).click()
     await expect(page.locator('.toast').last()).toContainText('Bruno Lima enabled.')
     await expect(row.nth(3)).toHaveText('Active')

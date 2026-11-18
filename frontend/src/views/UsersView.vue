@@ -75,6 +75,7 @@ async function setDisabled(u: AdminUser, disabled: boolean) {
           <td class="whitespace-nowrap">{{ u.admin ? t('Administrator') : t('User') }}</td>
           <td class="whitespace-nowrap">{{ u.disabled ? t('Disabled') : t('Active') }}</td>
           <td class="whitespace-nowrap">
+            <!-- "Enable" and "Disable" take the same width, so the buttons line up from row to row -->
             <div class="flex justify-end gap-1">
               <button
                 type="button"
@@ -87,7 +88,7 @@ async function setDisabled(u: AdminUser, disabled: boolean) {
               <button
                 v-if="u.disabled"
                 type="button"
-                class="btn-ghost"
+                class="btn-ghost min-w-[6rem] justify-center"
                 :aria-label="t('Enable {name}', { name: u.name })"
                 @click="setDisabled(u, false)"
               >
@@ -96,7 +97,7 @@ async function setDisabled(u: AdminUser, disabled: boolean) {
               <button
                 v-else
                 type="button"
-                class="btn-ghost"
+                class="btn-ghost min-w-[6rem] justify-center"
                 :disabled="u.id === session.me?.id"
                 :title="u.id === session.me?.id ? t('You cannot disable your own account.') : undefined"
                 :aria-label="t('Disable {name}', { name: u.name })"

@@ -50,8 +50,8 @@
   languages; a guest on the backstage and on stage, and one who joins while the program is on air; the menus
   after the browser's permission is given; the open menu at 1280x720, on an ultrawide window and in a narrow
   touch window; a guest in Firefox (run by hand with the session's driver, not in the CI)
-- [ ] 4.2 The owner tries the slice on the local stack with the walkthrough of design U9; what the owner changes
+- [x] 4.2 The owner tries the slice on the local stack with the walkthrough of design U9; what the owner changes
   is applied
-- [ ] 4.3 `CHANGELOG.md`; `docs/README.md` (UI SDK: what it is used for, https://github.com/vercel-labs/ui, the
+- [x] 4.3 `CHANGELOG.md`; `docs/README.md` (UI SDK: what it is used for, https://github.com/vercel-labs/ui, the
   upgrade steps of design U1b); `make check && make test`, the browser suites,
   `openspec validate add-studio-interactions --strict`

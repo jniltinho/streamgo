@@ -102,7 +102,12 @@ switch or a reconnection, stopped when the microphone is off, the tab is hidden,
 the meter never stops the capture and never touches the publishing mix; the analyser is connected to no
 destination.
 
-The meter is `role="meter"` with a label and a text value ("silent" below a stated threshold, "heard" above).
+The level is the store's existing one: the root mean square of the samples, from 0 to 1. The meter shows it
+without easing; its text value is "silent" below 0.05 and "heard" from 0.05 up. The analyser is also stopped when
+the room disconnects or another tab takes the studio over, and started again when the tab is shown again with the
+microphone on.
+
+The meter is `role="meter"` with a label and that text value.
 It tells a person their microphone picks up sound. It does not prove viewers receive it; the label does not say
 so.
 
@@ -133,27 +138,30 @@ with no code. No animated-icon library is added.
 ### U7. Sound cues
 
 A cue player in `frontend/src/core/cues.ts` (no Vue import) synthesises four tones with the Web Audio API (an
-oscillator and a gain envelope; no audio file): joined, left, live, ended. Each lasts at most 250 ms at a peak
+oscillator and a gain envelope; no audio file): joined, left, on air, off air. Each lasts at most 250 ms at a peak
 gain of at most 0.15.
 
 - **Not wired to the program.** The player has one `AudioContext` of its own, connected to the device's output
   only; it shares no node with `AudioMix`. That keeps a cue out of the mix by wiring. It does not keep it out by
   air: any participant's speakers can carry a cue into their microphone, and a shared screen with system audio
   can capture it. So the promise is "never connected to the program mix", not "never heard in the program".
-- **Silent during a broadcast, for everyone, by default.** While the broadcast is starting, live or interrupted,
-  no participant hears cues, unless they turn on "Sounds during a broadcast", whose hint warns that a cue may be
-  heard in the program and recommends headphones. A cue suppressed is never played later.
+- **Silent while the program is on air, for everyone, by default.** A cue can reach the program only while the
+  program flows, and `stage.on_air` says exactly that, to owners and guests alike (it turns true when the program
+  starts flowing and false when it stops, also at an interruption). It is the one source for every participant;
+  no server change is needed. While it is true nobody hears cues, the "on air" cue included, unless they turn on
+  "Sounds while on air", whose hint warns that a cue may be heard in the program and recommends headphones. A cue
+  suppressed is never played later.
 - **Starting the audio.** The context is created and resumed from the same user gestures that already resume
   `AudioMix` (joining, the dock's buttons). A context that is not running drops the cue: nothing is queued,
   nothing throws. The context is closed and its listeners removed when the studio is left.
 - **Events.** Joined and left come from LiveKit's `ParticipantConnected` and `ParticipantDisconnected` for remote
   participants, after the room's first population is done; not from the length of the people list, a track, a
-  mute, a screen share, a reconnection or one's own leaving. One cue of either kind per second: the first event
-  plays, the others in that second do not. Live and ended come from an accepted change of the broadcast's state
-  (the owner's output state, a guest's `stage.on_air`); the state found on arrival plays nothing, and
-  `interrupted` plays nothing.
+  mute, a screen share, a reconnection or one's own leaving. A join or leave cue plays only when at least one second has passed
+  since the last join or leave cue played. "On air" and "off air" come from a change of `stage.on_air` after the
+  first stage state was received; the state found on arrival plays nothing. A guest cannot tell an interruption
+  from an end, so the cue says what is true in both: the program stopped.
 - **Preferences where the studio can reach them.** Owners and guests both reach the dock's Device settings
-  dialog, so "Sounds" (on by default) and "Sounds during a broadcast" (off by default) are a section there,
+  dialog, so "Sounds" (on by default) and "Sounds while on air" (off by default) are a section there,
   labelled "On this browser". They are stored in `localStorage`: they belong to the device, not to the account,
   which is why they are not account preferences like the theme. Storage that is blocked or holds something else
   gives the defaults.
@@ -169,28 +177,53 @@ that does not change:
 | `ui/DialogHost.vue` (`askConfirm`, `showAlert`, the typed confirmation) | a native `<dialog>` | Alert Dialog |
 | `ui/ToastStack.vue` (`toast.success`, `.info`, `.warning`, `.error`) | a list with `aria-live` regions | Toast |
 
-What must stay exactly as it is, and is what the existing tests check:
+UI SDK's Dialog and Alert Dialog put a content element (a `div`) in the browser's top layer; they do not call a
+native `<dialog>`'s `showModal()`. So the dialog recipes move from the `dialog.pnl` selectors to the `.pnl` class
+on that element with the library's open state, `::backdrop` stays (top-layer elements have one), and the title
+bar, the title, the close control, the body and the footer keep their classes and their order, which is what the
+themes' parameters act on. This is one migration of the shared recipes checked in 28 themes, not 28 rewrites.
+
+What must stay as it is:
 
 - **The API**: the props, events and slots of `AppModal`, and `toast.*`, `askConfirm`, `showAlert` in
   `frontend/src/feedback/`. No view or modal file changes.
-- **Behaviour**: a modal traps focus, closes on Escape and on its close control, returns focus to what opened it,
-  and makes the rest of the page inert; a confirmation puts focus on the safe button; an error toast is announced
-  assertively and the others politely; at most `MAX_TOASTS` toasts show; a toast closes by its button and by its
-  time; the native `alert`, `confirm` and `prompt` stay replaced.
+- **A modal** (`AppModal`): traps focus, makes the rest of the page inert, closes on Escape and on its close
+  control and not on a click outside it, puts its first focus on the first control of its body (not on the close
+  control of the title bar), and returns focus to what opened it. Its title is associated through the library's
+  title part, so two modals open at once no longer share one id.
+- **A confirmation** (`DialogHost`, UI SDK's Alert Dialog, `role="alertdialog"`): focus starts on Cancel, although
+  OK comes first in the markup; a typed confirmation starts on its input and keeps its guard (the text trimmed
+  and compared without case, OK disabled until it matches). **An alert** (`showAlert`) stays `role="dialog"` and is
+  built on Dialog. The queue of requests and how each promise settles are StreamGo's and do not change.
+- **Toasts** (`ToastStack`): `frontend/src/feedback/toasts.ts` stays the one authority for which toasts exist: at
+  most five, the oldest evicted, 4 s or 8 s by kind, the time paused while the pointer or focus is on a toast.
+  UI SDK's Toast is driven by that list (its own limit, queue and timers are not used: two clocks would disagree)
+  and brings the top-layer region, the close and its announcements. Announcements come from the library's live
+  regions only, the error one assertive; the visible cards lose their `aria-live`, or each toast would be read
+  twice.
+- **Form validation** keeps StreamGo's themed messages (`feedback/native.ts` replaces the browser's validation
+  bubbles); `alert`, `confirm` and `prompt` stay banned by the lint rule.
 - **The look in every theme**: the title bar recipes (the XP and 98 captions, the Mac window lights at the left
   with the centred title, the Platinum stripes, the Ubuntu close button), the place 5 % below the top
-  (`--dialog-top`), the sheet's entry motion, the backdrop, the toast's head and bar, flat mode. The recipes are
-  written today against `dialog.pnl`, `::backdrop` and `.toast`; they are moved to the elements and state
-  attributes UI SDK renders (`data-slot`, `data-open`), with the role tokens and the recipe parameters untouched,
-  so no theme file changes.
+  (`--dialog-top`), the sheet's entry motion, the backdrop, the toast's head and bar, flat mode; the role tokens
+  and the recipe parameters are untouched, so no theme file changes. (The recipes also carry a `closing` class
+  that no component sets today: there is no exit motion to keep.)
+- **Layers**: a modal opened over a modal (Settings over a studio dialog, a confirmation over Invite): Escape
+  closes the upper one only and focus returns inside the lower one, which is still modal. A toast shown while a
+  modal is open, in either order, is above it and its close control can be clicked: the toast region stays in the
+  top layer, as it is today, also when one of the three components kept its old implementation.
 - **No page scrollbar** while a dialog is open.
 
-If UI SDK's Dialog can render inside a native `<dialog>` (its `render` part), that is preferred, because the
-recipes then barely move. If one of the three cannot meet a point above with the beta as it is, that component
-keeps its current implementation and the report says which point failed; the other two still move.
+If one of the three cannot meet a point above with the beta as it is, that component keeps its current
+implementation and the report says which point failed; the other two still move.
 
-The dialog and toast suites (`03-feedback`, `10-app-pages`, `20-studio`, the contrast matrix in every theme) are
-the acceptance test: they pass with no change to what they assert.
+The dialog and toast suites (`03-feedback`, `10-app-pages`, `20-studio`, `02-themes`, the feedback unit tests) are
+the acceptance test. What they check about behaviour does not change. What they pin about structure may: a
+selector on the native element (`dialog[open]`) becomes a role, and the check of `aria-live` on a toast card
+becomes a check of the live region. Each such change is listed in the report. New checks: the two layered cases
+above, a toast over a modal in both orders with a real click on its close control, the title's centre within
+2 px of the bar's centre in the themes that centre it, and a screenshot of a modal, a confirmation and the toasts
+in each theme compared by eye before the merge.
 
 ### U8. Size
 

@@ -3,7 +3,8 @@
 ## 1. The library, contained
 
 - [ ] 1.1 `npm install @ui-sdk/vue @ui-sdk/core` in `frontend/`, both made exact; `@layer ui-sdk;` in `style.css`;
-  the lint rule that allows the library only under `frontend/src/components/ui/` and only by component entry;
+  the lint rule that allows the library only under `frontend/src/components/ui/` and in `AppModal.vue`, and only
+  by component entry;
   `THIRD_PARTY`; `skills-lock.json` and the line in `AGENTS.md` (design U1a)
 - [ ] 1.2 `UiMenu.vue`, `UiTooltip.vue`, `UiMeter.vue` with their recipes on role tokens in `style.css`; the matrix
   recipes for the new pairs; gallery entries for the three
@@ -26,19 +27,24 @@
 
 ## 3. Dialogs and toasts on UI SDK
 
-- [ ] 3.1 `ToastStack.vue` on UI SDK's Toast behind `toast.*` (design U10); the toast recipes moved; the feedback
-  unit tests and `03-feedback` pass with no change to what they assert
-- [ ] 3.2 `DialogHost.vue` on Alert Dialog behind `askConfirm`, `showAlert` and the typed confirmation; the native
-  replacements still installed
-- [ ] 3.3 `AppModal.vue` on Dialog behind its props, events and slots; the dialog recipes moved for every theme
-  (title bars, close controls, `--dialog-top`, backdrop, motion, flat mode); `10-app-pages`, the close-control
-  test in every theme and `20-studio` pass
-- [ ] 3.4 A component that cannot meet a scenario keeps its implementation; the report says which and why
+- [ ] 3.1 `ToastStack.vue` on UI SDK's Toast, driven by the list of `feedback/toasts.ts` (design U10: one timer
+  authority, one announcement path); tests for "Toasts behave as before", "Announced once" and "A toast over a
+  modal"
+- [ ] 3.2 `DialogHost.vue`: confirmations on Alert Dialog (focus on Cancel, the typed guard), alerts on Dialog, the
+  queue kept; tests for the four scenarios of confirmations and alerts
+- [ ] 3.3 `AppModal.vue` on Dialog behind its props, events and slots; the shared dialog recipes moved from
+  `dialog.pnl` to the element the library renders; tests for "A modal behaves as before", "A modal over a modal"
+  and "The look in every theme" (the close control and the title's centre in every theme); a screenshot of a
+  modal, a confirmation and the toasts in each theme
+- [ ] 3.4 A component that cannot meet a scenario keeps its implementation; the report says which and why, and
+  lists every existing assertion whose structure changed
 
 ## 4. Validation and checks
 
 - [ ] 4.1 The real studio suite in every theme with a menu open, a tooltip shown and the meter half full; both
-  languages; a guest in Firefox (run by hand with the session's driver, not in the CI)
+  languages; a guest on the backstage and on stage, and one who joins while the program is on air; the menus
+  after the browser's permission is given; the open menu at 1280x720, on an ultrawide window and in a narrow
+  touch window; a guest in Firefox (run by hand with the session's driver, not in the CI)
 - [ ] 4.2 The owner tries the slice on the local stack with the walkthrough of design U9; what the owner changes
   is applied
 - [ ] 4.3 `CHANGELOG.md`; `docs/README.md` (UI SDK: what it is used for, https://github.com/vercel-labs/ui, the

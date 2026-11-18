@@ -81,7 +81,7 @@ None formally (`add-live-studio` is not archived yet); `studio-ui` gains what th
 
 - `frontend/package.json`: the Vue adapter and the core, as UI SDK's install guide gives them for Vue
   (`npm install @ui-sdk/vue @ui-sdk/core`), each at an exact version; a lint rule that allows importing
-  them only under `frontend/src/components/ui/`; a check after the production build that fails when the entry or a route grows beyond a stated ceiling;
+  them only under `frontend/src/components/ui/` and in `frontend/src/components/AppModal.vue`; a check after the production build that fails when the entry or a route grows beyond a stated ceiling;
   `package-lock.json`.
 - `AppModal.vue`, `ui/DialogHost.vue` and `ui/ToastStack.vue` rebuilt on UI SDK behind the same props, events and
   feedback API (`toast.*`, `askConfirm`, `showAlert`); the dialog and toast recipes of `style.css` moved from the

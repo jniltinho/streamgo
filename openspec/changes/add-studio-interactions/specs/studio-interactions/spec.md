@@ -63,12 +63,20 @@ The studio SHALL show a person the level of their own microphone while it is on,
 - **THEN** the meter shows more than a quarter of its range and its text value says the microphone is heard
 
 #### Scenario: Silent
-- **GIVEN** a microphone that is on and receives silence
-- **THEN** the meter is empty and its text value says silent
+- **GIVEN** a microphone that is on and a level below 0.05
+- **THEN** the meter's text value says silent, and from 0.05 up it says heard
 
 #### Scenario: Off
-- **WHEN** the microphone is turned off, or the tab is hidden
-- **THEN** the meter is empty and stops sampling, and the capture and what is published are untouched
+- **WHEN** the microphone is turned off
+- **THEN** the meter is empty and its analyser stops sampling
+
+#### Scenario: Stopping the meter stops nothing else
+- **WHEN** the tab is hidden while the microphone is on, then shown again
+- **THEN** the analyser stopped and started again, and the microphone was captured and published the whole time
+
+#### Scenario: Leaving
+- **WHEN** the room disconnects, the person leaves, or another tab takes the studio over
+- **THEN** the analyser is stopped and nothing of it remains
 
 #### Scenario: After a switch
 - **WHEN** the person chooses another microphone, or the connection is made again
@@ -117,11 +125,11 @@ the person asked for reduced motion.
 
 ### Requirement: Sound cues
 The studio SHALL play a short sound on the listener's own device when someone joins or leaves the backstage and
-when the broadcast starts or ends; the cue player SHALL never be connected to the program mix, and cues SHALL be
-silent during a broadcast unless the listener turned them on.
+when the program goes on air or off air; the cue player SHALL never be connected to the program mix, and cues
+SHALL be silent while the program is on air unless the listener turned them on.
 
 #### Scenario: Someone joins
-- **GIVEN** sounds on, no broadcast running, and the audio started by a click
+- **GIVEN** sounds on, the program off air, and the audio started by a click
 - **WHEN** a guest joins the backstage
 - **THEN** the owner and the other guests hear the join cue once, and the guest who joined does not
 
@@ -131,15 +139,21 @@ silent during a broadcast unless the listener turned them on.
 - **THEN** no join or leave cue plays
 
 #### Scenario: Not wired to the program
-- **WHEN** a cue plays while the broadcast is live with "Sounds during a broadcast" on
+- **WHEN** a cue plays while the program is on air with "Sounds while on air" on
 - **THEN** the cue player's audio context is not the mix's, no node connects the two, and the program's output
   measured from the mix is the same with and without the cue
 
-#### Scenario: Silent during a broadcast
-- **GIVEN** any participant with "Sounds during a broadcast" off (the default)
-- **WHEN** a guest joins while the broadcast is starting, live or interrupted
-- **THEN** that participant hears no cue; nothing is played later for it; a join after the broadcast ended is
-  heard
+#### Scenario: Silent while on air
+- **GIVEN** an owner or a guest with "Sounds while on air" off (the default)
+- **WHEN** the program goes on air, and a guest joins while it is on air
+- **THEN** that participant hears neither cue; nothing is played later for them; when the program goes off air
+  they hear the off-air cue, and a join after that is heard
+
+#### Scenario: On air and off air
+- **GIVEN** an owner or a guest with "Sounds while on air" on
+- **WHEN** `stage.on_air` turns true, then false
+- **THEN** they hear the on-air cue, then the off-air cue; a participant who arrives while the program is on air
+  hears no cue for the state they found
 
 #### Scenario: Turned off, from inside the studio
 - **GIVEN** an owner or a guest who turned "Sounds" off in the studio's Device settings dialog
@@ -148,7 +162,7 @@ silent during a broadcast unless the listener turned them on.
 
 #### Scenario: Storage that cannot be used
 - **GIVEN** a browser that blocks storage, or a stored value that is not a preference
-- **THEN** sounds are on and sounds during a broadcast are off
+- **THEN** sounds are on and sounds while on air are off
 
 #### Scenario: Audio not started
 - **GIVEN** a tab where nothing was clicked yet
@@ -156,8 +170,8 @@ silent during a broadcast unless the listener turned them on.
 - **THEN** nothing plays, nothing is queued for later and no error is logged
 
 #### Scenario: Many at once
-- **WHEN** five guests join within one second
-- **THEN** the first join plays a cue and the other four do not
+- **WHEN** five guests join within one second, and a sixth 1.2 s after the first
+- **THEN** the first and the sixth play a cue and the other four do not
 
 #### Scenario: Short and quiet
 - **WHEN** a cue plays
@@ -168,30 +182,57 @@ Every modal, the confirmation and alert dialogs and the toasts SHALL be built on
 `DialogHost.vue` and `ToastStack.vue`, with the behaviour and the look they have today.
 
 #### Scenario: Nothing else changes
-- **WHEN** the change is applied
-- **THEN** no view and no modal file other than those three changed, and `toast.*`, `askConfirm` and `showAlert`
-  keep their signatures
+- **WHEN** the three components are moved
+- **THEN** that move changed no view and no other modal file, and `toast.*`, `askConfirm` and `showAlert` keep
+  their signatures
 
 #### Scenario: A modal behaves as before
 - **WHEN** a modal opens from a button, and Escape is pressed
-- **THEN** focus was inside the modal, the page behind it could not be reached by Tab or by a click, the modal
-  closed and focus is on the button again
+- **THEN** focus started on the first control of the modal's body, the page behind it could not be reached by Tab
+  or by a click, a click outside the modal did not close it, the modal closed on Escape and focus is on the button
+  again
+
+#### Scenario: A modal over a modal
+- **GIVEN** the Invite modal open in the studio
+- **WHEN** Settings, or a confirmation, opens over it, and Escape is pressed
+- **THEN** only the upper one closed, focus is inside the lower one, the lower one is still modal, and the two had
+  different title ids
 
 #### Scenario: A confirmation behaves as before
 - **WHEN** a destructive confirmation opens
-- **THEN** focus is on the button that does not destroy, Escape answers no, and no native dialog of the browser
-  appears
+- **THEN** it is an `alertdialog`, focus is on Cancel, Escape answers no, and a click outside it does nothing
+
+#### Scenario: A typed confirmation
+- **WHEN** a typed confirmation opens and the person types the word with other letter case and spaces around it
+- **THEN** focus started on the input, OK was disabled until the text matched, and OK then answers yes
+
+#### Scenario: An alert
+- **WHEN** `showAlert` shows a message
+- **THEN** it is a `dialog`, not an `alertdialog`, and closes on its button and on Escape
+
+#### Scenario: Requests wait their turn
+- **WHEN** two confirmations are asked at once
+- **THEN** the second shows after the first was answered, and each promise settles with its own answer
 
 #### Scenario: Toasts behave as before
-- **WHEN** the four kinds of toast are shown
-- **THEN** the error is announced assertively and the others politely, each closes by its button and by its time,
-  and no more than the maximum show at once
+- **WHEN** six toasts are shown one after another
+- **THEN** five show and the oldest is gone; an error stays 8 s and the others 4 s; the time of a toast stops
+  while the pointer or focus is on it; each closes by its button
+
+#### Scenario: Announced once
+- **WHEN** an error toast and an information toast are shown
+- **THEN** the error is announced in an assertive live region and the information in a polite one, each once, and
+  the visible cards are not live regions
+
+#### Scenario: A toast over a modal
+- **WHEN** a toast is shown while a modal is open, and when a modal opens while a toast is shown
+- **THEN** in both cases the toast is above the modal and a click on its close control closes it
 
 #### Scenario: The look in every theme
 - **WHEN** a modal, a confirmation and the four toasts are shown in each of the 28 themes
 - **THEN** each theme's title bar, close control, place below the top, backdrop and toast recipe are the ones it
-  had (the Mac window lights close the dialog, the title is centred where the theme centres it), the contrast
-  matrix holds and no theme file changed
+  had, the close control of each theme closes the dialog, the centre of the title is within 2 px of the centre of
+  the bar in the themes that centre it, the contrast matrix holds and no theme file changed
 
 #### Scenario: A piece the library cannot do yet
 - **WHEN** UI SDK's Dialog, Alert Dialog or Toast cannot meet one of the scenarios above

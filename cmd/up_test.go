@@ -2,15 +2,16 @@ package cmd
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +23,7 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/jniltinho/streamgo/internal/mediaservers"
+	"github.com/jniltinho/streamgo/internal/config"
 	"github.com/jniltinho/streamgo/internal/mediaservers/mediatest"
 	"github.com/jniltinho/streamgo/internal/tlsutil"
 	"github.com/jniltinho/streamgo/internal/tlsutil/tlstest"
@@ -84,13 +85,10 @@ func (e upEnv) setInProcess(t *testing.T) {
 	}
 }
 
-// mediaFlags are free media ports, so tests do not meet each other or the host's services.
+// mediaFlags are media ports free over TCP and UDP, so tests do not meet each other or the host's services.
 func mediaFlags(t *testing.T) []string {
 	t.Helper()
-	p, err := mediaservers.FreePorts(context.Background(), 3)
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := mediatest.FreePorts(t, 3)
 	return []string{"--livekit-tcp-port", strconv.Itoa(p[0]), "--livekit-udp-port", strconv.Itoa(p[1]), "--webrtc-port", strconv.Itoa(p[2])}
 }
 
@@ -233,8 +231,14 @@ func snapshot(t *testing.T, dir string) map[string]string {
 
 func login(t *testing.T, client *http.Client, base, email, password string) int {
 	t.Helper()
-	req, err := http.NewRequest(http.MethodPost, base+"/api/v1/auth/login", //nolint:noctx // a local test request
-		strings.NewReader(fmt.Sprintf(`{"email":%q,"password":%q}`, email, password)))
+	code, _ := apiCall(t, client, base, http.MethodPost, "/api/v1/auth/login", fmt.Sprintf(`{"email":%q,"password":%q}`, email, password))
+	return code
+}
+
+// apiCall sends a JSON request from the public origin and returns the status and the body.
+func apiCall(t *testing.T, client *http.Client, base, method, path, body string) (int, string) {
+	t.Helper()
+	req, err := http.NewRequest(method, base+path, strings.NewReader(body)) //nolint:noctx // a local test request
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,8 +248,9 @@ func login(t *testing.T, client *http.Client, base, email, password string) int 
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = resp.Body.Close()
-	return resp.StatusCode
+	defer func() { _ = resp.Body.Close() }()
+	b, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(b)
 }
 
 // noSecretsInProcess clears the secrets from this process's environment, as for an operator's shell.
@@ -280,9 +285,11 @@ func TestUpLifecycle(t *testing.T) {
 	given := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)) // a made-up key
 	addr := freeAddr(t)
 	base := "http://" + addr
-	client := &http.Client{Timeout: 5 * time.Second}
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Timeout: 5 * time.Second, Jar: jar}
 	args := append([]string{"--addr", addr, "--public-url", base, "--self-signed=false"}, mediaFlags(t)...)
-	first := startUp(t, work, e.environ("STREAMGO_SECRET_KEY="+given), args...)
+	const private = "STREAMGO_OUTPUT_ALLOW_PRIVATE_DESTINATIONS=true" // a destination on the loopback address
+	first := startUp(t, work, e.environ("STREAMGO_SECRET_KEY="+given, private), args...)
 	ready := first.waitReady(t, client, base)
 
 	t.Run("First start in an empty directory", func(t *testing.T) {
@@ -330,6 +337,16 @@ func TestUpLifecycle(t *testing.T) {
 		if code := login(t, client, base, "ana@example.com", "correct-horse-battery"); code != http.StatusOK {
 			t.Fatalf("sign-in: %d", code)
 		}
+	})
+	var destination string // encrypted with the key given on the first start
+	t.Run("A destination is saved", func(t *testing.T) {
+		code, body := apiCall(t, client, base, http.MethodPost, "/api/v1/destinations",
+			`{"name":"Made up","address":"rtmp://127.0.0.1/live","key":"made-up-stream-key"}`)
+		var d struct{ ID string }
+		if code != http.StatusCreated || json.Unmarshal([]byte(body), &d) != nil || d.ID == "" {
+			t.Fatalf("create: %d %s", code, body)
+		}
+		destination = d.ID
 	})
 	t.Run("What a child receives", func(t *testing.T) {
 		lk := mediatest.Records(e.home, mediatest.LiveKit)[0]
@@ -397,9 +414,9 @@ func TestUpLifecycle(t *testing.T) {
 	}
 	// the second start: no key in the environment, another LiveKit secret there, the address from a flag over the
 	// environment and MediaMTX's port from the environment
-	webrtc, _ := mediaservers.FreePorts(context.Background(), 1)
+	webrtc := mediatest.FreePorts(t, 1)
 	second := startUp(t, work, e.environ("STREAMGO_LIVEKIT_API_SECRET=from-the-environment-0123456789",
-		"STREAMGO_SERVER_ADDR=127.0.0.1:1", "STREAMGO_MEDIA_WEBRTC_PORT="+strconv.Itoa(webrtc[0])),
+		"STREAMGO_SERVER_ADDR=127.0.0.1:1", "STREAMGO_MEDIA_WEBRTC_PORT="+strconv.Itoa(webrtc[0]), private),
 		append([]string{"--addr", addr, "--public-url", base, "--self-signed=false"}, mediaFlags(t)[:4]...)...)
 	second.waitReady(t, client, base)
 
@@ -417,10 +434,18 @@ func TestUpLifecycle(t *testing.T) {
 		if code := login(t, client, base, "ana@example.com", "correct-horse-battery"); code != http.StatusOK {
 			t.Fatalf("sign-in after the restart: %d", code)
 		}
+		// moving the destination opens its sealed address and stream key: only the key of the first start can
+		if destination == "" {
+			t.Fatal("no destination was saved")
+		}
+		code, body := apiCall(t, client, base, http.MethodPatch, "/api/v1/destinations/"+destination, `{"address":"rtmp://127.0.0.1/other"}`)
+		if code != http.StatusOK || !strings.Contains(body, `"has_key":true`) {
+			t.Fatalf("the stored stream key does not open after the restart: %d %s", code, body)
+		}
 	})
 	t.Run("The environment wins", func(t *testing.T) {
 		records := mediatest.Records(e.home, mediatest.LiveKit)
-		if !strings.Contains(strings.Join(records[len(records)-1].Env, "\n"), ": from-the-environment-0123456789") {
+		if !strings.Contains(strings.Join(records[len(records)-1].Env, "\n"), `"streamgo":"from-the-environment-0123456789"`) {
 			t.Fatal("LiveKit did not get the environment's secret")
 		}
 	})
@@ -496,9 +521,68 @@ func TestUpHalfAPair(t *testing.T) {
 	authority := tlstest.NewAuthority(t)
 	cert, _ := authority.Issue(t, t.TempDir(), "localhost")
 	https := []string{"--public-url", "https://localhost:8443"}
-	failsBeforeAnyChild(t, e, "--key-file", append(append([]string{"--cert-file", cert}, https...), mediaFlags(t)...)...)
+	failsBeforeAnyChild(t, e, "server.key_file", append(append([]string{"--cert-file", cert}, https...), mediaFlags(t)...)...)
 	failsBeforeAnyChild(t, e, "--key-file", append(append([]string{"--cert-file", cert, "--key-file",
 		filepath.Join(t.TempDir(), "absent.pem")}, https...), mediaFlags(t)...)...)
+}
+
+// TestUpACertificatePairFromTwoSources is the order of B8: --cert-file from a flag and server.key_file from
+// streamgo.env make a pair, checked once the whole bootstrap is done (the start goes on to ffmpeg, which is absent).
+func TestUpACertificatePairFromTwoSources(t *testing.T) {
+	noSecretsInProcess(t)
+	e := newUpEnv(t)
+	e.setInProcess(t)
+	t.Setenv("STREAMGO_OUTPUT_FFMPEG_PATH", filepath.Join(t.TempDir(), "ffmpeg"))
+	authority := tlstest.NewAuthority(t)
+	cert, key := authority.Issue(t, t.TempDir(), "localhost")
+	dataDir := t.TempDir()
+	if _, err := config.EnsureEnvFile(dataDir, func(string) (string, bool) { return "", false }, nil); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(config.EnvFilePath(dataDir), os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = fmt.Fprintf(f, "STREAMGO_SERVER_KEY_FILE=%s\n", key)
+	_ = f.Close()
+	code, _, errOut := execute(t, append([]string{"up", "--data-dir", dataDir, "--cert-file", cert,
+		"--public-url", "https://localhost:8443"}, mediaFlags(t)...)...)
+	if code != 1 || !strings.Contains(errOut, "output.ffmpeg_path: cannot run") {
+		t.Fatalf("exit %d, stderr %q", code, errOut)
+	}
+}
+
+// TestUpAFlagOverAMalformedEnvironment is "A flag wins" when the environment's value of the same setting is not a
+// number: the start goes on with the flag's (to ffmpeg, which is absent).
+func TestUpAFlagOverAMalformedEnvironment(t *testing.T) {
+	noSecretsInProcess(t)
+	e := newUpEnv(t)
+	e.setInProcess(t)
+	t.Setenv("STREAMGO_OUTPUT_FFMPEG_PATH", filepath.Join(t.TempDir(), "ffmpeg"))
+	t.Setenv("STREAMGO_MEDIA_WEBRTC_PORT", "invalid")
+	failsBeforeAnyChild(t, e, "output.ffmpeg_path: cannot run", mediaFlags(t)...)
+}
+
+// TestUpADataDirectoryOthersCanWrite: up runs programs from its data directory, so it refuses one another user could
+// write to, before it stores a secret there.
+func TestUpADataDirectoryOthersCanWrite(t *testing.T) {
+	noSecretsInProcess(t)
+	e := newUpEnv(t)
+	e.setInProcess(t)
+	dataDir := filepath.Join(t.TempDir(), "data")
+	if err := os.Mkdir(dataDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dataDir, 0o777); err != nil { //nolint:gosec // the case under test
+		t.Fatal(err)
+	}
+	code, _, errOut := execute(t, append([]string{"up", "--data-dir", dataDir}, mediaFlags(t)...)...)
+	if code != 1 || !strings.Contains(errOut, "--data-dir: other users can write to "+dataDir) {
+		t.Fatalf("exit %d, stderr %q", code, errOut)
+	}
+	if _, err := os.Stat(config.EnvFilePath(dataDir)); err == nil {
+		t.Fatal("a secret was stored there")
+	}
 }
 
 func TestUpAMediaPortInUse(t *testing.T) {

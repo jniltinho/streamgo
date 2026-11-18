@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -11,6 +13,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"go.yaml.in/yaml/v3"
 
 	"github.com/jniltinho/streamgo/internal/mediaservers"
 	"github.com/jniltinho/streamgo/internal/mediaservers/mediatest"
@@ -59,15 +63,41 @@ func TestAMediaServerThatExitsIsStartedAgain(t *testing.T) {
 	}
 }
 
-// startTimes are the start times of component, waited for until there are n.
-func startTimes(t *testing.T, s *stack, component string, n int) []time.Time {
+// restart is one exit of a server seen by the supervisor and the start that followed it.
+type restart struct {
+	delay string        // the delay the supervisor chose, as it logged it
+	gap   time.Duration // from the supervisor seeing the exit to the next process started: the delay and a fork
+}
+
+// restarts reads the first n restarts of component from the supervisor's log, waiting until there are n. The gap
+// is measured inside the supervisor, so the start-up of the fake (slow under the race detector) is not in it.
+func restarts(t *testing.T, s *stack, component string, n int) []restart {
 	t.Helper()
-	waitFor(t, 20*time.Second, "the starts", func() bool { return len(mediatest.Records(s.home, component)) >= n })
-	var out []time.Time
-	for _, r := range mediatest.Records(s.home, component)[:n] {
-		out = append(out, time.Unix(0, r.At))
-	}
-	return out
+	var out []restart
+	waitFor(t, 30*time.Second, "the restarts", func() bool {
+		out = out[:0]
+		var exited *time.Time
+		var delay string
+		for line := range strings.Lines(s.logs.String()) {
+			var e struct {
+				Time           time.Time
+				Msg, Component string
+				Delay          string
+			}
+			if json.Unmarshal([]byte(line), &e) != nil || e.Component != component {
+				continue
+			}
+			switch {
+			case e.Msg == "media server exited: starting it again":
+				exited, delay = &e.Time, e.Delay
+			case e.Msg == "media server started" && exited != nil:
+				out = append(out, restart{delay: delay, gap: e.Time.Sub(*exited)})
+				exited = nil
+			}
+		}
+		return len(out) >= n
+	})
+	return out[:n]
 }
 
 // TestRestartDelay is "Restart delay" at a hundredth of the time: 10, 20, 40, 80, 160, 300 and 300 ms.
@@ -80,13 +110,11 @@ func TestRestartDelay(t *testing.T) {
 	children := s.children(t)
 	children[0].Ready = nil
 	s.start(t, opts, children)
-	starts := startTimes(t, s, mediatest.LiveKit, 8)
-	for i, want := range []time.Duration{10, 20, 40, 80, 160, 300, 300} {
-		want *= time.Millisecond
-		gap := starts[i+1].Sub(starts[i])
-		// the gap holds the delay and a process start, which the race detector slows
-		if gap < want*8/10 || gap > want*12/10+250*time.Millisecond {
-			t.Errorf("delay %d: %v, want %v within 20 %%", i+1, gap, want)
+	for i, r := range restarts(t, s, mediatest.LiveKit, 7) {
+		want := []time.Duration{10, 20, 40, 80, 160, 300, 300}[i] * time.Millisecond
+		// the log's clock has milliseconds; the gap adds a fork and exec to the delay
+		if r.delay != want.String() || r.gap < want-2*time.Millisecond || r.gap > want+100*time.Millisecond {
+			t.Errorf("restart %d: delay %s after %v, want %v", i+1, r.delay, r.gap, want)
 		}
 	}
 }
@@ -101,14 +129,67 @@ func TestTheDelayReturns(t *testing.T) {
 	children := s.children(t)
 	children[0].Ready = nil
 	s.start(t, opts, children)
-	starts := startTimes(t, s, mediatest.LiveKit, 6)
-	if gap := starts[4].Sub(starts[3]); gap < 160*time.Millisecond { // the fourth delay: 160 ms
-		t.Errorf("fourth delay %v, want 160ms", gap)
+	var got []string
+	for _, r := range restarts(t, s, mediatest.LiveKit, 5) {
+		got = append(got, r.delay)
 	}
 	// the fifth run lasted 600 ms: the next delay is 20 ms again, not 320 ms
-	if gap := starts[5].Sub(starts[4]); gap < 600*time.Millisecond || gap > 600*time.Millisecond+250*time.Millisecond {
-		t.Errorf("run and delay %v, want 600ms + 20ms", gap)
+	if strings.Join(got, " ") != "20ms 40ms 80ms 160ms 20ms" {
+		t.Errorf("delays %v, want 20ms 40ms 80ms 160ms 20ms", got)
 	}
+}
+
+// TestRestartsStopWhenShutdownBegins is the first half of "Stop": once the context of Start ends (SIGTERM), a server
+// that exits is not started again, though the children are stopped only later, by Stop.
+func TestRestartsStopWhenShutdownBegins(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	g, err := mediaservers.Start(ctx, s.options(), s.children(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(g.Stop)
+	cancel()
+	time.Sleep(50 * time.Millisecond) // the cancellation reaches the supervisor
+	if err := syscall.Kill(s.pids(mediatest.LiveKit)[0], syscall.SIGKILL); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second) // twenty times the delay of the options
+	if n := len(s.pids(mediatest.LiveKit)); n != 1 || strings.Contains(s.logs.String(), "starting it again") {
+		t.Fatalf("%d starts of livekit after shutdown began", n)
+	}
+	if mtx := s.pids(mediatest.MediaMTX)[0]; gone(mtx) {
+		t.Fatal("mediamtx was stopped before Stop")
+	}
+}
+
+// blockingHandler is a log destination that blocks on the lines of a flood until released, as a full terminal does.
+type blockingHandler struct {
+	slog.Handler
+	release chan struct{}
+}
+
+func (h blockingHandler) Handle(ctx context.Context, r slog.Record) error {
+	if strings.HasPrefix(r.Message, "flood line") {
+		<-h.release
+	}
+	return h.Handler.Handle(ctx, r)
+}
+
+// TestASlowLogDoesNotBlockAServer is "A server cannot block by writing": while the log blocks, a server that writes
+// far more than a pipe holds runs on, and the lines that did not fit are counted.
+func TestASlowLogDoesNotBlockAServer(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	mediatest.SetModes(t, s.home, mediatest.LiveKit, "flood")
+	opts := s.options()
+	release := make(chan struct{})
+	opts.Logger = slog.New(blockingHandler{Handler: slog.NewJSONHandler(s.logs, nil), release: release})
+	s.start(t, opts, s.children(t))
+	t.Cleanup(func() { close(release) }) // before the Stop of start: cleanups run last first
+	flooded := filepath.Join(s.home, mediatest.LiveKit+".flooded")
+	waitFor(t, 10*time.Second, "the flood written", func() bool { _, err := os.Stat(flooded); return err == nil })
 }
 
 func TestAStopDuringADelay(t *testing.T) {
@@ -186,23 +267,29 @@ func TestASecondServerThatFails(t *testing.T) {
 	waitFor(t, 15*time.Second, "livekit gone", func() bool { return gone(pid) })
 }
 
+// TestStop is "Stop": every process group is gone, the one of a server that started a process of its own too.
 func TestStop(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
+	mediatest.SetModes(t, s.home, mediatest.LiveKit, "fork")
 	g := s.start(t, s.options(), s.children(t))
 	pids := append(s.pids(mediatest.LiveKit), s.pids(mediatest.MediaMTX)...)
+	if n := len(groupMembers(pids[0])); n != 2 {
+		t.Fatalf("livekit's process group has %d processes, want it and its sleep", n)
+	}
 	g.Stop()
 	for _, pid := range pids {
 		if !gone(pid) {
 			t.Errorf("%d is still there", pid)
 		}
-		if err := syscall.Kill(-pid, 0); !errors.Is(err, syscall.ESRCH) && !gone(pid) {
-			t.Errorf("the process group of %d: %v", pid, err)
-		}
+		// independently of its leader: no live member of the group is left
+		waitFor(t, 2*time.Second, "the process group gone", func() bool { return len(groupMembers(pid)) == 0 })
 	}
 	g.Stop() // twice is fine
 }
 
+// TestLogs is "Logs": a line of 1 MiB that never ends is logged cut, as soon as the reader holds more than a line,
+// and the server keeps running.
 func TestLogs(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -218,6 +305,9 @@ func TestLogs(t *testing.T) {
 		var e struct{ Msg, Component string }
 		if json.Unmarshal([]byte(line), &e) == nil && e.Msg == "before the long line" && e.Component == "livekit" {
 			sawFirst = true
+		}
+		if json.Unmarshal([]byte(line), &e) == nil && strings.HasPrefix(e.Msg, "xxx") && e.Msg != strings.Repeat("x", mediaservers.MaxLine)+" [line cut]" {
+			t.Errorf("the long line logged as %.100q... (%d bytes)", e.Msg, len(e.Msg))
 		}
 	}
 	if !sawFirst {
@@ -244,7 +334,8 @@ func TestWhatAChildReceives(t *testing.T) {
 		}
 		return false
 	}
-	if !has(lk.Env, "LIVEKIT_KEYS=streamgo: "+testCreds.LiveKitSecret) || !has(mtx.Env, "MTX_AUTHINTERNALUSERS_0_PASS=") {
+	if keys := liveKitKeys(t, lk.Env); len(keys) != 1 || keys[testCreds.LiveKitKey] != testCreds.LiveKitSecret ||
+		!has(mtx.Env, "MTX_AUTHINTERNALUSERS_0_PASS="+testCreds.MediaMTXPass) {
 		t.Fatal("the credentials were not handed over")
 	}
 	for _, env := range [][]string{lk.Env, mtx.Env} {
@@ -259,8 +350,55 @@ func TestWhatAChildReceives(t *testing.T) {
 			}
 		}
 	}
-	if !listening("tcp", s.setup.Ports.RTSP) || listening("tcp", 9999) || listening("tcp", 9998) {
-		t.Error("RTSP is not on the port up chose, or something is on 9999 or 9998")
+	// what the fakes themselves listen on, not what the host has: 9999 and 9998 may be another program's
+	if !listens(s.home, mediatest.MediaMTX, mtx.Pid, "tcp", s.setup.Ports.RTSP) ||
+		listens(s.home, mediatest.MediaMTX, mtx.Pid, "tcp", 9999) || listens(s.home, mediatest.LiveKit, lk.Pid, "tcp", 9998) {
+		t.Errorf("RTSP is not on the port up chose, or a fake listens on 9999 or 9998: %v %v",
+			mediatest.Listeners(s.home, mediatest.MediaMTX, mtx.Pid), mediatest.Listeners(s.home, mediatest.LiveKit, lk.Pid))
+	}
+}
+
+// liveKitKeys reads LIVEKIT_KEYS of env as LiveKit does: YAML, the string values kept.
+func liveKitKeys(t *testing.T, env []string) map[string]string {
+	t.Helper()
+	for _, kv := range env {
+		if v, ok := strings.CutPrefix(kv, "LIVEKIT_KEYS="); ok {
+			var raw map[string]any
+			if err := yaml.Unmarshal([]byte(v), &raw); err != nil {
+				t.Fatalf("LIVEKIT_KEYS is not YAML: %v", err)
+			}
+			keys := map[string]string{}
+			for k, v := range raw {
+				if s, ok := v.(string); ok {
+					keys[k] = s
+				}
+			}
+			return keys
+		}
+	}
+	t.Fatal("no LIVEKIT_KEYS")
+	return nil
+}
+
+// TestAnyKeyAndSecretReachLiveKit is the encoding side of "The environment wins": a key and a secret that YAML would
+// read as a number, a comment, a boolean or a map reach LiveKit as the same strings.
+func TestAnyKeyAndSecretReachLiveKit(t *testing.T) {
+	t.Parallel()
+	for _, c := range []mediaservers.Credentials{
+		{LiveKitKey: "streamgo", LiveKitSecret: "01234567890123456789012345678901"},
+		{LiveKitKey: "yes", LiveKitSecret: "a # not a comment"},
+		{LiveKitKey: "k: v", LiveKitSecret: `{"x": [1]} '"\`},
+		{LiveKitKey: "07", LiveKitSecret: "true"},
+	} {
+		s := newStack(t)
+		s.setup.Credentials = c
+		children, err := mediaservers.Children(s.setup, s.programs[0], s.programs[1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if keys := liveKitKeys(t, children[0].Env); len(keys) != 1 || keys[c.LiveKitKey] != c.LiveKitSecret {
+			t.Errorf("key %q: LiveKit reads %d keys, not the secret given", c.LiveKitKey, len(keys))
+		}
 	}
 }
 
@@ -290,7 +428,7 @@ func TestCredentialsStayOutOfSight(t *testing.T) {
 			t.Error("a secret is visible")
 		}
 	}
-	if !strings.Contains(err.Error(), "keys: streamgo: [redacted]") {
+	if !strings.Contains(err.Error(), `keys: {"streamgo":"[redacted]"} pass: `) {
 		t.Errorf("the tail is not in the message:\n%s", err)
 	}
 }
@@ -306,22 +444,51 @@ func TestGeneratedConfiguration(t *testing.T) {
 	}
 	lk, _ := os.ReadFile(filepath.Join(s.setup.Dir, "livekit.yaml"))  //nolint:gosec // a test file
 	mtx, _ := os.ReadFile(filepath.Join(s.setup.Dir, "mediamtx.yml")) //nolint:gosec // a test file
-	for _, want := range []string{"bind_addresses: [127.0.0.1]", "tcp_port: 17881", "udp_port: 17882", "use_external_ip: false"} {
-		if !strings.Contains(string(lk), want) {
-			t.Errorf("livekit.yaml lacks %q", want)
-		}
-	}
-	for _, want := range []string{"webrtcLocalUDPAddress: :18189", "webrtcLocalTCPAddress: :18189", "rtmp: false", "hls: false",
-		"srt: false", "moq: false", "metrics: false", "pprof: false", "playback: false", "rtspTransports: [tcp]",
-		"apiAddress: 127.0.0.1:", "rtspAddress: 127.0.0.1:", "webrtcAddress: 127.0.0.1:"} {
-		if !strings.Contains(string(mtx), want) {
-			t.Errorf("mediamtx.yml lacks %q", want)
-		}
-	}
 	for _, b := range [][]byte{lk, mtx} {
-		if !strings.HasPrefix(string(b), "# Generated by streamgo up") || strings.Contains(string(b), " 7881\n") || strings.Contains(string(b), ":8189\n") {
-			t.Errorf("generated file:\n%s", b)
+		if !strings.HasPrefix(string(b), "# Generated by streamgo up") {
+			t.Errorf("generated file without its first line:\n%s", b)
 		}
+	}
+	var lkConf struct {
+		Port          int      `yaml:"port"`
+		BindAddresses []string `yaml:"bind_addresses"`
+		RTC           struct {
+			TCPPort       int  `yaml:"tcp_port"`
+			UDPPort       int  `yaml:"udp_port"`
+			UseExternalIP bool `yaml:"use_external_ip"`
+		} `yaml:"rtc"`
+		Keys map[string]string `yaml:"keys"`
+	}
+	if err := yaml.Unmarshal(lk, &lkConf); err != nil {
+		t.Fatalf("livekit.yaml: %v", err)
+	}
+	p := s.setup.Ports
+	if lkConf.Port != p.LiveKit || fmt.Sprint(lkConf.BindAddresses) != "[127.0.0.1]" || lkConf.RTC.TCPPort != 17881 ||
+		lkConf.RTC.UDPPort != 17882 || lkConf.RTC.UseExternalIP || len(lkConf.Keys) != 0 {
+		t.Errorf("livekit.yaml reads as %+v", lkConf)
+	}
+	var mtxConf map[string]any
+	if err := yaml.Unmarshal(mtx, &mtxConf); err != nil {
+		t.Fatalf("mediamtx.yml: %v", err)
+	}
+	want := map[string]any{
+		"apiAddress": fmt.Sprintf("127.0.0.1:%d", p.API), "rtspAddress": fmt.Sprintf("127.0.0.1:%d", p.RTSP),
+		"webrtcAddress": fmt.Sprintf("127.0.0.1:%d", p.WHIP), "webrtcLocalUDPAddress": ":18189", "webrtcLocalTCPAddress": ":18189",
+		"api": true, "rtsp": true, "webrtc": true, "rtmp": false, "hls": false, "srt": false, "moq": false, "metrics": false,
+		"pprof": false, "playback": false, "rtspEncryption": "no", "webrtcIPsFromInterfaces": false, "authMethod": "internal",
+	}
+	for k, v := range want {
+		if mtxConf[k] != v {
+			t.Errorf("mediamtx.yml: %s is %#v, want %#v", k, mtxConf[k], v)
+		}
+	}
+	if fmt.Sprint(mtxConf["rtspTransports"]) != "[tcp]" {
+		t.Errorf("mediamtx.yml: rtspTransports is %v", mtxConf["rtspTransports"])
+	}
+	// no credential in the file: the user and password come from the environment
+	users, _ := mtxConf["authInternalUsers"].([]any)
+	if u, _ := users[0].(map[string]any); len(users) != 1 || u["pass"] != "" {
+		t.Errorf("mediamtx.yml: authInternalUsers %v", users)
 	}
 }
 
@@ -330,12 +497,14 @@ func TestOtherMediaPorts(t *testing.T) {
 	s := newStack(t)
 	s.start(t, s.options(), s.children(t))
 	p := s.setup.Ports
+	lk, mtx := s.pids(mediatest.LiveKit)[0], s.pids(mediatest.MediaMTX)[0]
 	for _, l := range []struct {
-		network string
-		port    int
-	}{{"tcp", p.LiveKitTCP}, {"udp", p.LiveKitUDP}, {"tcp", p.WebRTC}, {"udp", p.WebRTC}} {
-		if !listening(l.network, l.port) {
-			t.Errorf("nothing on %d/%s", l.port, l.network)
+		component, network string
+		pid, port          int
+	}{{mediatest.LiveKit, "tcp", lk, p.LiveKitTCP}, {mediatest.LiveKit, "udp", lk, p.LiveKitUDP},
+		{mediatest.MediaMTX, "tcp", mtx, p.WebRTC}, {mediatest.MediaMTX, "udp", mtx, p.WebRTC}} {
+		if !listens(s.home, l.component, l.pid, l.network, l.port) {
+			t.Errorf("%s does not listen on %d/%s", l.component, l.port, l.network)
 		}
 	}
 }
@@ -415,14 +584,14 @@ func TestAPathWithSpaces(t *testing.T) { // not parallel: it runs files it wrote
 	}
 	exe := filepath.Join(dir, "streamgo")
 	payload(t, exe, []byte("an executable"), program, program)
-	_, err = mediaservers.Finder{Executable: exe, DataDir: filepath.Join(dir, "data dir")}.Find(context.Background())
+	_, err = mediaservers.Finder{Executable: exe, DataDir: filepath.Join(dir, "data dir"), Pinned: pinnedOf(program, program)}.Find(context.Background())
 	if err == nil {
 		t.Fatal("the data directory does not exist yet: up creates it first")
 	}
 	if err := os.Mkdir(filepath.Join(dir, "data dir"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	programs, err := mediaservers.Finder{Executable: exe, DataDir: filepath.Join(dir, "data dir")}.Find(context.Background())
+	programs, err := mediaservers.Finder{Executable: exe, DataDir: filepath.Join(dir, "data dir"), Pinned: pinnedOf(program, program)}.Find(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -43,12 +43,17 @@ type Program struct {
 // Finder chooses each program once, in this order: the payload of Executable, the file beside it, PATH. It never
 // tries the next source when the chosen one fails.
 type Finder struct {
-	Executable string            // the running executable
-	DataDir    string            // the payload is unpacked under <DataDir>/media
-	Pinned     map[string]string // the SHA-256 compiled into the program, by name; empty: the trailer's
-	Download   string            // the file to download when a program is nowhere, for the message
-	LookPath   func(string) (string, error)
+	Executable string // the running executable
+	DataDir    string // the payload is unpacked under <DataDir>/media
+	// Pinned is the SHA-256 compiled into the program, by name. A payload is run only when both are there: an
+	// executable built without them refuses its own payload.
+	Pinned         map[string]string
+	Download       string // the file to download when a program is nowhere, for the message
+	LookPath       func(string) (string, error)
+	MaxProgramSize int64 // the most an unpacked program may hold; zero: MaxProgramSize
 }
+
+var hexDigest = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
 
 // Find returns the two programs, unpacking the payload when there is one.
 func (f Finder) Find(ctx context.Context) ([]Program, error) {
@@ -57,7 +62,7 @@ func (f Finder) Find(ctx context.Context) ([]Program, error) {
 		return nil, err
 	}
 	if p != nil {
-		return f.unpack(p)
+		return f.unpack(ctx, p)
 	}
 	look := f.LookPath
 	if look == nil {
@@ -66,15 +71,22 @@ func (f Finder) Find(ctx context.Context) ([]Program, error) {
 	var out []Program
 	for _, name := range []string{LiveKit, MediaMTX} {
 		prog := Program{Name: name, Path: filepath.Join(filepath.Dir(f.Executable), name), From: FromBeside}
-		if _, err := os.Stat(prog.Path); err == nil {
+		// a file beside the executable, also a dangling link, is the choice: only its absence falls through to PATH
+		_, err := os.Lstat(prog.Path)
+		switch {
+		case err == nil:
 			if err := runnable(prog.Path); err != nil {
 				return nil, fmt.Errorf("%s cannot be run: %w", prog.Path, err)
 			}
-		} else if path, lerr := look(name); lerr == nil {
+		case !errors.Is(err, fs.ErrNotExist):
+			return nil, fmt.Errorf("%s cannot be run: %w", prog.Path, err)
+		default:
+			path, lerr := look(name)
+			if lerr != nil {
+				return nil, fmt.Errorf("%s was not found beside %s nor in PATH: install it, or download %s, which carries both media servers",
+					name, f.Executable, f.Download)
+			}
 			prog.Path, prog.From = path, FromPATH
-		} else {
-			return nil, fmt.Errorf("%s was not found beside %s nor in PATH: install it, or download %s, which carries both media servers",
-				name, f.Executable, f.Download)
 		}
 		prog.Version = version(ctx, prog.Path)
 		out = append(out, prog)
@@ -97,18 +109,36 @@ func runnable(path string) error {
 	return nil
 }
 
-// version asks a program of the operator for its version: the last word of the first line of --version.
+// version asks a program of the operator for its version: the last word of the first line of --version. The probe
+// keeps 4 KiB of its output and runs in a process group of its own, killed after 5 s; its output is not waited for
+// more than a second after it exited or was killed, even when something it started holds the pipe.
 func version(ctx context.Context, path string) string {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, path, "--version") //nolint:gosec // the chosen media server
 	cmd.Env = BaseEnv(os.Environ())
-	out, err := cmd.Output()
-	first, _, _ := strings.Cut(string(out), "\n")
+	out := &prefixWriter{max: 4 << 10}
+	cmd.Stdout = out
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	cmd.WaitDelay = time.Second
+	err := cmd.Run()
+	first, _, _ := strings.Cut(string(out.b), "\n")
 	if fields := strings.Fields(first); err == nil && len(fields) > 0 {
 		return fields[len(fields)-1]
 	}
 	return "unknown"
+}
+
+// prefixWriter keeps the first max bytes written to it and discards the rest.
+type prefixWriter struct {
+	b   []byte
+	max int
+}
+
+func (w *prefixWriter) Write(p []byte) (int, error) {
+	w.b = append(w.b, p[:min(len(p), w.max-len(w.b))]...)
+	return len(p), nil
 }
 
 // MediaDir prepares <dataDir>/media, the directory up owns: it creates it with mode 0700, and refuses it when it
@@ -144,7 +174,14 @@ func MediaDir(dataDir string) (string, error) {
 
 // unpack writes each program of the payload to <data_dir>/media/<name>-<12 hex digits of its digest>, unless the
 // file there already has that digest, and removes the files of other releases.
-func (f Finder) unpack(p *Payload) ([]Program, error) {
+func (f Finder) unpack(ctx context.Context, p *Payload) ([]Program, error) {
+	for _, name := range []string{LiveKit, MediaMTX} { // before anything is written
+		if !hexDigest.MatchString(f.Pinned[name]) {
+			return nil, fmt.Errorf("%s carries the media servers, but this build has no SHA-256 of %s to check them against "+
+				"(it was built without -X github.com/jniltinho/streamgo/internal/buildinfo.%s): run a release, or the files beside the executable",
+				p.path, name, map[string]string{LiveKit: "LiveKitSHA256", MediaMTX: "MediaMTXSHA256"}[name])
+		}
+	}
 	dir, err := MediaDir(f.DataDir)
 	if err != nil {
 		return nil, err
@@ -159,15 +196,12 @@ func (f Finder) unpack(p *Payload) ([]Program, error) {
 		if !ok {
 			return nil, damaged(p.path, "%s is missing", name)
 		}
-		want := e.SHA256
-		if pinned := f.Pinned[name]; pinned != "" {
-			if !strings.EqualFold(pinned, e.SHA256) {
-				return nil, damaged(p.path, "%s is not the one this release pins", name)
-			}
-			want = strings.ToLower(pinned)
+		want := strings.ToLower(f.Pinned[name])
+		if !strings.EqualFold(want, e.SHA256) {
+			return nil, damaged(p.path, "%s is not the one this release pins", name)
 		}
 		path := filepath.Join(dir, name+"-"+want[:12])
-		if err := install(p, name, path, want); err != nil {
+		if err := install(ctx, p, name, path, want, f.MaxProgramSize); err != nil {
 			return nil, err
 		}
 		keep[filepath.Base(path)] = true
@@ -179,43 +213,64 @@ func (f Finder) unpack(p *Payload) ([]Program, error) {
 	return out, nil
 }
 
-// install leaves a correct file alone (giving it back mode 0700) and otherwise writes it again from the payload:
-// a temporary file in the same directory, verified, then renamed.
-func install(p *Payload, name, path, want string) error {
+// install checks the program's stream in the payload, then leaves a correct file alone (giving it back mode 0700)
+// and otherwise writes it again: a new temporary file in the same directory, verified, then renamed. The stream is
+// read at every start, so a damaged payload fails even when the file on disk is still right.
+func install(ctx context.Context, p *Payload, name, path, want string, limit int64) error {
 	if st, err := os.Lstat(path); err == nil && st.Mode().IsRegular() {
 		if sum, err := fileSHA256(path); err == nil && sum == want {
+			if sum, err := p.Extract(ctx, name, io.Discard, limit); err != nil {
+				return err
+			} else if sum != want {
+				return damaged(p.path, "%s does not have its digest", name)
+			}
 			if st.Mode().Perm() != 0o700 {
 				return os.Chmod(path, 0o700) //nolint:gosec // a program: 0700 is owner-only
 			}
 			return nil
 		}
 	}
-	tmp := filepath.Join(filepath.Dir(path), "."+filepath.Base(path)+".tmp")
-	w, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o700) //nolint:gosec // up's own directory
-	if err != nil {
-		return fmt.Errorf("unpack %s: %w", name, err)
-	}
-	sum, err := p.Extract(name, w)
-	if err == nil {
-		err = w.Sync()
-	}
-	if cerr := w.Close(); err == nil {
-		err = cerr
-	}
-	if err == nil && sum != want {
-		err = damaged(p.path, "%s does not have its digest", name)
-	}
-	if err == nil {
-		if st, lerr := os.Lstat(path); lerr == nil && st.IsDir() {
-			err = os.RemoveAll(path)
+	if st, err := os.Lstat(path); err == nil && st.IsDir() {
+		if err := os.Remove(path); err != nil { // only an empty one: never what it holds
+			return fmt.Errorf("unpack %s: %s is a directory that is not empty: move it away: %w", name, path, err)
 		}
+	}
+	return writeAtomic(path, 0o700, func(w io.Writer) error {
+		sum, err := p.Extract(ctx, name, w, limit)
+		if err == nil && sum != want {
+			err = damaged(p.path, "%s does not have its digest", name)
+		}
+		return err
+	})
+}
+
+// writeAtomic writes path through a new temporary file of its directory (never an existing one, never through a
+// link), with mode set explicitly, synced and renamed over path. fill writes the content.
+func writeAtomic(path string, mode os.FileMode, fill func(io.Writer) error) error {
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*.tmp")
+	if err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	tmp := f.Name()
+	err = f.Chmod(mode)
+	if err == nil {
+		err = fill(f)
+	}
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
 	}
 	if err == nil {
 		err = os.Rename(tmp, path)
 	}
 	if err != nil {
 		_ = os.Remove(tmp)
-		return err
+		if errors.Is(err, ErrDamaged) {
+			return err
+		}
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
 }

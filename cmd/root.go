@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -31,8 +32,11 @@ type cli struct {
 	cfg        *config.Config
 	notices    fs.FS                // the licence texts streamgo licenses prints
 	override   func(*config.Config) // flags of the running command over the environment (up)
+	overridden []string             // the TOML keys override sets
 	geteuid    func() int           // nil: os.Geteuid
 	executable string               // the own executable up reads its payload from; empty: os.Executable
+	logOnce    sync.Once
+	log        *slog.Logger
 }
 
 // Execute runs the CLI with the process arguments and exits with its status; notices holds the
@@ -104,7 +108,11 @@ func (c *cli) config() (*config.Config, error) {
 // source is where the configuration comes from: --config, the environment, and the flags given
 // (--data-dir and those of the running command).
 func (c *cli) source() config.Source {
-	return config.Source{Path: c.cfgFile, Override: func(cfg *config.Config) {
+	flags := c.overridden
+	if c.dataDirSet {
+		flags = append(flags[:len(flags):len(flags)], "server.data_dir")
+	}
+	return config.Source{Path: c.cfgFile, Flags: flags, Override: func(cfg *config.Config) {
 		if c.dataDirSet {
 			cfg.Server.DataDir = c.dataDir
 		}
@@ -121,7 +129,8 @@ func (c *cli) printJSON(v any) error {
 	return enc.Encode(v)
 }
 
-// logger is the structured JSON logger on standard error.
+// logger is the structured JSON logger on standard error, one for the run: its lines never interleave.
 func (c *cli) logger() *slog.Logger {
-	return slog.New(slog.NewJSONHandler(c.errOut, nil))
+	c.logOnce.Do(func() { c.log = slog.New(slog.NewJSONHandler(c.errOut, nil)) })
+	return c.log
 }

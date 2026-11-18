@@ -5,6 +5,7 @@
 package mediaservers
 
 import (
+	"context"
 	"crypto/sha256"
 	"debug/elf"
 	"encoding/hex"
@@ -137,30 +138,55 @@ func noMark(path string, f *os.File, size int64) error {
 	return nil
 }
 
+// Limits of decompression: a damaged or altered stream fails at these bounds, before it fills the disk or the memory.
+const (
+	MaxProgramSize = 512 << 20 // bytes of one unpacked program (LiveKit is about 81 MB)
+	maxDecoderMem  = 128 << 20 // the zstd window (zstd -19 uses 8 MiB)
+)
+
 // Extract writes the program name to w, decompressed, and returns its SHA-256 in hex. A stream that does not
-// decompress is ErrDamaged.
-func (p *Payload) Extract(name string, w io.Writer) (string, error) {
+// decompress, or decompresses to more than limit bytes (zero: MaxProgramSize), is ErrDamaged; it stops when ctx ends.
+func (p *Payload) Extract(ctx context.Context, name string, w io.Writer, limit int64) (string, error) {
 	e, ok := p.Entries[name]
 	if !ok {
 		return "", damaged(p.path, "%s is missing", name)
+	}
+	if limit <= 0 {
+		limit = MaxProgramSize
 	}
 	f, err := os.Open(p.path)
 	if err != nil {
 		return "", fmt.Errorf("open the executable: %w", err)
 	}
 	defer func() { _ = f.Close() }()
-	dec, err := zstd.NewReader(io.NewSectionReader(f, e.Offset, e.Size), zstd.WithDecoderConcurrency(1))
+	dec, err := zstd.NewReader(io.NewSectionReader(f, e.Offset, e.Size), zstd.WithDecoderConcurrency(1),
+		zstd.WithDecoderMaxMemory(maxDecoderMem), zstd.WithDecoderMaxWindow(maxDecoderMem))
 	if err != nil {
 		return "", fmt.Errorf("zstd: %w", err)
 	}
 	defer dec.Close()
 	h := sha256.New()
-	if _, err := io.Copy(io.MultiWriter(w, h), dec); err != nil {
-		var pe *os.PathError
-		if errors.As(err, &pe) {
+	out := io.MultiWriter(w, h)
+	buf := make([]byte, 256<<10)
+	var total int64
+	for {
+		if err := ctx.Err(); err != nil {
 			return "", fmt.Errorf("unpack %s: %w", name, err)
 		}
-		return "", damaged(p.path, "%s does not decompress: %v", name, err)
+		n, rerr := dec.Read(buf)
+		if total += int64(n); total > limit {
+			return "", damaged(p.path, "%s decompresses to more than %d bytes", name, limit)
+		}
+		if n > 0 {
+			if _, err := out.Write(buf[:n]); err != nil {
+				return "", fmt.Errorf("unpack %s: %w", name, err)
+			}
+		}
+		if errors.Is(rerr, io.EOF) {
+			return hex.EncodeToString(h.Sum(nil)), nil
+		}
+		if rerr != nil {
+			return "", damaged(p.path, "%s does not decompress: %v", name, rerr)
+		}
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }

@@ -94,6 +94,22 @@ func (f upFlags) apply(fl *pflag.FlagSet, cfg *config.Config) {
 	}
 }
 
+// keys are the settings of the flags the user gave: the environment is not read for them.
+func (upFlags) keys(fl *pflag.FlagSet) []string {
+	var out []string
+	for _, k := range [][2]string{
+		{"addr", "server.addr"}, {"public-url", "server.public_url"}, {"node-ip", "media.node_ip"},
+		{"livekit-tcp-port", "media.livekit_tcp_port"}, {"livekit-udp-port", "media.livekit_udp_port"},
+		{"webrtc-port", "media.webrtc_port"}, {"self-signed", "server.self_signed"},
+		{"cert-file", "server.cert_file"}, {"key-file", "server.key_file"},
+	} {
+		if fl.Changed(k[0]) {
+			out = append(out, k[1])
+		}
+	}
+	return out
+}
+
 // check rejects a flag value before anything is done, naming the flag.
 func (f upFlags) check(fl *pflag.FlagSet) error {
 	var errs []error
@@ -140,22 +156,19 @@ func (c *cli) runUp(ctx context.Context, fl *pflag.FlagSet, f upFlags) error {
 	if err := f.check(fl); err != nil {
 		return err
 	}
-	internal, err := mediaservers.FreePorts(ctx, 4)
-	if err != nil {
-		return err
-	}
-	ports := mediaservers.Ports{LiveKit: internal[0], WHIP: internal[1], RTSP: internal[2], API: internal[3]}
+	// the internal ports are chosen once the configuration is known (below); here only what the operator set
 	defaults := config.Default()
 	var replaced []string
+	c.overridden = f.keys(fl)
 	c.override = func(cfg *config.Config) {
 		f.apply(fl, cfg)
 		replaced = replaced[:0]
-		defs := managed(defaults, ports)
-		for i, m := range managed(cfg, ports) {
+		defs := managed(defaults, mediaservers.Ports{})
+		for i, m := range managed(cfg, mediaservers.Ports{}) {
 			if *m.ptr != *defs[i].ptr && *m.ptr != m.want { // the operator set it
 				replaced = append(replaced, m.key)
 			}
-			*m.ptr = m.want
+			*m.ptr = m.want // port 0 until the ports are chosen: what is validated is what up sets
 		}
 	}
 
@@ -163,9 +176,6 @@ func (c *cli) runUp(ctx context.Context, fl *pflag.FlagSet, f upFlags) error {
 	raw, err := c.source().Raw()
 	if err != nil {
 		return err
-	}
-	if (raw.Server.CertFile == "") != (raw.Server.KeyFile == "") {
-		return errors.New("--cert-file and --key-file go together (server.cert_file and server.key_file): give both or neither")
 	}
 	dataDir := raw.Server.DataDir
 	if dataDir == "" {
@@ -180,6 +190,9 @@ func (c *cli) runUp(ctx context.Context, fl *pflag.FlagSet, f upFlags) error {
 	}
 	defer func() { _ = instance.Close() }()
 	if err := config.CheckDataDir(dataDir); err != nil {
+		return err
+	}
+	if err := config.CheckPrivateDir(dataDir); err != nil { // up runs programs from it
 		return err
 	}
 	logger := c.logger()
@@ -212,7 +225,13 @@ func (c *cli) runUp(ctx context.Context, fl *pflag.FlagSet, f upFlags) error {
 	if err := config.CheckFFmpeg(ctx, cfg.Output.FFmpegPath); err != nil {
 		return err
 	}
-	ports.LiveKitTCP, ports.LiveKitUDP, ports.WebRTC = cfg.Media.LiveKitTCPPort, cfg.Media.LiveKitUDPPort, cfg.Media.WebRTCPort
+	ports, err := internalPorts(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	for _, m := range managed(cfg, ports) {
+		*m.ptr = m.want
+	}
 	if err := mediaservers.CheckMediaPorts(ctx, []mediaservers.MediaPort{
 		{Network: "tcp", Port: ports.LiveKitTCP, Flag: "--livekit-tcp-port"},
 		{Network: "udp", Port: ports.LiveKitUDP, Flag: "--livekit-udp-port"},
@@ -227,6 +246,23 @@ func (c *cli) runUp(ctx context.Context, fl *pflag.FlagSet, f upFlags) error {
 	}
 	defer group.Stop() // after the server stopped, before the lock is released
 	return c.serve(ctx, cfg, tlsConfig, f.noMigrate, nil)
+}
+
+// internalPorts chooses the four internal ports, none of them a media port or the port of server.addr, and returns
+// them with the media ports of cfg.
+func internalPorts(ctx context.Context, cfg *config.Config) (mediaservers.Ports, error) {
+	exclude := []int{cfg.Media.LiveKitTCPPort, cfg.Media.LiveKitUDPPort, cfg.Media.WebRTCPort}
+	if _, port, err := net.SplitHostPort(cfg.Server.Addr); err == nil {
+		if n, err := strconv.Atoi(port); err == nil {
+			exclude = append(exclude, n)
+		}
+	}
+	internal, err := mediaservers.FreePorts(ctx, 4, exclude...)
+	if err != nil {
+		return mediaservers.Ports{}, err
+	}
+	return mediaservers.Ports{LiveKit: internal[0], WHIP: internal[1], RTSP: internal[2], API: internal[3],
+		LiveKitTCP: cfg.Media.LiveKitTCPPort, LiveKitUDP: cfg.Media.LiveKitUDPPort, WebRTC: cfg.Media.WebRTCPort}, nil
 }
 
 // startMedia chooses, configures and starts the two media servers and waits until both answer.

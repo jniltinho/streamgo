@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/jniltinho/streamgo/internal/mediaservers"
 	"github.com/jniltinho/streamgo/internal/mediaservers/mediatest"
@@ -117,7 +118,7 @@ func unpack(t *testing.T, exe, dataDir string, pinned map[string]string) []media
 
 func TestPayloadUnpacked(t *testing.T) { // not parallel: it runs a file it wrote (text file busy)
 	dataDir := t.TempDir()
-	got := unpack(t, single(t), dataDir, map[string]string{mediaservers.LiveKit: digest(scriptLK)})
+	got := unpack(t, single(t), dataDir, scriptDigests())
 	want := filepath.Join(dataDir, "media", "livekit-server-"+digest(scriptLK)[:12])
 	if got[0].Path != want || got[0].From != mediaservers.FromPayload || got[0].Version != "v1.0.0-livekit-server" {
 		t.Fatalf("%+v", got[0])
@@ -160,9 +161,9 @@ func TestADamagedPayload(t *testing.T) {
 			if err := os.WriteFile(path, content, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			var pinned map[string]string
+			pinned := scriptDigests()
 			if name == "pinned digest" { // a payload of another release: checked against the program, not itself
-				pinned = map[string]string{mediaservers.MediaMTX: digest([]byte("another"))}
+				pinned = pinnedOf(scriptLK, []byte("another"))
 			}
 			dataDir := t.TempDir()
 			_, err := mediaservers.Finder{Executable: path, DataDir: dataDir, Pinned: pinned, LookPath: lookNowhere}.Find(context.Background())
@@ -186,10 +187,10 @@ func TestADamagedPayload(t *testing.T) {
 func TestUnpackedOnce(t *testing.T) {
 	t.Parallel()
 	exe, dataDir := single(t), t.TempDir()
-	first := unpack(t, exe, dataDir, nil)
+	first := unpack(t, exe, dataDir, scriptDigests())
 	st1, _ := os.Stat(first[0].Path)
 	st2a, _ := os.Stat(first[1].Path)
-	second := unpack(t, exe, dataDir, nil)
+	second := unpack(t, exe, dataDir, scriptDigests())
 	st2, _ := os.Stat(second[0].Path)
 	st2b, _ := os.Stat(second[1].Path)
 	ino := func(fi os.FileInfo) uint64 { return fi.Sys().(*syscall.Stat_t).Ino }
@@ -201,11 +202,11 @@ func TestUnpackedOnce(t *testing.T) {
 func TestAChangedFileIsReplaced(t *testing.T) {
 	t.Parallel()
 	exe, dataDir := single(t), t.TempDir()
-	got := unpack(t, exe, dataDir, nil)
+	got := unpack(t, exe, dataDir, scriptDigests())
 	if err := os.WriteFile(got[0].Path, []byte("#!/bin/sh\necho changed\n"), 0o700); err != nil { //nolint:gosec // a test script
 		t.Fatal(err)
 	}
-	got = unpack(t, exe, dataDir, nil)
+	got = unpack(t, exe, dataDir, scriptDigests())
 	if b, _ := os.ReadFile(got[0].Path); digest(b) != digest(scriptLK) {
 		t.Fatal("the changed file was kept")
 	}
@@ -216,7 +217,7 @@ func TestAChangedFileIsReplaced(t *testing.T) {
 	if err := os.Mkdir(got[1].Path, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	got = unpack(t, exe, dataDir, nil)
+	got = unpack(t, exe, dataDir, scriptDigests())
 	if b, _ := os.ReadFile(got[1].Path); digest(b) != digest(scriptMTX) {
 		t.Fatal("the directory was kept")
 	}
@@ -224,11 +225,11 @@ func TestAChangedFileIsReplaced(t *testing.T) {
 
 func TestALostPermissionIsRepaired(t *testing.T) { // not parallel: it runs a file it wrote (text file busy)
 	exe, dataDir := single(t), t.TempDir()
-	got := unpack(t, exe, dataDir, nil)
+	got := unpack(t, exe, dataDir, scriptDigests())
 	if err := os.Chmod(got[0].Path, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got = unpack(t, exe, dataDir, nil)
+	got = unpack(t, exe, dataDir, scriptDigests())
 	if st, _ := os.Stat(got[0].Path); st.Mode().Perm() != 0o700 {
 		t.Fatalf("mode %v", st.Mode())
 	}
@@ -249,7 +250,7 @@ func TestAnOlderVersionIsRemoved(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got := unpack(t, single(t), dataDir, nil)
+	got := unpack(t, single(t), dataDir, scriptDigests())
 	entries, _ := os.ReadDir(media)
 	var names []string
 	for _, e := range entries {
@@ -267,7 +268,7 @@ func TestADirectoryThatIsNotItsOwn(t *testing.T) {
 	if err := os.Symlink(target, filepath.Join(dataDir, "media")); err != nil {
 		t.Fatal(err)
 	}
-	_, err := mediaservers.Finder{Executable: single(t), DataDir: dataDir, LookPath: lookNowhere}.Find(context.Background())
+	_, err := mediaservers.Finder{Executable: single(t), DataDir: dataDir, Pinned: scriptDigests(), LookPath: lookNowhere}.Find(context.Background())
 	if err == nil || !strings.Contains(err.Error(), filepath.Join(dataDir, "media")) || !strings.Contains(err.Error(), "symbolic link") {
 		t.Fatalf("error %v", err)
 	}
@@ -308,5 +309,186 @@ func TestSinglePayloadScript(t *testing.T) {
 	}
 	if st, _ := os.Stat(out); st.Mode().Perm() != 0o755 {
 		t.Fatalf("mode %v", st.Mode())
+	}
+}
+
+// scriptDigests are the digests a release of the two scripts pins.
+func scriptDigests() map[string]string { return pinnedOf(scriptLK, scriptMTX) }
+
+// TestAPayloadNeedsPinnedDigests is "Embedded media servers" without the digests: an executable built without them
+// (or with a malformed one) refuses its payload instead of trusting the payload's own trailer, and writes nothing.
+func TestAPayloadNeedsPinnedDigests(t *testing.T) {
+	t.Parallel()
+	for name, pinned := range map[string]map[string]string{
+		"none":         nil,
+		"only LiveKit": {mediaservers.LiveKit: digest(scriptLK)},
+		"not a digest": {mediaservers.LiveKit: digest(scriptLK), mediaservers.MediaMTX: "unknown"},
+		"short":        {mediaservers.LiveKit: digest(scriptLK), mediaservers.MediaMTX: digest(scriptMTX)[:40]},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dataDir := t.TempDir()
+			_, err := mediaservers.Finder{Executable: single(t), DataDir: dataDir, Pinned: pinned, LookPath: lookNowhere}.Find(context.Background())
+			if err == nil || !strings.Contains(err.Error(), "no SHA-256") || !strings.Contains(err.Error(), "buildinfo.") {
+				t.Fatalf("error %v", err)
+			}
+			if entries, _ := os.ReadDir(dataDir); len(entries) != 0 {
+				t.Fatalf("written: %v", entries)
+			}
+		})
+	}
+}
+
+// TestTemporaryFilesAreNew: a link planted where a temporary file used to be (the unpacked programs and the
+// generated configuration) is never written through.
+func TestTemporaryFilesAreNew(t *testing.T) {
+	t.Parallel()
+	dataDir, outside := t.TempDir(), t.TempDir()
+	media := filepath.Join(dataDir, "media")
+	if err := os.Mkdir(media, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	victim := filepath.Join(outside, "streamgo.db")
+	if err := os.WriteFile(victim, []byte("the database"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"." + "livekit-server-" + digest(scriptLK)[:12] + ".tmp", "." + "mediamtx-" + digest(scriptMTX)[:12] + ".tmp",
+		"livekit.yaml.tmp", "mediamtx.yml.tmp"} {
+		if err := os.Symlink(victim, filepath.Join(media, n)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	programs := unpack(t, single(t), dataDir, scriptDigests())
+	s := newStack(t)
+	s.setup.Dir = media
+	if _, err := mediaservers.Children(s.setup, programs[0], programs[1]); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(victim); string(b) != "the database" { //nolint:gosec // a test file
+		t.Fatalf("the file behind the link was written: %q", b)
+	}
+	for _, n := range []string{filepath.Base(programs[0].Path), "livekit.yaml", "mediamtx.yml"} {
+		if st, err := os.Lstat(filepath.Join(media, n)); err != nil || !st.Mode().IsRegular() {
+			t.Errorf("%s: %v %v", n, st, err)
+		}
+	}
+	if st, _ := os.Stat(filepath.Join(media, "livekit.yaml")); st.Mode().Perm() != 0o600 {
+		t.Errorf("livekit.yaml mode %v", st.Mode())
+	}
+}
+
+// TestAPayloadThatDecompressesTooMuch: a stream that decodes to more than the limit fails as damaged at the limit,
+// and nothing is left of it.
+func TestAPayloadThatDecompressesTooMuch(t *testing.T) {
+	t.Parallel()
+	exe := filepath.Join(t.TempDir(), "streamgo")
+	big := make([]byte, 1<<20) // a megabyte of zeros: a few bytes compressed
+	payload(t, exe, []byte("an executable"), big, scriptMTX)
+	dataDir := t.TempDir()
+	_, err := mediaservers.Finder{Executable: exe, DataDir: dataDir, Pinned: pinnedOf(big, scriptMTX), LookPath: lookNowhere,
+		MaxProgramSize: 64 << 10}.Find(context.Background())
+	if !errors.Is(err, mediaservers.ErrDamaged) || !strings.Contains(err.Error(), "more than 65536 bytes") {
+		t.Fatalf("error %v", err)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(dataDir, "media")); len(entries) != 0 {
+		t.Fatalf("left: %v", entries)
+	}
+	// the default limit is generous: the same file unpacks
+	f := mediaservers.Finder{Executable: exe, DataDir: dataDir, Pinned: pinnedOf(big, scriptMTX), LookPath: lookNowhere}
+	if _, err := f.Find(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestUnpackingStopsWithTheContext: a start interrupted while it unpacks stops unpacking and leaves nothing.
+func TestUnpackingStopsWithTheContext(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	dataDir := t.TempDir()
+	_, err := mediaservers.Finder{Executable: single(t), DataDir: dataDir, Pinned: scriptDigests(), LookPath: lookNowhere}.Find(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error %v", err)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(dataDir, "media")); len(entries) != 0 {
+		t.Fatalf("left: %v", entries)
+	}
+}
+
+// TestADirectoryInTheWayIsKept: a directory where a program goes is removed only when empty, never with what it
+// holds.
+func TestADirectoryInTheWayIsKept(t *testing.T) {
+	t.Parallel()
+	dataDir := t.TempDir()
+	path := filepath.Join(dataDir, "media", "livekit-server-"+digest(scriptLK)[:12])
+	if err := os.MkdirAll(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "notes.txt"), []byte("mine"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := mediaservers.Finder{Executable: single(t), DataDir: dataDir, Pinned: scriptDigests(), LookPath: lookNowhere}.Find(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "not empty") {
+		t.Fatalf("error %v", err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(path, "notes.txt")); string(b) != "mine" { //nolint:gosec // a test file
+		t.Fatal("what the directory held was deleted")
+	}
+}
+
+// TestADanglingLinkBeside is "A candidate that cannot run" for a link beside the executable whose target is gone:
+// it fails naming it, and the program in PATH does not run instead.
+func TestADanglingLinkBeside(t *testing.T) {
+	beside, inPath, home := t.TempDir(), t.TempDir(), t.TempDir()
+	mediatest.Install(t, inPath)
+	t.Setenv("HOME", home) // the version probe of a fake records itself there
+	if err := os.Symlink(filepath.Join(beside, "gone"), filepath.Join(beside, "mediamtx")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(inPath, "livekit-server"), filepath.Join(beside, "livekit-server")); err != nil {
+		t.Fatal(err)
+	}
+	_, err := mediaservers.Finder{Executable: plainExecutable(t, beside), LookPath: lookIn(inPath)}.Find(context.Background())
+	if err == nil || !strings.Contains(err.Error(), filepath.Join(beside, "mediamtx")+" cannot be run") {
+		t.Fatalf("error %v", err)
+	}
+}
+
+// TestAVersionProbeThatHangs: a candidate whose --version prints without end and leaves a process holding its
+// output costs a bounded time, not the life of that process.
+func TestAVersionProbeThatHangs(t *testing.T) { // not parallel: it runs files it wrote (text file busy)
+	beside := t.TempDir()
+	script := []byte("#!/bin/sh\nsleep 60 &\nhead -c 3000000 /dev/zero | tr '\\0' x\nexec sleep 60\n")
+	for _, n := range []string{"livekit-server", "mediamtx"} {
+		if err := os.WriteFile(filepath.Join(beside, n), script, 0o700); err != nil { //nolint:gosec // a test script
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	began := time.Now()
+	got, err := mediaservers.Finder{Executable: plainExecutable(t, beside), LookPath: lookNowhere}.Find(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Since(began); d > 8*time.Second || got[0].Version != "unknown" {
+		t.Fatalf("took %v, version %q", d, got[0].Version)
+	}
+}
+
+// TestADamagedPayloadWithAGoodCache is "A damaged payload" after a first start: the file unpacked then still
+// matches, but the payload is read again and fails.
+func TestADamagedPayloadWithAGoodCache(t *testing.T) {
+	t.Parallel()
+	exe, dataDir := single(t), t.TempDir()
+	unpack(t, exe, dataDir, scriptDigests())
+	data, _ := os.ReadFile(exe) //nolint:gosec // a test file
+	data[len("an executable")+6] ^= 0xff
+	if err := os.WriteFile(exe, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := mediaservers.Finder{Executable: exe, DataDir: dataDir, Pinned: scriptDigests(), LookPath: lookNowhere}.Find(context.Background())
+	if !errors.Is(err, mediaservers.ErrDamaged) {
+		t.Fatalf("error %v", err)
 	}
 }

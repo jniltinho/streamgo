@@ -2,11 +2,13 @@ package mediaservers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
-	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -109,12 +111,17 @@ func Children(s Setup, liveKit, mediaMTX Program) ([]Child, error) {
 	if err := writeFile(mtxConf, generated+fmt.Sprintf(mediaMTXYAML, p.API, p.RTSP, p.WHIP, p.WebRTC, p.WebRTC)); err != nil {
 		return nil, err
 	}
+	// LiveKit reads LIVEKIT_KEYS as YAML: JSON is YAML, and keeps any key and secret a string
+	keys, err := json.Marshal(map[string]string{c.LiveKitKey: c.LiveKitSecret})
+	if err != nil {
+		return nil, fmt.Errorf("LiveKit keys: %w", err)
+	}
 	base := BaseEnv(s.Environ)
 	return []Child{
 		{
 			Name: "livekit", Path: liveKit.Path,
 			Args: []string{"--config", lkConf, "--node-ip", s.NodeIP},
-			Env:  append(base, "LIVEKIT_KEYS="+c.LiveKitKey+": "+c.LiveKitSecret),
+			Env:  append(base, "LIVEKIT_KEYS="+string(keys)),
 		},
 		{
 			Name: "mediamtx", Path: mediaMTX.Path,
@@ -147,28 +154,33 @@ func BaseEnv(environ []string) []string {
 }
 
 func writeFile(path, text string) error {
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, []byte(text), 0o600); err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	return nil
+	return writeAtomic(path, 0o600, func(w io.Writer) error {
+		_, err := io.WriteString(w, text)
+		return err
+	})
 }
 
-// FreePorts returns n distinct TCP ports free on the loopback address at this moment.
-func FreePorts(ctx context.Context, n int) ([]int, error) {
+// FreePorts returns n distinct TCP ports free on the loopback address at this moment, none of them one of exclude
+// (the ports this instance will listen on itself).
+func FreePorts(ctx context.Context, n int, exclude ...int) ([]int, error) {
 	var lc net.ListenConfig
+	return freePorts(n, exclude, func() (net.Listener, error) { return lc.Listen(ctx, "tcp", "127.0.0.1:0") })
+}
+
+func freePorts(n int, exclude []int, listen func() (net.Listener, error)) ([]int, error) {
 	var ports []int
-	for range n {
-		l, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
+	for tries := 0; len(ports) < n; tries++ {
+		if tries > n+64 {
+			return nil, errors.New("choose a free port: the system keeps offering excluded ports")
+		}
+		l, err := listen()
 		if err != nil {
 			return nil, fmt.Errorf("choose a free port: %w", err)
 		}
-		defer func() { _ = l.Close() }()
-		ports = append(ports, l.Addr().(*net.TCPAddr).Port)
+		defer func() { _ = l.Close() }() // held until all are chosen: never offered twice
+		if p := l.Addr().(*net.TCPAddr).Port; !slices.Contains(exclude, p) {
+			ports = append(ports, p)
+		}
 	}
 	return ports, nil
 }

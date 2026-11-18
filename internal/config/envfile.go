@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 )
 
 // EnvFileName is the file of the data directory that holds the secrets `streamgo up` created: NAME=value lines,
@@ -25,8 +26,9 @@ func EnvFilePath(dataDir string) string { return filepath.Join(dataDir, EnvFileN
 var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // ParseEnv reads NAME=value lines (the format of packaging/streamgo.env): blank lines and lines starting with # are
-// skipped, a value in single or double quotes is taken literally without them. Any other line fails, naming file
-// and its line number; the error never holds a value.
+// skipped, a value in single quotes is taken literally without them, and one in double quotes too, but for \\ and
+// \" that stand for \ and " (as systemd reads them). Any other line fails, naming file and its line number; the
+// error never holds a value.
 func ParseEnv(file string, data []byte) (map[string]string, error) {
 	vars := map[string]string{}
 	for i, line := range strings.Split(string(data), "\n") {
@@ -38,16 +40,25 @@ func ParseEnv(file string, data []byte) (map[string]string, error) {
 		if !ok || !envName.MatchString(name) {
 			return nil, fmt.Errorf("%s line %d: not a NAME=value assignment", file, i+1)
 		}
-		if len(value) >= 2 && (value[0] == '\'' || value[0] == '"') && value[len(value)-1] == value[0] {
+		switch {
+		case len(value) >= 2 && value[0] == '\'' && value[len(value)-1] == '\'':
 			value = value[1 : len(value)-1]
+		case len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"':
+			value = doubleQuoted.Replace(value[1 : len(value)-1])
 		}
 		vars[name] = value
 	}
 	return vars, nil
 }
 
-// ReadEnvFile parses the env file at path; a missing file has no variables.
+var doubleQuoted = strings.NewReplacer(`\\`, `\`, `\"`, `"`)
+
+// ReadEnvFile parses the env file at path; a missing file has no variables. readFile nil reads it as
+// OpenEnvFile does.
 func ReadEnvFile(path string, readFile func(string) ([]byte, error)) (map[string]string, error) {
+	if readFile == nil {
+		readFile = OpenEnvFile
+	}
 	data, err := readFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -56,6 +67,44 @@ func ReadEnvFile(path string, readFile func(string) ([]byte, error)) (map[string
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	return ParseEnv(path, data)
+}
+
+// OpenEnvFile reads the env file at path, which holds secrets, only when it is safe: opened without following a
+// symbolic link, a regular file, owned by this user (root reads the file of any user). Permissions wider than 0600
+// on a file of this user are taken back to 0600; on another's file they refuse it. No error holds a value.
+func OpenEnvFile(path string) ([]byte, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0) //nolint:gosec // the data directory's own file, checked below
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, fmt.Errorf("%s is a symbolic link: it holds secrets, so it must be a file of its own", path)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !st.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s is not a regular file (%v): it holds secrets, so it must be a file of its own", path, st.Mode().Type())
+	}
+	uid := -1
+	if sys, ok := st.Sys().(*syscall.Stat_t); ok {
+		uid = int(sys.Uid)
+	}
+	mine := uid == os.Geteuid()
+	if !mine && os.Geteuid() != 0 {
+		return nil, fmt.Errorf("%s belongs to another user (uid %d): it holds secrets, so it must be yours", path, uid)
+	}
+	if st.Mode().Perm()&0o077 != 0 {
+		if !mine {
+			return nil, fmt.Errorf("%s can be read by other users (mode %v): make it 0600", path, st.Mode().Perm())
+		}
+		if err := f.Chmod(0o600); err != nil {
+			return nil, fmt.Errorf("%s can be read by other users (mode %v) and cannot be made 0600: %w", path, st.Mode().Perm(), err)
+		}
+	}
+	return io.ReadAll(io.LimitReader(f, 1<<20))
 }
 
 // The variables EnsureEnvFile stores, with how each is generated: the same values as packaging/init-env.sh.
@@ -87,7 +136,7 @@ func EnsureEnvFile(dataDir string, lookup func(string) (string, bool), rnd io.Re
 		rnd = rand.Reader
 	}
 	path := EnvFilePath(dataDir)
-	old, err := os.ReadFile(path) //nolint:gosec // the operator's own data directory
+	old, err := OpenEnvFile(path)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
@@ -124,15 +173,19 @@ func EnsureEnvFile(dataDir string, lookup func(string) (string, bool), rnd io.Re
 	return added, writeFileAtomic(path, buf.Bytes())
 }
 
-// envValue writes value so ParseEnv, systemd and the shell all read it literally.
+// envValue writes value so ParseEnv and systemd read it back as it is: bare when it is plain, else in single quotes,
+// else (it has a single quote) in double quotes with \ and " escaped.
 func envValue(name, value string) (string, error) {
-	if strings.Trim(value, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-_./:@=") == "" {
+	switch {
+	case strings.Trim(value, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-_./:@=") == "":
 		return value, nil
+	case strings.ContainsAny(value, "\n\r"):
+		return "", fmt.Errorf("%s: the value has a line break and cannot be stored in %s", name, EnvFileName)
+	case !strings.Contains(value, "'"):
+		return "'" + value + "'", nil
+	default:
+		return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(value) + `"`, nil
 	}
-	if strings.ContainsAny(value, "'\n\r") {
-		return "", fmt.Errorf("%s: the value has a quote or a line break and cannot be stored in %s", name, EnvFileName)
-	}
-	return "'" + value + "'", nil
 }
 
 // writeFileAtomic writes data to a temporary file of mode 0600 beside path and renames it over path.

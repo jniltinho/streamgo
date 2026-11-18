@@ -2,6 +2,7 @@ package mediaservers
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -48,6 +49,7 @@ func (b Backoff) Next(prev, ran time.Duration) time.Duration {
 const (
 	MaxLine   = 4096 // bytes of a line logged; the rest of a longer line is dropped
 	TailLines = 20   // lines kept for a failure message
+	LogQueue  = 256  // lines of a server waiting for the logger; more are dropped and counted, never waited for
 	redacted  = "[redacted]"
 )
 
@@ -67,18 +69,24 @@ type Group struct {
 	opts     Options
 	launches chan launch
 	launcher chan struct{} // closed when the launcher returned
-	stop     chan struct{} // closed when shutdown begins
+	quiet    chan struct{} // closed when restarts are disabled: shutdown began
 	monitors sync.WaitGroup
+	loggers  sync.WaitGroup // the goroutines that log the output of each run
 
-	mu       sync.Mutex
-	stopping bool
-	children []*child
+	mu        sync.Mutex
+	noRestart bool // no process is started any more; quiet is closed
+	stopped   bool // Stop was called
+	children  []*child
 }
 
 type launch struct {
+	c    *child
 	cmd  *exec.Cmd
 	done chan error
 }
+
+// errShuttingDown is the start of a process refused because shutdown began.
+var errShuttingDown = errors.New("shutting down")
 
 type child struct {
 	Child
@@ -89,7 +97,8 @@ type child struct {
 
 // Start starts every child and waits until each answers its readiness check. When one cannot be started or does
 // not become ready within the timeout, the children already started are stopped and the error carries the last
-// lines of the one that failed.
+// lines of the one that failed. When ctx ends, restarts are disabled at once (shutdown began); the children that
+// run keep running until Stop.
 func Start(ctx context.Context, opts Options, children []Child) (*Group, error) {
 	if opts.Logger == nil {
 		opts.Logger = slog.New(slog.DiscardHandler)
@@ -103,8 +112,15 @@ func Start(ctx context.Context, opts Options, children []Child) (*Group, error) 
 	if opts.Backoff == (Backoff{}) {
 		opts.Backoff = DefaultBackoff()
 	}
-	g := &Group{opts: opts, launches: make(chan launch), launcher: make(chan struct{}), stop: make(chan struct{})}
+	g := &Group{opts: opts, launches: make(chan launch), launcher: make(chan struct{}), quiet: make(chan struct{})}
 	go g.launch()
+	go func() {
+		select {
+		case <-ctx.Done():
+			g.disableRestarts()
+		case <-g.quiet:
+		}
+	}()
 	for _, c := range children {
 		ch := &child{Child: c}
 		g.mu.Lock()
@@ -126,12 +142,23 @@ func Start(ctx context.Context, opts Options, children []Child) (*Group, error) 
 }
 
 // launch is the launcher goroutine. It never unlocks its thread: the thread ends with it, after every child was
-// waited for.
+// waited for. A process is started and registered under g.mu, so it is either refused (restarts disabled) or
+// registered before Stop can signal the children: a launch never wins against a stop.
 func (g *Group) launch() {
 	defer close(g.launcher)
 	runtime.LockOSThread()
 	for l := range g.launches {
-		l.done <- l.cmd.Start()
+		g.mu.Lock()
+		err := errShuttingDown
+		if !g.noRestart {
+			if err = l.cmd.Start(); err == nil {
+				l.c.mu.Lock()
+				l.c.cmd = l.cmd
+				l.c.mu.Unlock()
+			}
+		}
+		g.mu.Unlock()
+		l.done <- err
 	}
 }
 
@@ -148,29 +175,26 @@ func (g *Group) run(c *child) (<-chan error, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 	done := make(chan error, 1)
 	select {
-	case g.launches <- launch{cmd: cmd, done: done}:
+	case g.launches <- launch{c: c, cmd: cmd, done: done}:
 		err = <-done
-	case <-g.stop:
-		err = errors.New("shutting down")
+	case <-g.quiet:
+		err = errShuttingDown
 	}
 	_ = w.Close()
 	if err != nil {
 		_ = r.Close()
 		return nil, fmt.Errorf("start %s (%s): %w", c.Name, c.Path, err)
 	}
-	g.opts.Logger.Info("media server started", "component", c.Name, "pid", cmd.Process.Pid)
+	// the process is registered (launch); its reader and its waiter exist before anything is logged about it
+	lines := make(chan logLine, LogQueue)
+	g.loggers.Add(1)
+	go g.deliver(c, lines)
 	output := make(chan struct{})
 	go func() {
 		defer close(output)
-		defer func() { _ = r.Close() }()
-		g.read(c, r)
+		defer close(lines)
+		g.read(c, r, lines)
 	}()
-	c.mu.Lock()
-	c.cmd = cmd
-	c.mu.Unlock()
-	if g.isStopping() { // Stop signalled the children before this process was there
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
-	}
 	exited := make(chan error, 1)
 	go func() {
 		err := cmd.Wait()
@@ -180,32 +204,36 @@ func (g *Group) run(c *child) (<-chan error, error) {
 		select { // its last lines, unless something it started still holds the pipe
 		case <-output:
 		case <-time.After(2 * time.Second):
+			_ = r.Close() // ends the reader
+			<-output
 		}
+		_ = r.Close()
 		exited <- err
 	}()
+	g.opts.Logger.Info("media server started", "component", c.Name, "pid", cmd.Process.Pid)
 	return exited, nil
 }
 
-// supervise starts c again each time it exits, after the backoff delay, until shutdown begins.
+// supervise starts c again each time it exits, after the backoff delay, until restarts are disabled.
 func (g *Group) supervise(c *child, exited <-chan error) {
 	defer g.monitors.Done()
 	var delay time.Duration
 	started := time.Now()
 	for {
 		err := <-exited
-		if g.isStopping() {
+		if g.restartsDisabled() {
 			return
 		}
 		delay = g.opts.Backoff.Next(delay, time.Since(started))
 		g.opts.Logger.Warn("media server exited: starting it again", "component", c.Name, "error", err, "delay", delay.String())
 		select {
-		case <-g.stop:
+		case <-g.quiet:
 			return
 		case <-time.After(delay):
 		}
 		started = time.Now()
 		if exited, err = g.run(c); err != nil {
-			if g.isStopping() {
+			if g.restartsDisabled() {
 				return
 			}
 			g.opts.Logger.Error("media server did not start", "component", c.Name, "error", err)
@@ -216,10 +244,20 @@ func (g *Group) supervise(c *child, exited <-chan error) {
 	}
 }
 
-func (g *Group) isStopping() bool {
+func (g *Group) restartsDisabled() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.stopping
+	return g.noRestart
+}
+
+// disableRestarts makes the launcher refuse every further start: shutdown began.
+func (g *Group) disableRestarts() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if !g.noRestart {
+		g.noRestart = true
+		close(g.quiet)
+	}
 }
 
 // ready waits until every child answers its readiness check.
@@ -257,16 +295,14 @@ func (g *Group) ready(ctx context.Context) error {
 // there after the stop timeout, and every child waited for. The launcher's thread ends last.
 func (g *Group) Stop() {
 	g.mu.Lock()
-	first := !g.stopping
-	if first {
-		g.stopping = true
-		close(g.stop)
-	}
+	first := !g.stopped
+	g.stopped = true
 	g.mu.Unlock()
 	if !first {
 		<-g.launcher
 		return
 	}
+	g.disableRestarts() // from here on every process is registered, or never started
 	g.signal(syscall.SIGTERM)
 	done := make(chan struct{})
 	go func() {
@@ -282,6 +318,7 @@ func (g *Group) Stop() {
 	}
 	close(g.launches)
 	<-g.launcher
+	g.loggers.Wait()
 	g.opts.Logger.Info("media servers stopped")
 }
 
@@ -299,16 +336,37 @@ func (g *Group) signal(sig syscall.Signal) {
 	}
 }
 
-// read logs each line of r, cut at MaxLine and with the secrets replaced, and keeps the last TailLines.
-func (g *Group) read(c *child, r io.Reader) {
-	br := bufio.NewReaderSize(r, MaxLine)
+// logLine is a line on its way to the logger, with the count of lines dropped before it.
+type logLine struct {
+	text    string
+	dropped int
+}
+
+// read drains r line by line: each line, with the secrets replaced and then cut at MaxLine, goes to the tail and to
+// lines without ever waiting (a full queue drops the line and counts it). A secret is replaced before the line is
+// cut: the reader holds MaxLine bytes plus the longest secret, so a secret that starts before the cut is seen whole.
+func (g *Group) read(c *child, r io.Reader, lines chan<- logLine) {
+	longest := 0
+	for _, s := range g.opts.Secrets {
+		longest = max(longest, len(s))
+	}
+	br := bufio.NewReaderSize(r, MaxLine+longest)
+	dropped := 0
+	emit := func(raw []byte, cut bool) {
+		select {
+		case lines <- logLine{text: g.line(c, raw, cut), dropped: dropped}:
+			dropped = 0
+		default:
+			dropped++
+		}
+	}
 	for {
 		line, err := br.ReadSlice('\n')
 		switch {
 		case err == nil:
-			g.line(c, string(line[:len(line)-1]))
+			emit(line[:len(line)-1], false)
 		case errors.Is(err, bufio.ErrBufferFull):
-			g.line(c, string(line)+" [line cut]")
+			emit(line, true)
 			for errors.Is(err, bufio.ErrBufferFull) {
 				_, err = br.ReadSlice('\n')
 			}
@@ -317,31 +375,82 @@ func (g *Group) read(c *child, r io.Reader) {
 			}
 		default:
 			if len(line) > 0 {
-				g.line(c, string(line))
+				emit(line, false)
 			}
 			return
 		}
 	}
 }
 
-func (g *Group) line(c *child, text string) {
-	text = g.redact(strings.ToValidUTF8(strings.TrimSuffix(text, "\r"), "?"))
+// line redacts raw, cuts it at MaxLine and keeps it in the tail.
+func (g *Group) line(c *child, raw []byte, cut bool) string {
+	raw = bytes.TrimSuffix(raw, []byte("\r"))
+	text := redactPrefix(string(raw), g.opts.Secrets, MaxLine)
+	if cut || len(raw) > MaxLine {
+		text += " [line cut]"
+	}
+	text = strings.ToValidUTF8(text, "?")
 	c.mu.Lock()
 	c.tail = append(c.tail, text)
 	if len(c.tail) > TailLines {
 		c.tail = c.tail[len(c.tail)-TailLines:]
 	}
 	c.mu.Unlock()
-	g.opts.Logger.Info(text, "component", c.Name)
+	return text
 }
 
-func (g *Group) redact(s string) string {
-	for _, secret := range g.opts.Secrets {
-		if secret != "" {
-			s = strings.ReplaceAll(s, secret, redacted)
+// deliver logs the lines of one run; it alone waits on the logger.
+func (g *Group) deliver(c *child, lines <-chan logLine) {
+	defer g.loggers.Done()
+	for l := range lines {
+		if l.dropped > 0 {
+			g.opts.Logger.Warn("lines of output dropped: the log does not keep up", "component", c.Name, "dropped", l.dropped)
+		}
+		g.opts.Logger.Info(l.text, "component", c.Name)
+	}
+}
+
+func (g *Group) redact(s string) string { return redactPrefix(s, g.opts.Secrets, len(s)) }
+
+// redactPrefix returns the first limit bytes of s with every byte that belongs to an occurrence of a secret
+// replaced: each run of such bytes, overlapping occurrences included, becomes one marker. An occurrence that starts
+// before limit is replaced whole, even when it ends after it.
+func redactPrefix(s string, secrets []string, limit int) string {
+	var covered []bool
+	for _, secret := range secrets {
+		if secret == "" {
+			continue
+		}
+		for i := 0; i < len(s); {
+			j := strings.Index(s[i:], secret)
+			if j < 0 {
+				break
+			}
+			if covered == nil {
+				covered = make([]bool, len(s))
+			}
+			for k := i + j; k < i+j+len(secret); k++ {
+				covered[k] = true
+			}
+			i += j + 1
 		}
 	}
-	return s
+	limit = min(limit, len(s))
+	if covered == nil {
+		return s[:limit]
+	}
+	var b strings.Builder
+	for i := 0; i < limit; i++ {
+		if !covered[i] {
+			b.WriteByte(s[i])
+			continue
+		}
+		b.WriteString(redacted)
+		for i+1 < len(s) && covered[i+1] {
+			i++
+		}
+	}
+	return b.String()
 }
 
 func (c *child) lastLines() []string {

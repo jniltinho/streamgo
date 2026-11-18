@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -37,8 +38,9 @@ func LoadWith(path string, lookup func(string) (string, bool), readFile func(str
 type Source struct {
 	Path     string                       // the --config value; empty: DefaultPaths
 	Override func(*Config)                // the flags the user gave, applied over the environment
+	Flags    []string                     // the TOML keys Override sets: their environment variables are not read
 	Lookup   func(string) (string, bool)  // nil: os.LookupEnv
-	ReadFile func(string) ([]byte, error) // nil: os.ReadFile
+	ReadFile func(string) ([]byte, error) // nil: os.ReadFile, and OpenEnvFile for streamgo.env
 }
 
 // Raw is the first step of the bootstrap: defaults, the TOML file, the environment and the
@@ -56,7 +58,7 @@ func (s Source) Load() (*Config, error) {
 	}
 	cfg := raw
 	if dir := raw.Server.DataDir; dir != "" {
-		vars, err := ReadEnvFile(EnvFilePath(dir), s.readFile())
+		vars, err := ReadEnvFile(EnvFilePath(dir), s.ReadFile) // nil: OpenEnvFile, which checks the file
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +110,7 @@ func (s Source) build(lookup func(string) (string, bool)) (*Config, error) {
 			return nil, fmt.Errorf("config file %s: %w", file, err)
 		}
 	}
-	if err := applyEnv(cfg, lookup); err != nil {
+	if err := applyEnv(cfg, lookup, s.Flags); err != nil {
 		return nil, err
 	}
 	if s.Override != nil {
@@ -161,12 +163,13 @@ func rejectFileSecrets(cfg *Config) error {
 	return errors.Join(errs...)
 }
 
-// applyEnv overrides fields from STREAMGO_<SECTION>_<KEY> variables.
-func applyEnv(cfg *Config, lookup func(string) (string, bool)) error {
+// applyEnv overrides fields from STREAMGO_<SECTION>_<KEY> variables, but those of the keys a flag sets: a flag wins,
+// also over a malformed value.
+func applyEnv(cfg *Config, lookup func(string) (string, bool), flags []string) error {
 	var errs []error
-	walk(reflect.ValueOf(cfg).Elem(), EnvPrefix, "", func(f reflect.Value, _ reflect.StructField, env, _ string) {
+	walk(reflect.ValueOf(cfg).Elem(), EnvPrefix, "", func(f reflect.Value, _ reflect.StructField, env, key string) {
 		val, ok := lookup(env)
-		if !ok {
+		if !ok || slices.Contains(flags, key) {
 			return
 		}
 		if err := setValue(f, val); err != nil {

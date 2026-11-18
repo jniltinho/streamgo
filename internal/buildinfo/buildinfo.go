@@ -13,7 +13,8 @@ var (
 	Date = "unknown"
 	// LiveKitSHA256 and MediaMTXSHA256 are the SHA-256 of the two media servers the release pins (LIVEKIT_SHA256 and
 	// MEDIAMTX_SHA256 of the Dockerfile). `streamgo up` runs a media server of its own payload only when the unpacked
-	// file has that digest. Empty (a development build): the digest the payload's trailer records is used instead.
+	// file has that digest. Empty (a development build): `up` refuses a payload and uses only the programs beside
+	// the executable or in PATH.
 	LiveKitSHA256  = ""
 	MediaMTXSHA256 = ""
 )

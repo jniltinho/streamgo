@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -70,7 +71,8 @@ func newStack(t *testing.T, extraEnv ...string) *stack {
 			t.Logf("the supervisor's log:\n%.20000s", s.logs.String())
 		}
 	})
-	internal, err := mediaservers.FreePorts(context.Background(), 7)
+	media := mediatest.FreePorts(t, 3) // free over TCP and UDP
+	internal, err := mediaservers.FreePorts(context.Background(), 4, media...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +80,7 @@ func newStack(t *testing.T, extraEnv ...string) *stack {
 		Dir:    t.TempDir(),
 		NodeIP: "127.0.0.1",
 		Ports: mediaservers.Ports{LiveKit: internal[0], WHIP: internal[1], RTSP: internal[2], API: internal[3],
-			LiveKitTCP: internal[4], LiveKitUDP: internal[5], WebRTC: internal[6]},
+			LiveKitTCP: media[0], LiveKitUDP: media[1], WebRTC: media[2]},
 		Credentials: testCreds,
 		Environ:     append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + s.home}, extraEnv...),
 	}
@@ -158,21 +160,43 @@ func gone(pid int) bool {
 	return strings.HasPrefix(after, "Z")
 }
 
-// listening reports whether something holds the port on the network.
-func listening(network string, port int) bool {
-	addr := fmt.Sprintf(":%d", port)
-	if network == "udp" {
-		c, err := net.ListenPacket("udp", addr)
-		if err == nil {
-			_ = c.Close()
+// groupMembers are the live (not zombie) processes of the process group pgid, read from /proc: independent of
+// whether its leader is still there.
+func groupMembers(pgid int) []int {
+	entries, _ := os.ReadDir("/proc")
+	var out []int
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
 		}
-		return err != nil
+		b, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+		if err != nil {
+			continue
+		}
+		_, after, _ := strings.Cut(string(b), ") ") // state ppid pgrp ...
+		f := strings.Fields(after)
+		if len(f) > 2 && f[0] != "Z" && f[2] == strconv.Itoa(pgid) {
+			out = append(out, pid)
+		}
 	}
-	l, err := net.Listen("tcp", addr)
-	if err == nil {
-		_ = l.Close()
+	return out
+}
+
+// listens reports whether the fake start pid of component listens on network :port (from its own record).
+func listens(home, component string, pid int, network string, port int) bool {
+	for _, l := range mediatest.Listeners(home, component, pid) {
+		n, addr, _ := strings.Cut(l, " ")
+		if _, p, err := net.SplitHostPort(addr); err == nil && n == network && p == strconv.Itoa(port) {
+			return true
+		}
 	}
-	return err != nil
+	return false
+}
+
+// pinnedOf is the digests a release pins for these two programs.
+func pinnedOf(liveKit, mediaMTX []byte) map[string]string {
+	return map[string]string{mediaservers.LiveKit: digest(liveKit), mediaservers.MediaMTX: digest(mediaMTX)}
 }
 
 // payload builds the single file at path: base, then each program compressed, the trailer and the footer, in the

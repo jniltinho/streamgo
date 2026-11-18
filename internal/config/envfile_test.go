@@ -325,6 +325,10 @@ func TestADataDirectoryOthersCanReplace(t *testing.T) {
 	if err := config.CheckPrivateDir(mk(t, 0o700, mk(t, 0o777|os.ModeSticky, base, "sticky"), "data")); err != nil {
 		t.Fatalf("below a sticky directory: %v", err)
 	}
+	// a private group per user (umask 002): the directories above are writable by the group
+	if err := config.CheckPrivateDir(mk(t, 0o700, mk(t, 0o775, base, "project"), "data")); err != nil {
+		t.Fatalf("below a directory its group can write: %v", err)
+	}
 	link := filepath.Join(base, "link")
 	if err := os.Symlink(filepath.Join(base, "ok"), link); err != nil {
 		t.Fatal(err)

@@ -29,8 +29,10 @@ func CheckDataDir(dir string) error {
 }
 
 // CheckPrivateDir refuses dir when a user other than this one (and root) could replace it or what it holds: dir
-// and each directory above it, as written and with its links resolved, must belong to this user or to root, and
-// none may be writable by others unless it has the sticky bit (as /tmp), which forbids replacing another's entry.
+// and each directory above it, as written and with its links resolved, must belong to this user or to root; dir
+// itself may be written by its owner only, and no directory above it by everyone unless it has the sticky bit
+// (as /tmp), which forbids replacing another's entry. A directory above it that its group can write is accepted:
+// distributions with a private group per user create every directory that way (umask 002).
 func CheckPrivateDir(dir string) error {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
@@ -64,8 +66,12 @@ func privateDir(d string, last bool) error {
 	if sys, ok := st.Sys().(*syscall.Stat_t); ok && sys.Uid != 0 && int(sys.Uid) != os.Geteuid() {
 		return fmt.Errorf("--data-dir: %s belongs to another user (uid %d), who could replace the data directory: choose one of your own", d, sys.Uid)
 	}
-	if perm := st.Mode().Perm(); perm&0o022 != 0 && (last || st.Mode()&fs.ModeSticky == 0) {
+	perm := st.Mode().Perm()
+	if last && perm&0o022 != 0 {
 		return fmt.Errorf("--data-dir: other users can write to %s (mode %v) and replace what up runs from it: chmod go-w it, or choose another", d, perm)
+	}
+	if !last && perm&0o002 != 0 && st.Mode()&fs.ModeSticky == 0 {
+		return fmt.Errorf("--data-dir: everyone can write to %s (mode %v) and replace the data directory in it: chmod o-w it, or choose another", d, perm)
 	}
 	return nil
 }

@@ -31,6 +31,17 @@ when the three are.
 - **WHEN** `streamgo up` runs as root
 - **THEN** it exits 1 saying to run it as an unprivileged user, and creates nothing
 
+#### Scenario: A data directory others can change
+- **GIVEN** a data directory that its group or everyone can write, or one below a directory everyone can write
+  that is not sticky, or a `streamgo.env` that is a symbolic link
+- **WHEN** `streamgo up` runs
+- **THEN** it exits 1 naming the path, and starts nothing
+
+#### Scenario: A private group per user
+- **GIVEN** a data directory of mode 0700 below a directory of mode 0775
+- **WHEN** `streamgo up` runs
+- **THEN** it starts
+
 #### Scenario: A failure after a media server started
 - **WHEN** the second media server or the StreamGo server fails to start
 - **THEN** `up` exits 1 and the process group of every child it started is gone within 15 s
@@ -64,6 +75,11 @@ SHALL NOT try the next source when the chosen one fails.
 The single file SHALL carry the LiveKit and MediaMTX executables of the release, and `up` SHALL unpack them into
 a directory of its own under the data directory and run only files whose SHA-256 is the one compiled into the
 program.
+
+#### Scenario: A payload without pinned digests
+- **GIVEN** a single file whose executable was built without the two SHA-256 of the media servers
+- **WHEN** `up` starts
+- **THEN** it exits 1 naming the missing digest, and writes nothing
 
 #### Scenario: A damaged payload
 - **GIVEN** a single file whose payload was altered, or cut short

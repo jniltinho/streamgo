@@ -78,6 +78,12 @@ logos, `streamgo.env`, the self-signed certificate when you use one, and the unp
 It must be on a file system that allows running programs: `up` stops with a message that says `noexec` and names
 `--data-dir` when it is mounted that way (as `/tmp` often is).
 
+`up` runs programs from the data directory, so it is strict about who can change it: the directory must belong to
+the user that runs `up` and be writable by that user only, no directory above it may be writable by everyone
+(a sticky directory such as `/tmp` is accepted), and `streamgo.env` must be a regular file of that user. A wrong
+mode on your own `streamgo.env` is set back to 0600; anything else stops the start with a message that names the
+path.
+
 ## 4. The first start
 
 Run it once by hand to see it come up. From the root shell:

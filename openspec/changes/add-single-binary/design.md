@@ -38,7 +38,7 @@ it. An executable without the mark has no payload.
 
 The SHA-256 of the two media servers is compiled into every build from the `LIVEKIT_SHA256` and
 `MEDIAMTX_SHA256` the `Dockerfile` already pins, so a payload is checked against the program, not against
-itself.
+itself: an executable that carries a payload but was built without the two digests refuses to start.
 
 `up` chooses each program once, in this order: the payload of its own executable, the file beside the running
 executable, `PATH`.
@@ -78,6 +78,13 @@ At every start it compares the SHA-256 of the file on disk with the digest compi
 the file again
 when it is missing, differs or is not a regular file; a correct file with a wrong mode gets its mode back.
 Cleanup removes only files in that directory whose name is one of the two programs with another digest.
+
+Programs are run from the data directory, so `up` refuses one that somebody else could replace: the directory
+and every directory above it (as written and with links resolved) must belong to the user or to root, the
+directory itself may be written by its owner only, and no directory above it by everyone unless it is sticky. A
+directory above it that its group can write is accepted, because distributions with a private group per user
+create every directory that way; a member of that group could then replace the data directory, as they could
+replace the executable beside it.
 
 A program that cannot be executed fails the start. The message names `--data-dir` and says `noexec` only when the
 file system is mounted that way; otherwise it reports the permission error as it is. A media server already
@@ -160,7 +167,10 @@ cannot ask it where the data directory is. The loader gains a bootstrap step:
    `packaging/streamgo.env`; it is data, never run by a shell), for variables the environment lacks;
 4. validation.
 
-A line that is not an assignment fails the start with the file and the line number.
+A line that is not an assignment fails the start with the file and the line number. The file is opened without
+following a symbolic link and must be a regular file of the current user (root may read any user's file, for
+`sudo streamgo user add`); a wider mode on the user's own file is set back to 0600, anything else is refused. No
+message holds a value.
 
 On the first start `up` creates `<data_dir>/streamgo.env` (mode 0600) with the five variables of
 `packaging/init-env.sh`. For each one it lacks it stores the value the environment gives, when there is one, and

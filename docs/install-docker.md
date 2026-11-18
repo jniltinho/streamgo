@@ -237,7 +237,7 @@ The image is published as `ghcr.io/jniltinho/streamgo` with these tags:
 
 | Tag | What |
 |---|---|
-| `X.Y.Z-allinone`, for example `0.1.0-allinone` | That release |
+| `X.Y.Z-allinone`, for example `0.2.0-allinone` | That release |
 | `X.Y-allinone` | The latest release of that minor version |
 | `allinone` | The latest release |
 | `main-allinone` | The current state of the `main` branch, not a release |
@@ -245,7 +245,7 @@ The image is published as `ghcr.io/jniltinho/streamgo` with these tags:
 Start it, with `NODE_IP` set to the address browsers reach the server at (its public address behind NAT):
 
 ```bash
-docker run -d --name streamgo --restart unless-stopped --stop-timeout 50 -v streamgo-data:/data -p 8080:8080 -p 7881:7881 -p 7882:7882/udp -p 8189:8189 -p 8189:8189/udp -e NODE_IP=203.0.113.10 ghcr.io/jniltinho/streamgo:0.1.0-allinone
+docker run -d --name streamgo --restart unless-stopped --stop-timeout 50 -v streamgo-data:/data -p 8080:8080 -p 7881:7881 -p 7882:7882/udp -p 8189:8189 -p 8189:8189/udp -e NODE_IP=203.0.113.10 ghcr.io/jniltinho/streamgo:0.2.0-allinone
 ```
 
 On the first start the container creates the secret key and the credentials the three services share in

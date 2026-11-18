@@ -6,6 +6,13 @@ are the section of that version.
 
 ## [Unreleased]
 
+—
+
+## [0.2.0] — 2026-11-17
+
+**Accounts and output settings move into the app: administrators manage users and the output's quality in the
+browser, each broadcast picks its resolution up to 1440p, and the name tags can be taken off the program.**
+
 ### Added
 
 - **User management** — the first account of an install is its administrator (on an existing install, the oldest
